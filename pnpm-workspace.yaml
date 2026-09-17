@@ -1,0 +1,16 @@
+# pnpm-workspace.yaml
+packages:
+  - "app"
+  - "extension"
+allowBuilds:
+  '@clerk/shared': true
+  '@parcel/watcher': true
+  '@swc/core': true
+  browser-tabs-lock: true
+  bufferutil: true
+  core-js: true
+  esbuild: true
+  lmdb: true
+  msgpackr-extract: true
+  sharp: true
+  utf-8-validate: true

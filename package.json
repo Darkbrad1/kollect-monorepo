@@ -1,0 +1,25 @@
+{
+  "name": "kollect",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev:convex": "convex dev",
+    "dev:app": "pnpm --filter app dev",
+    "dev:extension": "pnpm --filter extension dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.13.0",
+      "onFail": "download"
+    }
+  },
+  "type": "module",
+  "devDependencies": {
+    "convex": "^1.45.0"
+  }
+}

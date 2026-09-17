@@ -1,0 +1,157 @@
+.
+├── app
+│   ├── convex.json
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── node_modules
+│   │   ├── convex -> ../../node_modules/.pnpm/convex@1.45.0_react@19.2.8/node_modules/convex
+│   │   ├── @eslint
+│   │   │   └── js -> ../../../node_modules/.pnpm/@eslint+js@10.0.1_eslint@10.9.0_supports-color@7.2.0_/node_modules/@eslint/js
+│   │   ├── eslint -> ../../node_modules/.pnpm/eslint@10.9.0_supports-color@7.2.0/node_modules/eslint
+│   │   ├── eslint-plugin-react-hooks -> ../../node_modules/.pnpm/eslint-plugin-react-hooks@7.1.1_eslint@10.9.0_supports-color@7.2.0__supports-color@7.2.0/node_modules/eslint-plugin-react-hooks
+│   │   ├── eslint-plugin-react-refresh -> ../../node_modules/.pnpm/eslint-plugin-react-refresh@0.5.4_eslint@10.9.0_supports-color@7.2.0_/node_modules/eslint-plugin-react-refresh
+│   │   ├── globals -> ../../node_modules/.pnpm/globals@17.11.0/node_modules/globals
+│   │   ├── react -> ../../node_modules/.pnpm/react@19.2.8/node_modules/react
+│   │   ├── react-dom -> ../../node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom
+│   │   ├── @types
+│   │   │   ├── node -> ../../../node_modules/.pnpm/@types+node@24.13.3/node_modules/@types/node
+│   │   │   ├── react -> ../../../node_modules/.pnpm/@types+react@19.2.18/node_modules/@types/react
+│   │   │   └── react-dom -> ../../../node_modules/.pnpm/@types+react-dom@19.2.4_@types+react@19.2.18/node_modules/@types/react-dom
+│   │   ├── typescript -> ../../node_modules/.pnpm/typescript@6.0.3/node_modules/typescript
+│   │   ├── typescript-eslint -> ../../node_modules/.pnpm/typescript-eslint@8.67.0_eslint@10.9.0_supports-color@7.2.0__supports-color@7.2.0_typescript@6.0.3/node_modules/typescript-eslint
+│   │   ├── vite -> ../../node_modules/.pnpm/vite@8.2.2_@types+node@24.13.3_esbuild@0.27.0_less@4.9.0_supports-color@7.2.0__sass@1.103.1_yaml@2.9.0/node_modules/vite
+│   │   └── @vitejs
+│   │       └── plugin-react -> ../../../node_modules/.pnpm/@vitejs+plugin-react@6.1.0_vite@8.2.2_@types+node@24.13.3_esbuild@0.27.0_less@4.9.0_sup_57ff4ab472c975e4706053ea5a1fce31/node_modules/@vitejs/plugin-react
+│   ├── package.json
+│   ├── public
+│   │   ├── favicon.svg
+│   │   └── icons.svg
+│   ├── README.md
+│   ├── src
+│   │   ├── App.css
+│   │   ├── App.tsx
+│   │   ├── assets
+│   │   │   ├── hero.png
+│   │   │   ├── react.svg
+│   │   │   └── vite.svg
+│   │   ├── index.css
+│   │   └── main.tsx
+│   ├── tsconfig.app.json
+│   ├── tsconfig.json
+│   ├── tsconfig.node.json
+│   └── vite.config.ts
+├── convex
+│   ├── auth.config.ts
+│   └── _generated
+│       ├── api.d.ts
+│       ├── api.js
+│       ├── dataModel.d.ts
+│       ├── server.d.ts
+│       └── server.js
+├── extension
+│   ├── assets
+│   │   └── icon.png
+│   ├── build
+│   │   └── chrome-mv3-dev
+│   │       ├── AccountCredits.e04f4f0e.js
+│   │       ├── APIKeys.df1a1ebc.js
+│   │       ├── APIKeysPage.a0f378f1.js
+│   │       ├── BillingPage.cd2e979a.js
+│   │       ├── BlankCaptchaModal.a4b7cf78.js
+│   │       ├── Checkout.5ce47320.js
+│   │       ├── common.5e6f2088.js
+│   │       ├── ConfigureSSO.95e78795.js
+│   │       ├── contexts.41bb16dc.js
+│   │       ├── contexts.c11c3518.js
+│   │       ├── CopyAPIKeyModal.ad8dc603.js
+│   │       ├── CreateOrganization.316e5507.js
+│   │       ├── customizables.3c8a5396.js
+│   │       ├── Drawer.e08367e4.js
+│   │       ├── EnableOrganizationsPrompt.964f9d97.js
+│   │       ├── esm-DBdr4TEC.f235120a.js
+│   │       ├── GoogleOneTap.cb2a0fad.js
+│   │       ├── icon128.plasmo.726fdf83.png
+│   │       ├── icon16.plasmo.915226b9.png
+│   │       ├── icon32.plasmo.768d3fdf.png
+│   │       ├── icon48.plasmo.53a0bd03.png
+│   │       ├── icon64.plasmo.d52c9c19.png
+│   │       ├── ImpersonationFab.fd52c611.js
+│   │       ├── InviteMembers.3bdb8dfb.js
+│   │       ├── KeylessPrompt.3c09293f.js
+│   │       ├── manifest.json
+│   │       ├── Modal.bf078adb.js
+│   │       ├── MountedCheckoutDrawer.32a9df77.js
+│   │       ├── MountedPlanDetailDrawer.0b6ed30c.js
+│   │       ├── MountedSubscriptionDetailDrawer.78abb2e6.js
+│   │       ├── OAuthConsent.996afe35.js
+│   │       ├── OrganizationAPIKeysPage.61e62712.js
+│   │       ├── OrganizationBillingPage.9d731df3.js
+│   │       ├── OrganizationList.1917080b.js
+│   │       ├── OrganizationPaymentAttemptPage.98c2ec76.js
+│   │       ├── OrganizationPlansPage.8ed95253.js
+│   │       ├── OrganizationProfile.f998007f.js
+│   │       ├── OrganizationSecurityPage.36ab213f.js
+│   │       ├── OrganizationStatementPage.dbc901ac.js
+│   │       ├── OrganizationSwitcher.beea94ed.js
+│   │       ├── PaymentAttempts.ce87cf72.js
+│   │       ├── PlanDetails.179089ea.js
+│   │       ├── PlansPage.20298dfd.js
+│   │       ├── plasmo-default-background.2c266944.js
+│   │       ├── popup.b1d6a4e5.css
+│   │       ├── popup.c464451c.js
+│   │       ├── popup.html
+│   │       ├── portal.f207e739.js
+│   │       ├── prefetch-organization-list.4af4f708.js
+│   │       ├── PricingTable.3f3082f0.js
+│   │       ├── RevokeAPIKeyConfirmationModal.9b285442.js
+│   │       ├── router.45ef6306.js
+│   │       ├── SessionTasks.4ce479ea.js
+│   │       ├── SignIn.3c86f572.js
+│   │       ├── SignUp.b95c7c23.js
+│   │       ├── Statements.9543815f.js
+│   │       ├── StyleCacheProvider.44695449.js
+│   │       ├── styledSystem.5408cbc5.js
+│   │       ├── SubscriptionDetails.ce970960.js
+│   │       ├── TaskChooseOrganization.b6697113.js
+│   │       ├── TaskResetPassword.41478df1.js
+│   │       ├── TaskSetupMfa.32af5c28.js
+│   │       ├── UserAvatar.f4de0f3f.js
+│   │       ├── UserButton.1134418e.js
+│   │       ├── UserProfile.9f621dff.js
+│   │       ├── UserVerification.d3516eb4.js
+│   │       ├── util.05d93a19.js
+│   │       ├── Waitlist.032a68dc.js
+│   │       └── Web3SolanaWalletButtons.88bcf386.js
+│   ├── convex-client.ts
+│   ├── convex.json
+│   ├── node_modules
+│   │   ├── @clerk
+│   │   │   └── chrome-extension -> ../../../node_modules/.pnpm/@clerk+chrome-extension@3.1.74_@solana+web3.js@1.98.4_bufferutil@4.1.0_typescript@5.3.3_3f5b12963844dd9a0d8e4960cfef6fd3/node_modules/@clerk/chrome-extension
+│   │   ├── @ianvs
+│   │   │   └── prettier-plugin-sort-imports -> ../../../node_modules/.pnpm/@ianvs+prettier-plugin-sort-imports@4.1.1_@vue+compiler-sfc@3.3.4_prettier@3.2.4_supports-color@8.1.1/node_modules/@ianvs/prettier-plugin-sort-imports
+│   │   ├── plasmo -> ../../node_modules/.pnpm/plasmo@0.90.5_@swc+core@1.15.46_@swc+helpers@0.5.23__@swc+helpers@0.5.23_@types+node@20_9cbc77759409aa2db4ff9c06711b1afe/node_modules/plasmo
+│   │   ├── prettier -> ../../node_modules/.pnpm/prettier@3.2.4/node_modules/prettier
+│   │   ├── react -> ../../node_modules/.pnpm/react@18.2.0/node_modules/react
+│   │   ├── react-dom -> ../../node_modules/.pnpm/react-dom@18.2.0_react@18.2.0/node_modules/react-dom
+│   │   ├── @tailwindcss
+│   │   │   └── postcss -> ../../../node_modules/.pnpm/@tailwindcss+postcss@4.3.3/node_modules/@tailwindcss/postcss
+│   │   ├── tailwindcss -> ../../node_modules/.pnpm/tailwindcss@4.3.3/node_modules/tailwindcss
+│   │   ├── @types
+│   │   │   ├── chrome -> ../../../node_modules/.pnpm/@types+chrome@0.0.258/node_modules/@types/chrome
+│   │   │   ├── node -> ../../../node_modules/.pnpm/@types+node@20.11.5/node_modules/@types/node
+│   │   │   ├── react -> ../../../node_modules/.pnpm/@types+react@18.2.48/node_modules/@types/react
+│   │   │   └── react-dom -> ../../../node_modules/.pnpm/@types+react-dom@18.2.18/node_modules/@types/react-dom
+│   │   └── typescript -> ../../node_modules/.pnpm/typescript@5.3.3/node_modules/typescript
+│   ├── package.json
+│   ├── popup.tsx
+│   ├── README.md
+│   ├── styles.css
+│   └── tsconfig.json
+├── node_modules
+│   └── convex -> .pnpm/convex@1.45.0_@clerk+react@6.14.5_react-dom@19.2.8_react@19.2.8__react@19.2.8__bufferut_f4f91edec5c0d3d63061363a607ca571/node_modules/convex
+├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
+└── tree.txt
+
+50 directories, 105 files
