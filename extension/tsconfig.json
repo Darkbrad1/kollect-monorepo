@@ -1,0 +1,16 @@
+{
+  "extends": "plasmo/templates/tsconfig.base",
+  "exclude": ["node_modules"],
+  "include": [
+    ".plasmo/index.d.ts",
+    "./**/*.ts",
+    "./**/*.tsx",
+    "../convex/_generated"
+  ],
+  "compilerOptions": {
+    "paths": {
+      "~*": ["./*"]
+    },
+    "baseUrl": "."
+  }
+}
