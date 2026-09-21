@@ -8,11 +8,6 @@
  * @module
  */
 
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
 import type * as catalogue from "../catalogue.js";
 import type * as crons from "../crons.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -21,6 +16,12 @@ import type * as lib_pages from "../lib/pages.js";
 import type * as library from "../library.js";
 import type * as settings from "../settings.js";
 import type * as users from "../users.js";
+
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
 
 declare const fullApi: ApiFromModules<{
   catalogue: typeof catalogue;
