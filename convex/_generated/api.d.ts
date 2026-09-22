@@ -18,6 +18,7 @@ import type * as library from "../library.js";
 import type * as pages from "../pages.js";
 import type * as settings from "../settings.js";
 import type * as sites from "../sites.js";
+import type * as transfer from "../transfer.js";
 import type * as trash from "../trash.js";
 import type * as users from "../users.js";
 
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   pages: typeof pages;
   settings: typeof settings;
   sites: typeof sites;
+  transfer: typeof transfer;
   trash: typeof trash;
   users: typeof users;
 }>;
