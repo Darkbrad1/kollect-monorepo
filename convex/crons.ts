@@ -12,4 +12,13 @@ crons.weekly(
   { cursor: null },
 );
 
+// Daily sweep of soft-deleted rows past their purgeAt. Rows belonging
+// to users with autoClearTrash off carry no purgeAt and are skipped.
+crons.daily(
+  "purge expired trash",
+  { hourUTC: 5, minuteUTC: 0 },
+  internal.trash.purgeExpired,
+  {},
+);
+
 export default crons;

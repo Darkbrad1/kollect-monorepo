@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation } from "./_generated/server";
 import { requireSettings, requireUser } from "./lib/auth";
 import {
@@ -75,6 +76,23 @@ export const updateSettings = mutation({
     );
     if (Object.keys(patch).length === 0) return;
 
+    // Whether this call changes how long trash survives. Compared
+    // before the patch lands, so a no-op save doesn't kick off a sweep.
+    const retentionChanged =
+      (args.trashRetentionDays !== undefined &&
+        args.trashRetentionDays !== settings.trashRetentionDays) ||
+      (args.autoClearTrash !== undefined &&
+        args.autoClearTrash !== settings.autoClearTrash);
+
     await ctx.db.patch(settings._id, patch);
+
+    // Existing trash was stamped with purgeAt under the OLD window, so
+    // without this the change silently only applies to future deletes.
+    if (retentionChanged) {
+      await ctx.scheduler.runAfter(0, internal.trash.rewritePurgeAt, {
+        userId: user._id,
+        cursor: null,
+      });
+    }
   },
 });

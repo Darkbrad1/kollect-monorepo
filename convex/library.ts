@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { requireOwnedManga, requireSettings, requireUser } from "./lib/auth";
 import { placeOnProgressPage } from "./lib/pages";
+import { restoreUserManga } from "./lib/trash";
 import type { ProgressKey } from "./lib/constants";
 
 const progressKey = v.union(
@@ -35,14 +36,9 @@ export const addManga = mutation({
     if (existing !== null) {
       if (!existing.isDeleted) return { userMangaId: existing._id, action: "noop" as const };
 
-      // Memberships survived the soft delete, so clearing the three
-      // fields is the whole restore — the manga reappears on the pages
-      // it was on.
-      await ctx.db.patch(existing._id, {
-        isDeleted: false,
-        deletedAt: undefined,
-        purgeAt: undefined,
-      });
+      // Same restore the trash page performs — memberships survived
+      // the soft delete, so the manga reappears where it was.
+      await restoreUserManga(ctx, existing._id);
       return { userMangaId: existing._id, action: "restored" as const };
     }
 

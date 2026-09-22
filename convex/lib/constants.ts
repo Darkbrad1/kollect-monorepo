@@ -62,16 +62,16 @@ export const SCROLL_THRESHOLD_MAX = 100;
 
 export const DEFAULT_TRASH_RETENTION_DAYS = 30;
 
-/* TODO(ui-slice): replace with the exact hexes lifted from the
-   Figma file when the settings screen is built. These are a close
-   read of the mockups, not sampled tokens. */
+/* Font matches the Font row in the settings design. The hexes are
+   still a close read of the mockups rather than sampled tokens —
+   TODO(ui-slice): lift the exact values when the screen is built. */
 export const DEFAULT_THEME = {
   colors: {
     primary: "#E8615D",
     secondary: "#5FD9C8",
     base: "#0F0F0F",
   },
-  font: "Inter",
+  font: "Manrope",
 } as const;
 
 export const DEFAULT_SETTINGS = {
@@ -79,7 +79,7 @@ export const DEFAULT_SETTINGS = {
   trashRetentionDays: DEFAULT_TRASH_RETENTION_DAYS,
   autoClearTrash: true,
   autoCompleteOnFinish: false,
-  scrollThreshold: 90,
+  scrollThreshold: 80,
   hasPercentageBar: false,
   hasScreenOverlayOptions: false,
 } as const;
