@@ -118,7 +118,7 @@ describe("full backup import — chapters", () => {
 
     // Bob is on 50; Alice's backup says 80.
     const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file });
+    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.row.currentChapterNumber).toBe(80);
@@ -132,7 +132,7 @@ describe("full backup import — chapters", () => {
     await libraryWith(c, c.bob, c.mangaIds[0], { chapter: 80, siteId: c.siteId });
 
     const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file });
+    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.row.currentChapterNumber).toBe(80);
@@ -146,7 +146,7 @@ describe("full backup import — chapters", () => {
     await libraryWith(c, c.bob, c.mangaIds[0], { chapter: 60, siteId: c.siteId });
 
     const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file });
+    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.row.currentChapterNumber).toBe(60);
@@ -159,8 +159,8 @@ describe("full backup import — chapters", () => {
     await libraryWith(c, c.bob, c.mangaIds[0], { chapter: 50, siteId: c.siteId });
 
     const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file });
-    await c.bob.mutation(api.transfer.importLibrary, { file });
+    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.history).toEqual([50]);
@@ -174,7 +174,7 @@ describe("full backup import — chapters", () => {
     const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
     if (file.kind !== "full") throw new Error("expected full");
     file.items[0].currentSiteId = "not-a-real-id" as Id<"sites">;
-    await c.bob.mutation(api.transfer.importLibrary, { file });
+    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.row.currentSiteId).toBe(c.siteId);
@@ -196,7 +196,7 @@ describe("full backup import — pages", () => {
     await libraryWith(c, c.bob, c.mangaIds[0], { page: accountPage as never });
 
     const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file });
+    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.pages).toEqual([expected]);
@@ -221,7 +221,7 @@ describe("full backup import — pages", () => {
     await libraryWith(c, c.bob, c.mangaIds[0], { page: "planned" });
 
     const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file });
+    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.pages).toEqual(["custom:Murim", "favourites", "reading"]);
@@ -229,19 +229,49 @@ describe("full backup import — pages", () => {
 });
 
 describe("import — other cases", () => {
-  test("a manga in the trash is restored, then merged", async () => {
+  test("a manga in the trash stays in the trash (full backup)", async () => {
     const c = await setup();
     await libraryWith(c, c.alice, c.mangaIds[0], { chapter: 80, siteId: c.siteId });
     const bobRow = await libraryWith(c, c.bob, c.mangaIds[0], { chapter: 50, siteId: c.siteId });
     await c.bob.mutation(api.trash.softDelete, { userMangaId: bobRow });
 
     const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    const report = await c.bob.mutation(api.transfer.importLibrary, { file });
+    const report = await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
-    expect(report.restored).toBe(1);
-    expect(s!.row.isDeleted).toBe(false);
-    expect(s!.row.currentChapterNumber).toBe(80);
+    expect(s!.row.isDeleted).toBe(true);
+    expect(s!.row.currentChapterNumber).toBe(50);
+    expect(s!.history).toEqual([]);
+    expect(report.skipped[0].reason).toMatch(/in your trash/);
+  });
+
+  test("a manga in the trash stays in the trash (titles only)", async () => {
+    const c = await setup();
+    await libraryWith(c, c.alice, c.mangaIds[0], {});
+    const bobRow = await libraryWith(c, c.bob, c.mangaIds[0], {});
+    await c.bob.mutation(api.trash.softDelete, { userMangaId: bobRow });
+
+    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "titles" });
+    const report = await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+
+    const s = await stateOf(c, "test|bob", c.mangaIds[0]);
+    expect(s!.row.isDeleted).toBe(true);
+    expect(report.added).toBe(0);
+  });
+
+  test("settings are imported only when the user asks", async () => {
+    const c = await setup();
+    await c.alice.mutation(api.settings.updateSettings, { scrollThreshold: 55 });
+    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
+
+    const bobThreshold = () =>
+      c.bob.query(api.users.me, {}).then((me) => me!.settings.scrollThreshold);
+
+    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    expect(await bobThreshold()).toBe(80);
+
+    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: true });
+    expect(await bobThreshold()).toBe(55);
   });
 
   test("a manga missing from the catalogue is skipped, never created", async () => {
@@ -250,7 +280,7 @@ describe("import — other cases", () => {
     const file = await c.alice.query(api.transfer.exportLibrary, { kind: "titles" });
     file.mangas.push({ ...file.mangas[0], id: undefined, title: "Made Up", normalizedTitle: "made up" });
 
-    const report = await c.bob.mutation(api.transfer.importLibrary, { file });
+    const report = await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
 
     expect(report.added).toBe(1);
     expect(report.skipped).toEqual([{ title: "Made Up", reason: "not in the catalogue" }]);
@@ -262,7 +292,7 @@ describe("import — other cases", () => {
     const c = await setup();
     await libraryWith(c, c.alice, c.mangaIds[0], { page: "completed" });
     const file = await c.alice.query(api.transfer.exportLibrary, { kind: "titles" });
-    await c.bob.mutation(api.transfer.importLibrary, { file });
+    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.pages).toEqual(["reading"]);
@@ -272,7 +302,7 @@ describe("import — other cases", () => {
     const c = await setup();
     const file = await c.alice.query(api.transfer.exportLibrary, { kind: "titles" });
     await expect(
-      c.bob.mutation(api.transfer.importLibrary, { file: { ...file, kollect: 2 } }),
+      c.bob.mutation(api.transfer.importLibrary, { file: { ...file, kollect: 2 }, includeSettings: false }),
     ).rejects.toThrow(/export format 2/);
   });
 });
@@ -283,7 +313,7 @@ describe("switching back to a history chapter", () => {
     await libraryWith(c, c.alice, c.mangaIds[0], { chapter: 80, siteId: c.siteId });
     await libraryWith(c, c.bob, c.mangaIds[0], { chapter: 50, siteId: c.siteId });
     const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file });
+    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
 
     const bobRow = (await stateOf(c, "test|bob", c.mangaIds[0]))!.row;
     const history = await c.bob.query(api.library.chapterHistory, { userMangaId: bobRow._id });

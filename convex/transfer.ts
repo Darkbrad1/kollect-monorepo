@@ -10,7 +10,6 @@ import {
   placeOnProgressPage,
 } from "./lib/pages";
 import { applySettingsPatch } from "./lib/settings";
-import { restoreUserManga } from "./lib/trash";
 import {
   filterRule,
   mangaStatus,
@@ -284,16 +283,37 @@ export const exportLibrary = query({
      pages    — progress page chosen by PROGRESS_PRIORITY
                 (completed > reading > paused > planned); favourites
                 and custom pages from the file are added on top
-     trash    — a soft-deleted copy is restored, then merged
+     trash    — left alone. Deleting was a deliberate choice, so an
+                import does not undo it; the manga is listed in the
+                report instead
+
+   Settings in a Full backup are applied only when the user ticks the
+   option to include them — importing someone else's backup should
+   not quietly replace your theme.
    ═══════════════════════════════════════════════════════════════ */
 
 type ImportReport = {
   added: number;
   merged: number;
-  restored: number;
   alreadyInLibrary: number;
   skipped: { title: string; reason: string }[];
 };
+
+const IN_TRASH = "in your trash, so it was left there";
+
+async function isInTrash(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  mangaId: Id<"mangas">,
+): Promise<boolean> {
+  const row = await ctx.db
+    .query("userMangas")
+    .withIndex("by_user_manga", (q) =>
+      q.eq("userId", userId).eq("mangaId", mangaId),
+    )
+    .unique();
+  return row !== null && row.isDeleted;
+}
 
 async function resolveManga(
   ctx: MutationCtx,
@@ -453,8 +473,13 @@ async function mergeChapters(
 }
 
 export const importLibrary = mutation({
-  args: { file: exportFile },
-  handler: async (ctx, { file }): Promise<ImportReport> => {
+  args: {
+    file: exportFile,
+    // The "also import settings" choice shown during import. Ignored
+    // for Titles only files, which carry no settings.
+    includeSettings: v.boolean(),
+  },
+  handler: async (ctx, { file, includeSettings }): Promise<ImportReport> => {
     if (file.kollect !== EXPORT_FORMAT_VERSION) {
       throw new Error(
         `This file uses export format ${file.kollect}; this version of Kollect reads format ${EXPORT_FORMAT_VERSION}.`,
@@ -467,7 +492,6 @@ export const importLibrary = mutation({
     const report: ImportReport = {
       added: 0,
       merged: 0,
-      restored: 0,
       alreadyInLibrary: 0,
       skipped: [],
     };
@@ -486,6 +510,10 @@ export const importLibrary = mutation({
           report.skipped.push({ title: entry.title, reason: "not in the catalogue" });
           continue;
         }
+        if (await isInTrash(ctx, user._id, mangaId)) {
+          report.skipped.push({ title: entry.title, reason: IN_TRASH });
+          continue;
+        }
         const { action } = await addToLibrary(
           ctx,
           user._id,
@@ -493,7 +521,6 @@ export const importLibrary = mutation({
           settings.defaultProgressKey,
         );
         if (action === "created") report.added++;
-        else if (action === "restored") report.restored++;
         else report.alreadyInLibrary++;
       }
       return report;
@@ -570,11 +597,10 @@ export const importLibrary = mutation({
       }
 
       if (existing.isDeleted) {
-        await restoreUserManga(ctx, existing._id);
-        report.restored++;
-      } else {
-        report.merged++;
+        report.skipped.push({ title: entry.title, reason: IN_TRASH });
+        continue;
       }
+      report.merged++;
 
       await mergeChapters(ctx, existing, fileSide, entry.title, report);
 
@@ -590,7 +616,9 @@ export const importLibrary = mutation({
     }
 
     // Same validation and retention rewrite as the settings screen.
-    await applySettingsPatch(ctx, settings, file.settings);
+    if (includeSettings) {
+      await applySettingsPatch(ctx, settings, file.settings);
+    }
 
     return report;
   },
