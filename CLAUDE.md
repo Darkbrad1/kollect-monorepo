@@ -30,7 +30,7 @@ Useful commands:
 
 These were settled with me, so don't reopen them without asking.
 
-- **Pages:** four progress pages (Reading, Planned, Paused, Completed) plus Favourites. There is no "Dropped" page. "Deleted" in the menu is the trash view, not a page.
+- **Pages:** four progress pages (Reading, Planned, Paused, Completed) plus Favourites. There is no "Dropped" page. "Deleted" in the menu is the trash view, not a page. There are **no custom pages**: tags replace them (see below).
 - **Being on a page *is* the status.** Every manga that isn't in the trash sits on exactly one progress page. Status changes always go through `moveToProgressPage`.
 - **Sorting and filtering happen in the extension, not in Convex.** Convex only stores each page's filter and sort settings and returns every manga on the page. The extension shows about 10 on screen and loads 10 ahead and 10 behind as you scroll.
 - **Deleting:** deleting moves a manga to the trash. Deleting from the trash page removes it permanently, after the user confirms.
@@ -54,4 +54,10 @@ These were settled with me, so don't reopen them without asking.
   - **Date added:** greater than, less than, between, counted in days ago. "Greater than 7" means added more than 7 days ago.
   - **Source:** equal means the site you're reading it on now. Contains means any site you've read it on before, from your reading history (the current site counts too).
   - "Between" includes both ends. A manga with no value for a field (for example, never read) doesn't match filters on that field.
+- **Tags** (decided, not built yet; the details are still being settled):
+  - Users put their own tags on manga instead of making custom pages, so nothing can clash with the built-in pages.
+  - Tags can be used in filters.
+  - **Favourite is a tag.** The Favourites page stays, but it shows the manga that have the Favourite tag, instead of holding its own list.
+- **Reading tracking** (for later): the reading page talks to the backend directly, whether or not the popup is open. Don't route it through the popup.
+- **On hold:** the extension screens and reading tracking wait until the design is final. Don't start them unless asked.
 - **The latest chapter** for each manga is stored on the manga itself and refreshed by a weekly job.

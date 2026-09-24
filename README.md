@@ -130,13 +130,12 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 
 ## What's not built yet
 
-- **The extension's screens.** The popup is still a placeholder while the Figma design is finished.
+- **The extension's screens.** On hold until the design is final. The popup is still a placeholder.
+- **Tags.** Tags will replace custom pages: you tag manga, and use tags in filters. Favourite becomes a tag, and the Favourites page shows the manga with that tag. The code still has custom pages for now.
 - **Backend pieces the screens will need:**
-  - Adding a manga to Favourites or a custom page, and taking it off again.
-  - Creating, renaming, reordering and deleting custom pages.
   - Saving a page's filters and sort. The filter rules exist, but nothing saves them to a page yet.
   - The final list of sort options.
-- **Reading tracking.** Nothing watches reading sites yet, so chapters don't update on their own.
+- **Reading tracking.** On hold until the design is final. Nothing watches reading sites yet, so chapters don't update on their own. When it's built, the reading page will talk to the backend directly, so it works even when the popup is closed.
 - **Latest-chapter lookups.** The weekly job runs, but the part that actually looks up each series' newest chapter is a placeholder until reading websites are added.
 - **Production builds.** `plasmo build` only reads `extension/.env.chrome`, which doesn't have the Clerk or Convex settings yet, so a production build won't work until they're added there.
 - **Automatic checks on GitHub.** Tests only run when someone runs `pnpm test`. Nothing runs them automatically on a pull request yet.
