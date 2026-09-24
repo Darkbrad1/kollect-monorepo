@@ -12,6 +12,7 @@ import type * as catalogue from "../catalogue.js";
 import type * as crons from "../crons.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_constants from "../lib/constants.js";
+import type * as lib_filters from "../lib/filters.js";
 import type * as lib_library from "../lib/library.js";
 import type * as lib_pages from "../lib/pages.js";
 import type * as lib_settings from "../lib/settings.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   "lib/auth": typeof lib_auth;
   "lib/constants": typeof lib_constants;
+  "lib/filters": typeof lib_filters;
   "lib/library": typeof lib_library;
   "lib/pages": typeof lib_pages;
   "lib/settings": typeof lib_settings;
