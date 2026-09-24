@@ -87,7 +87,7 @@ async function importFile(
 ) {
   const f = file;
   if (option !== "titles") {
-    await as.mutation(api.transfer.importPages, { kollect: f.kollect, pages: f.pages });
+    await as.mutation(api.transfer.importTags, { kollect: f.kollect, tags: f.tags });
   }
   const report = await as.mutation(api.transfer.importMangas, {
     kollect: f.kollect,
@@ -100,7 +100,7 @@ async function importFile(
   return report;
 }
 
-/** A user's state for one manga: current chapter, pages, history. */
+/** A user's state for one manga: current chapter, page, tags, history. */
 async function stateOf({ t }: Ctx, token: string, mangaId: Id<"mangas">) {
   return await t.run(async (ctx) => {
     const user = await ctx.db
@@ -113,15 +113,9 @@ async function stateOf({ t }: Ctx, token: string, mangaId: Id<"mangas">) {
       .unique();
     if (row === null) return null;
 
-    const memberships = await ctx.db
-      .query("userPageMangas")
-      .withIndex("by_userManga", (q) => q.eq("userMangaId", row._id))
-      .collect();
-    const pages: string[] = [];
-    for (const m of memberships) {
-      const page = await ctx.db.get(m.pageId);
-      pages.push(page!.systemKey ?? `custom:${page!.title}`);
-    }
+    const tags: string[] = [];
+    for (const id of row.tagIds) tags.push((await ctx.db.get(id))!.name);
+
     const history = await ctx.db
       .query("readChapters")
       .withIndex("by_userManga_number", (q) => q.eq("userMangaId", row._id))
@@ -129,7 +123,8 @@ async function stateOf({ t }: Ctx, token: string, mangaId: Id<"mangas">) {
 
     return {
       row,
-      pages: pages.sort(),
+      page: row.progressKey,
+      tags: tags.sort(),
       history: history.map((h) => h.number),
     };
   });
@@ -223,32 +218,25 @@ describe("full backup import — pages", () => {
     await importFile(c.bob, file, "titlesAndPages");
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
-    expect(s!.pages).toEqual([expected]);
+    expect(s!.page).toBe(expected);
   });
 
-  test("favourites and custom pages are added on top", async () => {
+  test("the file's tags, Favourite included, are added on top", async () => {
     const c = await setup();
-    const userMangaId = await libraryWith(c, c.alice, c.mangaIds[0], { page: "reading" });
-    await c.t.run(async (ctx) => {
-      const alice = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("token", "test|alice")).unique();
-      const fav = await ctx.db
-        .query("userPages")
-        .withIndex("by_user_systemKey", (q) => q.eq("userId", alice!._id).eq("systemKey", "favourites"))
-        .unique();
-      const murim = await ctx.db.insert("userPages", {
-        userId: alice!._id, title: "Murim", order: 9, type: "custom",
-        systemKey: null, filters: [], sort: [],
-      });
-      await ctx.db.insert("userPageMangas", { pageId: fav!._id, userMangaId, order: 0 });
-      await ctx.db.insert("userPageMangas", { pageId: murim, userMangaId, order: 0 });
-    });
-    await libraryWith(c, c.bob, c.mangaIds[0], { page: "planned" });
+    const aliceRow = await libraryWith(c, c.alice, c.mangaIds[0], { page: "reading" });
+    const murim = await c.alice.mutation(api.tags.create, { name: "Murim" });
+    await c.alice.mutation(api.tags.addTag, { userMangaId: aliceRow, tagId: murim });
+    await c.alice.mutation(api.tags.setFavourite, { userMangaId: aliceRow, favourite: true });
+
+    const bobRow = await libraryWith(c, c.bob, c.mangaIds[0], { page: "planned" });
+    const isekai = await c.bob.mutation(api.tags.create, { name: "Isekai" });
+    await c.bob.mutation(api.tags.addTag, { userMangaId: bobRow, tagId: isekai });
 
     const file = await c.alice.query(api.transfer.exportLibrary, {});
     await importFile(c.bob, file, "titlesAndPages");
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
-    expect(s!.pages).toEqual(["custom:Murim", "favourites", "reading"]);
+    expect(s!.tags).toEqual(["Favourite", "Isekai", "Murim"]);
   });
 });
 
@@ -322,7 +310,7 @@ describe("import — other cases", () => {
     await importFile(c.bob, file, "titles");
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
-    expect(s!.pages).toEqual(["reading"]);
+    expect(s!.page).toBe("reading");
     expect(s!.row.currentChapterNumber).toBeUndefined();
   });
 
@@ -335,36 +323,35 @@ describe("import — other cases", () => {
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(report.alreadyInLibrary).toBe(1);
-    expect(s!.pages).toEqual(["planned"]);
+    expect(s!.page).toBe("planned");
     expect(s!.row.currentChapterNumber).toBe(10);
   });
 
-  test("title and page brings custom pages over", async () => {
+  test("tags come over with Title And Page, not with Titles Only", async () => {
     const c = await setup();
-    await c.t.run(async (ctx) => {
-      const alice = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("token", "test|alice")).unique();
-      await ctx.db.insert("userPages", {
-        userId: alice!._id, title: "Murim", order: 9, type: "custom",
-        systemKey: null, filters: [], sort: [],
-      });
-    });
+    const aliceRow = await libraryWith(c, c.alice, c.mangaIds[0], {});
+    await c.alice.mutation(api.tags.create, { name: "Unused" });
+    const murim = await c.alice.mutation(api.tags.create, { name: "Murim" });
+    await c.alice.mutation(api.tags.addTag, { userMangaId: aliceRow, tagId: murim });
+    await c.alice.mutation(api.tags.setFavourite, { userMangaId: aliceRow, favourite: true });
     const file = await c.alice.query(api.transfer.exportLibrary, {});
 
     await importFile(c.bob, file, "titles");
-    const titlesOnly = await c.bob.query(api.users.me, {});
-    expect(titlesOnly!.pages.map((p) => p.title)).not.toContain("Murim");
+    expect((await c.bob.query(api.tags.list, {})).map((t) => t.name)).toEqual(["Favourite"]);
+    expect((await stateOf(c, "test|bob", c.mangaIds[0]))!.tags).toEqual([]);
 
     await importFile(c.bob, file, "titlesAndPages");
-    const withPages = await c.bob.query(api.users.me, {});
-    expect(withPages!.pages.map((p) => p.title)).toContain("Murim");
+    // Even a tag no manga uses comes over.
+    expect((await c.bob.query(api.tags.list, {})).map((t) => t.name)).toEqual(["Favourite", "Murim", "Unused"]);
+    expect((await stateOf(c, "test|bob", c.mangaIds[0]))!.tags).toEqual(["Favourite", "Murim"]);
   });
 
   test("a file from another format version is rejected clearly", async () => {
     const c = await setup();
     const file = await c.alice.query(api.transfer.exportLibrary, {});
     await expect(
-      c.bob.mutation(api.transfer.importMangas, { kollect: 2, mode: "titles", mangas: file.mangas }),
-    ).rejects.toThrow(/export format 2/);
+      c.bob.mutation(api.transfer.importMangas, { kollect: 1, mode: "titles", mangas: file.mangas }),
+    ).rejects.toThrow(/export format 1/);
   });
 });
 

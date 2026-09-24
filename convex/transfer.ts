@@ -2,14 +2,11 @@ import { v, type Infer } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { requireSettings, requireUser } from "./lib/auth";
-import { higherPriority, isProgressKey, type ProgressKey } from "./lib/constants";
+import { higherPriority } from "./lib/constants";
 import { addToLibrary, recordHistory } from "./lib/library";
-import {
-  currentProgressKey,
-  ensureMembership,
-  placeOnProgressPage,
-} from "./lib/pages";
+import { setProgressPage } from "./lib/pages";
 import { applySettingsPatch } from "./lib/settings";
+import { favouriteTag, findOrCreateTag, findTagByName } from "./lib/tags";
 import {
   filterRule,
   mangaStatus,
@@ -23,22 +20,24 @@ import {
 /* ═══════════════════════════════════════════════════════════════
    IMPORT / EXPORT
 
-   Export always writes everything: every manga with its pages and
-   reading progress, the page list, and the settings.
+   Export always writes everything: every manga with its page, tags
+   and reading progress, the page list, the tag list, and the
+   settings.
 
    Import lets the user choose how much of that to bring in, from the
    dropdown in the settings screen:
 
      Titles Only     — just the manga. New ones land on the default
                        page; nothing about existing ones changes.
-     Title And Page  — the manga, which pages they're on, and reading
-                       progress, merged by the import rules below.
+     Title And Page  — the manga, which page they're on, their tags
+                       (Favourite included) and reading progress,
+                       merged by the import rules below.
      All Settings    — everything in Title And Page, plus settings.
 
    Import runs in steps so the extension can show "Importing <title>…"
    while it works. For the chosen option, the extension calls:
 
-     1. importPages     (Title And Page, All Settings) — once
+     1. importTags      (Title And Page, All Settings) — once
      2. importMangas    — repeatedly, a small batch of manga at a time
      3. importSettings  (All Settings) — once
 
@@ -52,27 +51,29 @@ import {
    fallback. Import never creates catalogue rows: a manga it cannot
    find is skipped and listed in the report.
 
-   Per-user rows (pages, library entries) have no stable id across
-   accounts, so pages are referenced by a `ref` string.
+   Per-user rows (pages, tags, library entries) have no stable id
+   across accounts, so pages are referenced by their systemKey and
+   tags by name.
    ═══════════════════════════════════════════════════════════════ */
 
 /** Bump when the file shape changes. The extension should read
     `kollect` from a file before importing it, and every import step
     rejects a file with a different number. */
-export const EXPORT_FORMAT_VERSION = 1;
+export const EXPORT_FORMAT_VERSION = 2;
 
 /* ── file format validators ─────────────────────────────────── */
 
 const pageEntry = v.object({
-  ref: v.string(),
+  systemKey,
   title: v.string(),
   order: v.number(),
-  type: v.union(v.literal("system"), v.literal("custom")),
-  systemKey,
   icon: v.optional(v.string()),
   filters: v.array(filterRule),
   sort: v.array(sortRule),
 });
+
+// The user's own tags. Favourite isn't listed: every account has it.
+const tagEntry = v.object({ name: v.string() });
 
 /** One manga in the file: what it is, plus where it sits and how far
     along it is in the exporting library. */
@@ -90,7 +91,10 @@ const mangaEntry = v.object({
   status: v.optional(mangaStatus),
 
   // Where it sits and how far along it is
-  pages: v.array(v.string()), // page refs
+  progressKey,
+  favourite: v.boolean(),
+  // The user's own tag names. (`tags` above is the series' genres.)
+  userTags: v.array(v.string()),
   addedAt: v.number(),
   currentChapterNumber: v.optional(v.number()),
   currentChapterLabel: v.optional(v.string()),
@@ -113,7 +117,6 @@ const settingsEntry = v.object({
 });
 
 type MangaEntry = Infer<typeof mangaEntry>;
-type PageEntry = Infer<typeof pageEntry>;
 
 function assertFormat(kollect: number): void {
   if (kollect !== EXPORT_FORMAT_VERSION) {
@@ -121,11 +124,6 @@ function assertFormat(kollect: number): void {
       `This file uses export format ${kollect}; this version of Kollect reads format ${EXPORT_FORMAT_VERSION}.`,
     );
   }
-}
-
-/** Stable cross-account identifier for a page. */
-function pageRef(page: Doc<"userPages">): string {
-  return page.systemKey ?? `custom:${page.title}`;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -142,8 +140,11 @@ export const exportLibrary = query({
       .withIndex("by_user_order", (q) => q.eq("userId", user._id))
       .collect();
 
-    const refByPageId = new Map<Id<"userPages">, string>();
-    for (const page of pages) refByPageId.set(page._id, pageRef(page));
+    const tags = await ctx.db
+      .query("userTags")
+      .withIndex("by_user_name", (q) => q.eq("userId", user._id))
+      .collect();
+    const tagById = new Map(tags.map((tag) => [tag._id, tag]));
 
     // sites is tiny; cache lookups so a library sharing one source
     // doesn't re-read the same row per manga.
@@ -171,15 +172,9 @@ export const exportLibrary = query({
       const manga = await ctx.db.get(row.mangaId);
       if (manga === null) continue; // dangling catalogue reference
 
-      const memberships = await ctx.db
-        .query("userPageMangas")
-        .withIndex("by_userManga", (q) => q.eq("userMangaId", row._id))
-        .collect();
-      const refs: string[] = [];
-      for (const membership of memberships) {
-        const ref = refByPageId.get(membership.pageId);
-        if (ref !== undefined) refs.push(ref);
-      }
+      const rowTags = row.tagIds
+        .map((id) => tagById.get(id))
+        .filter((tag): tag is Doc<"userTags"> => tag !== undefined);
 
       mangas.push({
         id: manga._id,
@@ -193,7 +188,9 @@ export const exportLibrary = query({
         year: manga.year,
         status: manga.status,
 
-        pages: refs,
+        progressKey: row.progressKey,
+        favourite: rowTags.some((tag) => tag.builtIn === "favourite"),
+        userTags: rowTags.filter((tag) => tag.builtIn === null).map((tag) => tag.name),
         addedAt: row.addedAt,
         // readChapters is deliberately absent: it is one row per
         // chapter ever read and would dwarf the rest of the file.
@@ -229,15 +226,16 @@ export const exportLibrary = query({
         theme: settings.theme,
       },
       pages: pages.map((page) => ({
-        ref: pageRef(page),
+        systemKey: page.systemKey,
         title: page.title,
         order: page.order,
-        type: page.type,
-        systemKey: page.systemKey,
         icon: page.icon,
         filters: page.filters,
         sort: page.sort,
       })),
+      tags: tags
+        .filter((tag) => tag.builtIn === null)
+        .map((tag) => ({ name: tag.name })),
       mangas,
     };
   },
@@ -253,8 +251,9 @@ export const exportLibrary = query({
      chapters — the bigger chapter number becomes current; the smaller
                 is saved to reading history so the user can go back
      pages    — progress page chosen by PROGRESS_PRIORITY
-                (completed > reading > paused > planned); favourites
-                and custom pages from the file are added on top
+                (completed > reading > paused > planned)
+     tags     — the file's tags, Favourite included, are added on top
+                of the ones the manga already has
      trash    — left alone. Deleting was a deliberate choice, so an
                 import does not undo it; the manga is listed in the
                 report instead
@@ -307,18 +306,6 @@ async function resolveSite(
     if (site !== null) return site._id;
   }
   return null;
-}
-
-/** Every page this account has, keyed by the same ref the file uses. */
-async function pageIdsByRef(
-  ctx: MutationCtx,
-  userId: Id<"users">,
-): Promise<Map<string, Id<"userPages">>> {
-  const pages = await ctx.db
-    .query("userPages")
-    .withIndex("by_user_order", (q) => q.eq("userId", userId))
-    .collect();
-  return new Map(pages.map((page) => [pageRef(page), page._id]));
 }
 
 type ChapterSide = {
@@ -396,40 +383,19 @@ async function mergeChapters(
   }
 }
 
-/** Step 1 (Title And Page, All Settings): creates the file's custom
-    pages that this account doesn't have. Existing pages keep their
-    own title, filters and sort. */
-export const importPages = mutation({
-  args: { kollect: v.number(), pages: v.array(pageEntry) },
-  handler: async (ctx, { kollect, pages }) => {
+/** Step 1 (Title And Page, All Settings): creates the file's tags
+    that this account doesn't have yet, matched by name. */
+export const importTags = mutation({
+  args: { kollect: v.number(), tags: v.array(tagEntry) },
+  handler: async (ctx, { kollect, tags }) => {
     assertFormat(kollect);
     const user = await requireUser(ctx);
 
-    const idByRef = await pageIdsByRef(ctx, user._id);
-    let nextOrder = 0;
-    for (const id of idByRef.values()) {
-      const page = await ctx.db.get(id);
-      if (page !== null) nextOrder = Math.max(nextOrder, page.order + 1);
-    }
-
     let created = 0;
-    for (const page of pages as PageEntry[]) {
-      if (idByRef.has(page.ref)) continue;
-      // Every account has every system page, so an unknown system ref
-      // comes from a different format version. Nothing to create.
-      if (page.type === "system") continue;
-
-      const id = await ctx.db.insert("userPages", {
-        userId: user._id,
-        title: page.title,
-        order: nextOrder++,
-        type: "custom",
-        systemKey: null,
-        icon: page.icon,
-        filters: page.filters,
-        sort: page.sort,
-      });
-      idByRef.set(page.ref, id);
+    for (const { name } of tags) {
+      if (name.trim() === "") continue;
+      if ((await findTagByName(ctx, user._id, name)) !== null) continue;
+      await findOrCreateTag(ctx, user._id, name);
       created++;
     }
 
@@ -444,7 +410,7 @@ export const importMangas = mutation({
   args: {
     kollect: v.number(),
     // "titles" for Titles Only; "titlesAndPages" for Title And Page
-    // and All Settings.
+    // and All Settings. Titles Only ignores the file's pages and tags.
     mode: v.union(v.literal("titles"), v.literal("titlesAndPages")),
     mangas: v.array(mangaEntry),
   },
@@ -460,8 +426,8 @@ export const importMangas = mutation({
       skipped: [],
     };
 
-    const pageIdByRef =
-      mode === "titlesAndPages" ? await pageIdsByRef(ctx, user._id) : new Map();
+    const favouriteId =
+      mode === "titlesAndPages" ? (await favouriteTag(ctx, user._id))._id : null;
 
     for (const entry of mangas) {
       const mangaId = await resolveManga(ctx, entry);
@@ -506,19 +472,22 @@ export const importMangas = mutation({
         lastReadAt: entry.lastReadAt,
       };
 
-      const fileKey =
-        (entry.pages.find((ref) => isProgressKey(ref)) as ProgressKey | undefined) ??
-        null;
-      const extraPageIds = entry.pages
-        .filter((ref) => !isProgressKey(ref))
-        .map((ref) => pageIdByRef.get(ref))
-        .filter((id): id is Id<"userPages"> => id !== undefined);
+      // The file's tags, as this account's tag ids. A tag the account
+      // doesn't have yet is created, in case importTags was skipped.
+      const fileTagIds: Id<"userTags">[] = [];
+      if (entry.favourite && favouriteId !== null) fileTagIds.push(favouriteId);
+      for (const name of entry.userTags) {
+        if (name.trim() === "") continue;
+        fileTagIds.push(await findOrCreateTag(ctx, user._id, name));
+      }
 
       if (existing === null) {
-        const userMangaId = await ctx.db.insert("userMangas", {
+        await ctx.db.insert("userMangas", {
           userId: user._id,
           mangaId,
           addedAt: entry.addedAt,
+          progressKey: entry.progressKey,
+          tagIds: [...new Set(fileTagIds)],
           isDeleted: false,
           currentChapterNumber: fileSide.number,
           currentChapterLabel: fileSide.label,
@@ -527,15 +496,6 @@ export const importMangas = mutation({
           currentSiteId: fileSide.siteId,
           lastReadAt: fileSide.lastReadAt,
         });
-        await placeOnProgressPage(
-          ctx,
-          user._id,
-          userMangaId,
-          fileKey ?? settings.defaultProgressKey,
-        );
-        for (const pageId of extraPageIds) {
-          await ensureMembership(ctx, pageId, userMangaId);
-        }
         report.added++;
         continue;
       }
@@ -543,14 +503,14 @@ export const importMangas = mutation({
       report.merged++;
       await mergeChapters(ctx, existing, fileSide, entry.title, report);
 
-      const accountKey = await currentProgressKey(ctx, existing._id);
-      const target =
-        higherPriority(accountKey, fileKey) ?? settings.defaultProgressKey;
-      if (target !== accountKey) {
-        await placeOnProgressPage(ctx, user._id, existing._id, target);
+      const target = higherPriority(existing.progressKey, entry.progressKey)!;
+      if (target !== existing.progressKey) {
+        await setProgressPage(ctx, existing._id, target);
       }
-      for (const pageId of extraPageIds) {
-        await ensureMembership(ctx, pageId, existing._id);
+
+      const tagIds = [...new Set([...existing.tagIds, ...fileTagIds])];
+      if (tagIds.length !== existing.tagIds.length) {
+        await ctx.db.patch(existing._id, { tagIds });
       }
     }
 

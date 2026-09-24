@@ -1,17 +1,15 @@
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import type { ProgressKey } from "./constants";
-import { placeOnProgressPage } from "./pages";
 import { restoreUserManga } from "./trash";
 
 /**
  * Adds a manga to a user's library, or brings one back.
  *
- *   found + deleted -> restore, memberships intact, back where it was
+ *   found + deleted -> restore; it keeps its page and tags, so it goes
+ *                      back where it was
  *   found + live    -> no-op
- *   not found       -> create, and land it on `landOn` in the same
- *                      transaction, so the "exactly one progress page"
- *                      invariant never has a gap
+ *   not found       -> create it on the `landOn` page
  *
  * Shared by addManga and the Titles only import.
  */
@@ -41,9 +39,10 @@ export async function addToLibrary(
     userId,
     mangaId,
     addedAt: Date.now(),
+    progressKey: landOn,
+    tagIds: [],
     isDeleted: false,
   });
-  await placeOnProgressPage(ctx, userId, userMangaId, landOn);
 
   return { userMangaId, action: "created" };
 }

@@ -12,14 +12,14 @@ export const progressKey = v.union(
   v.literal("completed"),
 );
 
-// null for custom pages
+// Every page is one of these five. There are no custom pages — tags
+// do that job.
 export const systemKey = v.union(
   v.literal("reading"),
   v.literal("planned"),
   v.literal("paused"),
   v.literal("completed"),
   v.literal("favourites"),
-  v.null(),
 );
 
 /* ── filters ────────────────────────────────────────────────────
@@ -65,6 +65,11 @@ export const filterRule = v.union(
     field: v.literal("source"),
     op: v.union(v.literal("equal"), v.literal("contains")),
     siteId: v.id("sites"),
+  }),
+  v.object({
+    field: v.literal("tag"),
+    op: v.union(v.literal("has"), v.literal("doesNotHave")),
+    tagId: v.id("userTags"),
   }),
 );
 

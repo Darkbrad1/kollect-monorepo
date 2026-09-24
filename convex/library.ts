@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireOwnedManga, requireSettings, requireUser } from "./lib/auth";
 import { addToLibrary, recordHistory } from "./lib/library";
-import { placeOnProgressPage } from "./lib/pages";
+import { setProgressPage } from "./lib/pages";
 import { progressKey } from "./lib/validators";
 
 /** Adds a manga to the caller's library, or brings one back from the
@@ -18,9 +18,7 @@ export const addManga = mutation({
 
 /**
  * The single route for every status change, autoCompleteOnFinish
- * included. Clearing the sibling memberships and inserting the new one
- * happen in one transaction, so the manga is never on two progress
- * pages and never on none.
+ * included.
  */
 export const moveToProgressPage = mutation({
   args: {
@@ -37,8 +35,7 @@ export const moveToProgressPage = mutation({
       );
     }
 
-    const pageId = await placeOnProgressPage(ctx, user._id, userMangaId, systemKey);
-    return { pageId };
+    await setProgressPage(ctx, userMangaId, systemKey);
   },
 });
 

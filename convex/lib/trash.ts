@@ -18,8 +18,8 @@ export function purgeAtFor(
   return deletedAt + settings.trashRetentionDays * DAY_MS;
 }
 
-/** Clears the three soft-delete fields. Memberships were never touched,
-    so the manga reappears on exactly the pages it was on. */
+/** Clears the three soft-delete fields. The manga's page and tags were
+    never touched, so it reappears exactly where it was. */
 export async function restoreUserManga(
   ctx: MutationCtx,
   userMangaId: Id<"userMangas">,
@@ -31,15 +31,15 @@ export async function restoreUserManga(
   });
 }
 
-/* Children are deleted before the parent, so a partial failure leaves
-   orphaned children rather than a userManga pointing at rows that are
-   half gone. readChapters is the only child that can be large, so it
-   is the one that gets a budget. */
+/* Reading history is deleted before the library row, so a partial
+   failure leaves orphaned history rather than a row pointing at
+   history that's half gone. History can be large, so it gets a
+   budget. */
 export const PURGE_CHILD_BATCH = 500;
 
 /**
- * Permanently removes one library row: readChapters, then page
- * memberships, then the row itself.
+ * Permanently removes one library row: its reading history first,
+ * then the row itself.
  *
  * Returns "more" when there were too many readChapters to finish in
  * this mutation. The caller reschedules; the userManga row survives
@@ -59,14 +59,6 @@ export async function purgeUserManga(
     await ctx.db.delete(chapter._id);
   }
   if (hasMore) return "more";
-
-  const memberships = await ctx.db
-    .query("userPageMangas")
-    .withIndex("by_userManga", (q) => q.eq("userMangaId", userMangaId))
-    .collect();
-  for (const membership of memberships) {
-    await ctx.db.delete(membership._id);
-  }
 
   await ctx.db.delete(userMangaId);
   return "done";

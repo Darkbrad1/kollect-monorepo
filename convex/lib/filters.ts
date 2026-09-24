@@ -30,6 +30,7 @@ export type FilterableManga = {
   currentSiteId?: Id<"sites">;
   // Sites in this manga's reading history.
   readSiteIds: readonly Id<"sites">[];
+  tagIds: readonly Id<"userTags">[];
 };
 
 /** Builds the filter input from what the page loader returns. */
@@ -43,6 +44,7 @@ export function toFilterable(item: {
     addedAt: item.userManga.addedAt,
     currentSiteId: item.userManga.currentSiteId,
     readSiteIds: item.userManga.readSiteIds ?? [],
+    tagIds: item.userManga.tagIds,
   };
 }
 
@@ -86,6 +88,10 @@ export function matchesFilter(
         ? manga.currentSiteId === rule.siteId
         : manga.currentSiteId === rule.siteId ||
             manga.readSiteIds.includes(rule.siteId);
+    case "tag":
+      return rule.op === "has"
+        ? manga.tagIds.includes(rule.tagId)
+        : !manga.tagIds.includes(rule.tagId);
   }
 }
 
