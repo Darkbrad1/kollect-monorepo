@@ -36,5 +36,6 @@ These were settled with me, so don't reopen them without asking.
   - When a manga is already in the library, the bigger chapter number becomes current and the smaller one is saved to reading history.
   - When the pages disagree, priority is Completed, then Reading, then Paused, then Planned.
   - Manga in the trash stay in the trash.
+  - Manga the app doesn't recognise are skipped and listed in the import report. They are never added to the shared manga list. This only happens when a file comes from a different database (for example development vs. the real app), so real users won't see it.
   - Settings are only imported if the user ticks the option to include them.
 - **The latest chapter** for each manga is stored on the manga itself and refreshed by a weekly job.
