@@ -7,6 +7,7 @@ A browser extension for keeping track of the manga, manhwa and manhua you're rea
 - **Explain things at a beginner level.** Write it the way you'd explain it to a first-year student: plain words, short sentences, everyday comparisons. Avoid jargon, and when you have to use a technical term, say what it means.
 - **Ask me before making product decisions.** If a choice changes how the app behaves for the user (how a feature works, what happens in an edge case, what something is called), lay out the options, say which one you'd pick and why, and let me choose. Don't decide quietly.
 - **Technical choices are yours.** If a choice doesn't change what the user sees or experiences, go ahead and decide it. Just tell me what you picked.
+- **I use pnpm, not npm.** I don't have npm installed, so `npm` and `npx` commands won't work for me. Always give pnpm commands: `pnpm <script>`, `pnpm exec <tool>` for a tool installed in the project, or `pnpm dlx <tool>` for one that isn't.
 - **Keep the docs up to date as you go.** Whenever a change affects how something works, how to set it up, or a decision we made, update both files in the same commit:
   - `CLAUDE.md` (this file): how to work with me, and the decisions we've settled.
   - `README.md`: what the project is, how to set it up and run it, how it works, and what isn't built yet.
@@ -20,8 +21,10 @@ A browser extension for keeping track of the manga, manhwa and manhua you're rea
 Useful commands:
 
 - `pnpm test`: runs the backend tests (`convex/*.test.ts`)
-- `npx convex dev` (run from `app/`): pushes the schema and functions to Convex, typechecks them, and regenerates `convex/_generated`
+- `pnpm dev:convex`: pushes the schema and functions to Convex, typechecks them, and regenerates `convex/_generated`. It runs inside `app/`, where the Convex project settings live.
+- `pnpm dev:app`: runs the sign-in web app on port 3000
 - `pnpm dev:extension`: runs the extension in development
+- `pnpm --filter app exec convex <command>`: any other Convex command, for example `dashboard` or `run`
 
 ## Decisions already made
 

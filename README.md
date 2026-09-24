@@ -16,7 +16,7 @@ Logins are handled by [Clerk](https://clerk.com).
 
 ## Getting set up
 
-You'll need Node.js and [pnpm](https://pnpm.io).
+You'll need Node.js and [pnpm](https://pnpm.io). The project uses pnpm only, so use pnpm commands rather than npm or npx.
 
 1. **Install everything:**
    ```bash
@@ -31,11 +31,11 @@ You'll need Node.js and [pnpm](https://pnpm.io).
    - `app/.env.local`: copy `app/.env.example` and fill in `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_CONVEX_URL`.
    - `extension/.env.development`: needs `PLASMO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `PLASMO_PUBLIC_CLERK_SYNC_HOST` (`http://localhost` in development), `PLASMO_PUBLIC_CONVEX_URL` and `PLASMO_PUBLIC_CONVEX_SITE_URL`.
 
-   The Convex URLs **must point at the same deployment** that `npx convex dev` pushes to. If they don't, the extension shows "Could not find public function".
+   The Convex URLs **must point at the same deployment** that `pnpm dev:convex` pushes to. If they don't, the extension shows "Could not find public function".
 
 5. **Push the backend to Convex** (leave it running; it re-pushes when you save):
    ```bash
-   cd app && npx convex dev
+   pnpm dev:convex
    ```
 
 6. **Run the sign-in app** (it has to be on port 3000, because the extension's sign-in button links there):
@@ -131,6 +131,12 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 ## What's not built yet
 
 - **The extension's screens.** The popup is still a placeholder while the Figma design is finished.
+- **Backend pieces the screens will need:**
+  - Adding a manga to Favourites or a custom page, and taking it off again.
+  - Creating, renaming, reordering and deleting custom pages.
+  - Saving a page's filters and sort. The filter rules exist, but nothing saves them to a page yet.
+  - The final list of sort options.
 - **Reading tracking.** Nothing watches reading sites yet, so chapters don't update on their own.
 - **Latest-chapter lookups.** The weekly job runs, but the part that actually looks up each series' newest chapter is a placeholder until reading websites are added.
 - **Production builds.** `plasmo build` only reads `extension/.env.chrome`, which doesn't have the Clerk or Convex settings yet, so a production build won't work until they're added there.
+- **Automatic checks on GitHub.** Tests only run when someone runs `pnpm test`. Nothing runs them automatically on a pull request yet.

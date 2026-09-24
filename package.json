@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev:convex": "convex dev",
+    "dev:convex": "pnpm --filter app exec convex dev",
     "dev:app": "pnpm --filter app dev",
     "dev:extension": "pnpm --filter extension dev",
     "test": "vitest run"
