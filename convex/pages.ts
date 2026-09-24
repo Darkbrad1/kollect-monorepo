@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import type { Doc } from "./_generated/dataModel";
-import { query } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { query, type QueryCtx } from "./_generated/server";
 import { requireUser } from "./lib/auth";
 
 /* ═══════════════════════════════════════════════════════════════
@@ -21,7 +21,21 @@ type GridItem = {
   order: number;
   userManga: Doc<"userMangas">;
   manga: Doc<"mangas">;
+  // Every site known to carry this series. The "Source contains"
+  // filter needs it; pass the item to toFilterable in lib/filters.ts.
+  sourceSiteIds: Id<"sites">[];
 };
+
+async function sourceSiteIds(
+  ctx: QueryCtx,
+  mangaId: Id<"mangas">,
+): Promise<Id<"sites">[]> {
+  const sources = await ctx.db
+    .query("mangaSources")
+    .withIndex("by_manga", (q) => q.eq("mangaId", mangaId))
+    .collect();
+  return sources.map((source) => source.siteId);
+}
 
 /**
  * Every live manga on one page, in membership order.
@@ -55,7 +69,12 @@ export const mangasForPage = query({
       const manga = await ctx.db.get(userManga.mangaId);
       if (manga === null) continue; // dangling catalogue reference
 
-      items.push({ order: membership.order, userManga, manga });
+      items.push({
+        order: membership.order,
+        userManga,
+        manga,
+        sourceSiteIds: await sourceSiteIds(ctx, manga._id),
+      });
     }
 
     return { page, items };
@@ -84,7 +103,12 @@ export const trashMangas = query({
     for (const [i, userManga] of rows.entries()) {
       const manga = await ctx.db.get(userManga.mangaId);
       if (manga === null) continue;
-      items.push({ order: i, userManga, manga });
+      items.push({
+        order: i,
+        userManga,
+        manga,
+        sourceSiteIds: await sourceSiteIds(ctx, manga._id),
+      });
     }
 
     return { items };

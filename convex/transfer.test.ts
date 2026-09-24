@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
+import type { FunctionReturnType } from "convex/server";
 import { describe, expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -75,6 +76,29 @@ async function libraryWith(
   return userMangaId;
 }
 
+type ImportOption = "titles" | "titlesAndPages" | "all";
+
+/** Runs the import steps in the order the extension will. */
+async function importFile(
+  as: Ctx["alice"],
+  file: FunctionReturnType<typeof api.transfer.exportLibrary>,
+  option: ImportOption,
+) {
+  const f = file;
+  if (option !== "titles") {
+    await as.mutation(api.transfer.importPages, { kollect: f.kollect, pages: f.pages });
+  }
+  const report = await as.mutation(api.transfer.importMangas, {
+    kollect: f.kollect,
+    mode: option === "titles" ? "titles" : "titlesAndPages",
+    mangas: f.mangas,
+  });
+  if (option === "all") {
+    await as.mutation(api.transfer.importSettings, { kollect: f.kollect, settings: f.settings });
+  }
+  return report;
+}
+
 /** A user's state for one manga: current chapter, pages, history. */
 async function stateOf({ t }: Ctx, token: string, mangaId: Id<"mangas">) {
   return await t.run(async (ctx) => {
@@ -117,8 +141,8 @@ describe("full backup import — chapters", () => {
     await libraryWith(c, c.bob, c.mangaIds[0], { chapter: 50, siteId: c.siteId, page: "reading" });
 
     // Bob is on 50; Alice's backup says 80.
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    await importFile(c.bob, file, "titlesAndPages");
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.row.currentChapterNumber).toBe(80);
@@ -131,8 +155,8 @@ describe("full backup import — chapters", () => {
     await libraryWith(c, c.alice, c.mangaIds[0], { chapter: 50, siteId: c.siteId });
     await libraryWith(c, c.bob, c.mangaIds[0], { chapter: 80, siteId: c.siteId });
 
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    await importFile(c.bob, file, "titlesAndPages");
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.row.currentChapterNumber).toBe(80);
@@ -145,8 +169,8 @@ describe("full backup import — chapters", () => {
     await libraryWith(c, c.alice, c.mangaIds[0], { chapter: 60, siteId: c.siteId });
     await libraryWith(c, c.bob, c.mangaIds[0], { chapter: 60, siteId: c.siteId });
 
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    await importFile(c.bob, file, "titlesAndPages");
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.row.currentChapterNumber).toBe(60);
@@ -158,9 +182,9 @@ describe("full backup import — chapters", () => {
     await libraryWith(c, c.alice, c.mangaIds[0], { chapter: 80, siteId: c.siteId });
     await libraryWith(c, c.bob, c.mangaIds[0], { chapter: 50, siteId: c.siteId });
 
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
-    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    await importFile(c.bob, file, "titlesAndPages");
+    await importFile(c.bob, file, "titlesAndPages");
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.history).toEqual([50]);
@@ -171,10 +195,9 @@ describe("full backup import — chapters", () => {
     await libraryWith(c, c.alice, c.mangaIds[0], { chapter: 80, siteId: c.siteId });
     await libraryWith(c, c.bob, c.mangaIds[0], { chapter: 50, siteId: c.siteId });
 
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    if (file.kind !== "full") throw new Error("expected full");
-    file.items[0].currentSiteId = "not-a-real-id" as Id<"sites">;
-    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    file.mangas[0].currentSiteId = "not-a-real-id" as Id<"sites">;
+    await importFile(c.bob, file, "titlesAndPages");
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.row.currentSiteId).toBe(c.siteId);
@@ -195,8 +218,8 @@ describe("full backup import — pages", () => {
     await libraryWith(c, c.alice, c.mangaIds[0], { page: filePage as never });
     await libraryWith(c, c.bob, c.mangaIds[0], { page: accountPage as never });
 
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    await importFile(c.bob, file, "titlesAndPages");
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.pages).toEqual([expected]);
@@ -220,8 +243,8 @@ describe("full backup import — pages", () => {
     });
     await libraryWith(c, c.bob, c.mangaIds[0], { page: "planned" });
 
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    await importFile(c.bob, file, "titlesAndPages");
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.pages).toEqual(["custom:Murim", "favourites", "reading"]);
@@ -235,8 +258,8 @@ describe("import — other cases", () => {
     const bobRow = await libraryWith(c, c.bob, c.mangaIds[0], { chapter: 50, siteId: c.siteId });
     await c.bob.mutation(api.trash.softDelete, { userMangaId: bobRow });
 
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    const report = await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    const report = await importFile(c.bob, file, "titlesAndPages");
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.row.isDeleted).toBe(true);
@@ -251,36 +274,39 @@ describe("import — other cases", () => {
     const bobRow = await libraryWith(c, c.bob, c.mangaIds[0], {});
     await c.bob.mutation(api.trash.softDelete, { userMangaId: bobRow });
 
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "titles" });
-    const report = await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    const report = await importFile(c.bob, file, "titles");
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.row.isDeleted).toBe(true);
     expect(report.added).toBe(0);
   });
 
-  test("settings are imported only when the user asks", async () => {
+  test("settings are imported only with All Settings", async () => {
     const c = await setup();
     await c.alice.mutation(api.settings.updateSettings, { scrollThreshold: 55 });
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
 
     const bobThreshold = () =>
       c.bob.query(api.users.me, {}).then((me) => me!.settings.scrollThreshold);
 
-    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    await importFile(c.bob, file, "titles");
     expect(await bobThreshold()).toBe(80);
 
-    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: true });
+    await importFile(c.bob, file, "titlesAndPages");
+    expect(await bobThreshold()).toBe(80);
+
+    await importFile(c.bob, file, "all");
     expect(await bobThreshold()).toBe(55);
   });
 
   test("a manga missing from the catalogue is skipped, never created", async () => {
     const c = await setup();
     await libraryWith(c, c.alice, c.mangaIds[0], {});
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "titles" });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
     file.mangas.push({ ...file.mangas[0], id: undefined, title: "Made Up", normalizedTitle: "made up" });
 
-    const report = await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    const report = await importFile(c.bob, file, "titles");
 
     expect(report.added).toBe(1);
     expect(report.skipped).toEqual([{ title: "Made Up", reason: "not in the catalogue" }]);
@@ -288,21 +314,55 @@ describe("import — other cases", () => {
     expect(count).toBe(3);
   });
 
-  test("titles only lands new manga on the default page", async () => {
+  test("titles only lands new manga on the default page, with no progress", async () => {
     const c = await setup();
-    await libraryWith(c, c.alice, c.mangaIds[0], { page: "completed" });
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "titles" });
-    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    await libraryWith(c, c.alice, c.mangaIds[0], { page: "completed", chapter: 40, siteId: c.siteId });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    await importFile(c.bob, file, "titles");
 
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.pages).toEqual(["reading"]);
+    expect(s!.row.currentChapterNumber).toBeUndefined();
+  });
+
+  test("titles only leaves manga already in the library untouched", async () => {
+    const c = await setup();
+    await libraryWith(c, c.alice, c.mangaIds[0], { page: "completed", chapter: 90, siteId: c.siteId });
+    await libraryWith(c, c.bob, c.mangaIds[0], { page: "planned", chapter: 10, siteId: c.siteId });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    const report = await importFile(c.bob, file, "titles");
+
+    const s = await stateOf(c, "test|bob", c.mangaIds[0]);
+    expect(report.alreadyInLibrary).toBe(1);
+    expect(s!.pages).toEqual(["planned"]);
+    expect(s!.row.currentChapterNumber).toBe(10);
+  });
+
+  test("title and page brings custom pages over", async () => {
+    const c = await setup();
+    await c.t.run(async (ctx) => {
+      const alice = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("token", "test|alice")).unique();
+      await ctx.db.insert("userPages", {
+        userId: alice!._id, title: "Murim", order: 9, type: "custom",
+        systemKey: null, filters: [], sort: [],
+      });
+    });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+
+    await importFile(c.bob, file, "titles");
+    const titlesOnly = await c.bob.query(api.users.me, {});
+    expect(titlesOnly!.pages.map((p) => p.title)).not.toContain("Murim");
+
+    await importFile(c.bob, file, "titlesAndPages");
+    const withPages = await c.bob.query(api.users.me, {});
+    expect(withPages!.pages.map((p) => p.title)).toContain("Murim");
   });
 
   test("a file from another format version is rejected clearly", async () => {
     const c = await setup();
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "titles" });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
     await expect(
-      c.bob.mutation(api.transfer.importLibrary, { file: { ...file, kollect: 2 }, includeSettings: false }),
+      c.bob.mutation(api.transfer.importMangas, { kollect: 2, mode: "titles", mangas: file.mangas }),
     ).rejects.toThrow(/export format 2/);
   });
 });
@@ -312,8 +372,8 @@ describe("switching back to a history chapter", () => {
     const c = await setup();
     await libraryWith(c, c.alice, c.mangaIds[0], { chapter: 80, siteId: c.siteId });
     await libraryWith(c, c.bob, c.mangaIds[0], { chapter: 50, siteId: c.siteId });
-    const file = await c.alice.query(api.transfer.exportLibrary, { kind: "full" });
-    await c.bob.mutation(api.transfer.importLibrary, { file, includeSettings: false });
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    await importFile(c.bob, file, "titlesAndPages");
 
     const bobRow = (await stateOf(c, "test|bob", c.mangaIds[0]))!.row;
     const history = await c.bob.query(api.library.chapterHistory, { userMangaId: bobRow._id });
@@ -347,5 +407,27 @@ describe("scheduled purge", () => {
     ]);
     expect(kept).not.toBeNull();
     expect(purged).toBeNull();
+  });
+});
+
+describe("page loader", () => {
+  test("includes every site that carries each manga, for the source filter", async () => {
+    const c = await setup();
+    const flame = await c.t.run(async (ctx) => {
+      const flame = await ctx.db.insert("sites", {
+        domain: "flamecomics.xyz", icon: "flame.png", title: "Flame", link: "https://flamecomics.xyz",
+        chapterInUrl: true, caseSensitive: false, configVersion: 1,
+      });
+      await ctx.db.insert("mangaSources", { mangaId: c.mangaIds[0], siteId: c.siteId, url: "https://asurascans.com/x" });
+      await ctx.db.insert("mangaSources", { mangaId: c.mangaIds[0], siteId: flame, url: "https://flamecomics.xyz/x" });
+      return flame;
+    });
+    await libraryWith(c, c.alice, c.mangaIds[0], { page: "reading" });
+
+    const me = await c.alice.query(api.users.me, {});
+    const reading = me!.pages.find((p) => p.systemKey === "reading")!;
+    const { items } = await c.alice.query(api.pages.mangasForPage, { pageId: reading._id });
+
+    expect(items[0].sourceSiteIds.sort()).toEqual([c.siteId, flame].sort());
   });
 });

@@ -22,15 +22,51 @@ export const systemKey = v.union(
   v.null(),
 );
 
-export const filterRule = v.object({
-  field: v.union(
-    v.literal("type"),
-    v.literal("site"),
-    v.literal("author"),
-    v.literal("tag"),
-  ),
-  value: v.string(),
-});
+/* ── filters ────────────────────────────────────────────────────
+   One saved filter row: a field, an operator, and a value (or two
+   values for "between"). Each field only accepts the operators the
+   filter menu offers for it. Matching happens in the extension —
+   see lib/filters.ts.
+   ─────────────────────────────────────────────────────────────── */
+
+const chapterField = v.union(
+  v.literal("lastReadChapter"), // the chapter you're on
+  v.literal("latestChapter"), // the newest chapter the series has
+);
+
+export const filterRule = v.union(
+  v.object({
+    field: chapterField,
+    op: v.union(v.literal("greaterThan"), v.literal("equal"), v.literal("lessThan")),
+    value: v.number(),
+  }),
+  v.object({
+    field: chapterField,
+    op: v.literal("between"),
+    min: v.number(),
+    max: v.number(),
+  }),
+  // Date added is measured in days ago: "greaterThan 7" means added
+  // more than 7 days ago.
+  v.object({
+    field: v.literal("dateAdded"),
+    op: v.union(v.literal("greaterThan"), v.literal("lessThan")),
+    value: v.number(),
+  }),
+  v.object({
+    field: v.literal("dateAdded"),
+    op: v.literal("between"),
+    min: v.number(),
+    max: v.number(),
+  }),
+  // "equal": the site you're currently reading it on.
+  // "contains": any site known to carry the series.
+  v.object({
+    field: v.literal("source"),
+    op: v.union(v.literal("equal"), v.literal("contains")),
+    siteId: v.id("sites"),
+  }),
+);
 
 export const sortRule = v.object({
   field: v.union(

@@ -23,47 +23,45 @@ import {
 /* ═══════════════════════════════════════════════════════════════
    IMPORT / EXPORT
 
-   Two shapes, chosen from the dropdown beside the Export button:
+   Export always writes everything: every manga with its pages and
+   reading progress, the page list, and the settings.
 
-     "full"   — Full backup. Pages, membership, reading progress and
-                settings. Enough to rebuild the library as it was.
-     "titles" — Titles only. Just the manga, for sharing a list or
-                starting over on another account.
+   Import lets the user choose how much of that to bring in, from the
+   dropdown in the settings screen:
 
-   Import reads `kind` off the file rather than asking again, so the
-   discriminator is load-bearing. `kollect` is a format version: when
-   the shape changes, an old file should be rejected with a clear
-   message instead of importing halfway.
+     Titles Only     — just the manga. New ones land on the default
+                       page; nothing about existing ones changes.
+     Title And Page  — the manga, which pages they're on, and reading
+                       progress, merged by the import rules below.
+     All Settings    — everything in Title And Page, plus settings.
+
+   Import runs in steps so the extension can show "Importing <title>…"
+   while it works. For the chosen option, the extension calls:
+
+     1. importPages     (Title And Page, All Settings) — once
+     2. importMangas    — repeatedly, a small batch of manga at a time
+     3. importSettings  (All Settings) — once
+
+   and adds up the reports from step 2. Every step is safe to run
+   twice, so an import that gets interrupted can simply be run again.
 
    Catalogue references. `mangas` and `sites` are shared by every
    account, so a file exported from this deployment names rows that
-   already exist here. Each reference carries two keys: the row's id,
-   tried first, and a natural key (normalizedTitle / domain) as the
-   fallback for a file from another deployment or a site whose id no
-   longer resolves. Import never creates catalogue rows — an unknown
-   manga is skipped and reported instead.
+   already exist here. Each reference carries the row's id, tried
+   first, plus a natural key (normalizedTitle / domain) as the
+   fallback. Import never creates catalogue rows: a manga it cannot
+   find is skipped and listed in the report.
 
    Per-user rows (pages, library entries) have no stable id across
-   accounts, so pages are referenced by a `ref` string and manga by
-   index into the `mangas` array.
+   accounts, so pages are referenced by a `ref` string.
    ═══════════════════════════════════════════════════════════════ */
 
+/** Bump when the file shape changes. The extension should read
+    `kollect` from a file before importing it, and every import step
+    rejects a file with a different number. */
 export const EXPORT_FORMAT_VERSION = 1;
 
 /* ── file format validators ─────────────────────────────────── */
-
-const mangaEntry = v.object({
-  id: v.optional(v.string()), // mangas id in the exporting deployment
-  title: v.string(),
-  normalizedTitle: v.string(),
-  altTitles: v.array(v.string()),
-  image: v.string(),
-  type: mangaType,
-  authors: v.array(v.string()),
-  tags: v.array(v.string()),
-  year: v.optional(v.number()),
-  status: v.optional(mangaStatus),
-});
 
 const pageEntry = v.object({
   ref: v.string(),
@@ -76,8 +74,22 @@ const pageEntry = v.object({
   sort: v.array(sortRule),
 });
 
-const itemEntry = v.object({
-  m: v.number(), // index into mangas
+/** One manga in the file: what it is, plus where it sits and how far
+    along it is in the exporting library. */
+const mangaEntry = v.object({
+  // What the manga is
+  id: v.optional(v.string()), // mangas id in the exporting deployment
+  title: v.string(),
+  normalizedTitle: v.string(),
+  altTitles: v.array(v.string()),
+  image: v.string(),
+  type: mangaType,
+  authors: v.array(v.string()),
+  tags: v.array(v.string()),
+  year: v.optional(v.number()),
+  status: v.optional(mangaStatus),
+
+  // Where it sits and how far along it is
   pages: v.array(v.string()), // page refs
   addedAt: v.number(),
   currentChapterNumber: v.optional(v.number()),
@@ -100,55 +112,50 @@ const settingsEntry = v.object({
   theme,
 });
 
-const exportFile = v.union(
-  v.object({
-    kollect: v.number(),
-    kind: v.literal("titles"),
-    exportedAt: v.number(),
-    mangas: v.array(mangaEntry),
-  }),
-  v.object({
-    kollect: v.number(),
-    kind: v.literal("full"),
-    exportedAt: v.number(),
-    mangas: v.array(mangaEntry),
-    pages: v.array(pageEntry),
-    items: v.array(itemEntry),
-    settings: settingsEntry,
-  }),
-);
-
 type MangaEntry = Infer<typeof mangaEntry>;
 type PageEntry = Infer<typeof pageEntry>;
 
-/* ═══════════════════════════════════════════════════════════════
-   EXPORT
-   ═══════════════════════════════════════════════════════════════ */
+function assertFormat(kollect: number): void {
+  if (kollect !== EXPORT_FORMAT_VERSION) {
+    throw new Error(
+      `This file uses export format ${kollect}; this version of Kollect reads format ${EXPORT_FORMAT_VERSION}.`,
+    );
+  }
+}
 
 /** Stable cross-account identifier for a page. */
 function pageRef(page: Doc<"userPages">): string {
   return page.systemKey ?? `custom:${page.title}`;
 }
 
-function toMangaEntry(manga: Doc<"mangas">): MangaEntry {
-  return {
-    id: manga._id,
-    title: manga.title,
-    normalizedTitle: manga.normalizedTitle,
-    altTitles: manga.altTitles,
-    image: manga.image,
-    type: manga.type,
-    authors: manga.authors,
-    tags: manga.tags,
-    year: manga.year,
-    status: manga.status,
-  };
-}
+/* ═══════════════════════════════════════════════════════════════
+   EXPORT
+   ═══════════════════════════════════════════════════════════════ */
 
 export const exportLibrary = query({
-  args: { kind: v.union(v.literal("full"), v.literal("titles")) },
-  handler: async (ctx, { kind }) => {
+  args: {},
+  handler: async (ctx) => {
     const user = await requireUser(ctx);
+
+    const pages = await ctx.db
+      .query("userPages")
+      .withIndex("by_user_order", (q) => q.eq("userId", user._id))
+      .collect();
+
+    const refByPageId = new Map<Id<"userPages">, string>();
+    for (const page of pages) refByPageId.set(page._id, pageRef(page));
+
+    // sites is tiny; cache lookups so a library sharing one source
+    // doesn't re-read the same row per manga.
+    const domainBySiteId = new Map<Id<"sites">, string | null>();
+    const siteDomain = async (siteId: Id<"sites">): Promise<string | null> => {
+      const cached = domainBySiteId.get(siteId);
+      if (cached !== undefined) return cached;
+      const site = await ctx.db.get(siteId);
+      const domain = site?.domain ?? null;
+      domainBySiteId.set(siteId, domain);
+      return domain;
+    };
 
     // Live rows only. Exporting the trash would resurrect things the
     // user deleted the next time they imported.
@@ -160,66 +167,32 @@ export const exportLibrary = query({
       .collect();
 
     const mangas: MangaEntry[] = [];
-    const indexByMangaId = new Map<Id<"mangas">, number>();
-    const liveRows: Doc<"userMangas">[] = [];
-
     for (const row of rows) {
       const manga = await ctx.db.get(row.mangaId);
       if (manga === null) continue; // dangling catalogue reference
 
-      if (!indexByMangaId.has(row.mangaId)) {
-        indexByMangaId.set(row.mangaId, mangas.length);
-        mangas.push(toMangaEntry(manga));
-      }
-      liveRows.push(row);
-    }
-
-    if (kind === "titles") {
-      return {
-        kollect: EXPORT_FORMAT_VERSION,
-        kind,
-        exportedAt: Date.now(),
-        mangas,
-      };
-    }
-
-    /* ── full backup ──────────────────────────────────────────── */
-
-    const pages = await ctx.db
-      .query("userPages")
-      .withIndex("by_user_order", (q) => q.eq("userId", user._id))
-      .collect();
-
-    const refByPageId = new Map<Id<"userPages">, string>();
-    for (const page of pages) refByPageId.set(page._id, pageRef(page));
-
-    // sites is tiny; cache lookups so a library sharing one source
-    // doesn't re-read the same row per row.
-    const domainBySiteId = new Map<Id<"sites">, string | null>();
-    const siteDomain = async (siteId: Id<"sites">): Promise<string | null> => {
-      const cached = domainBySiteId.get(siteId);
-      if (cached !== undefined) return cached;
-      const site = await ctx.db.get(siteId);
-      const domain = site?.domain ?? null;
-      domainBySiteId.set(siteId, domain);
-      return domain;
-    };
-
-    const items = [];
-    for (const row of liveRows) {
       const memberships = await ctx.db
         .query("userPageMangas")
         .withIndex("by_userManga", (q) => q.eq("userMangaId", row._id))
         .collect();
-
       const refs: string[] = [];
       for (const membership of memberships) {
         const ref = refByPageId.get(membership.pageId);
         if (ref !== undefined) refs.push(ref);
       }
 
-      items.push({
-        m: indexByMangaId.get(row.mangaId)!,
+      mangas.push({
+        id: manga._id,
+        title: manga.title,
+        normalizedTitle: manga.normalizedTitle,
+        altTitles: manga.altTitles,
+        image: manga.image,
+        type: manga.type,
+        authors: manga.authors,
+        tags: manga.tags,
+        year: manga.year,
+        status: manga.status,
+
         pages: refs,
         addedAt: row.addedAt,
         // readChapters is deliberately absent: it is one row per
@@ -242,20 +215,7 @@ export const exportLibrary = query({
 
     return {
       kollect: EXPORT_FORMAT_VERSION,
-      kind,
       exportedAt: Date.now(),
-      mangas,
-      pages: pages.map((page) => ({
-        ref: pageRef(page),
-        title: page.title,
-        order: page.order,
-        type: page.type,
-        systemKey: page.systemKey,
-        icon: page.icon,
-        filters: page.filters,
-        sort: page.sort,
-      })),
-      items,
       // activeView is a page id and means nothing elsewhere, so it is
       // left out along with the ids Convex manages.
       settings: {
@@ -268,6 +228,17 @@ export const exportLibrary = query({
         hasScreenOverlayOptions: settings.hasScreenOverlayOptions,
         theme: settings.theme,
       },
+      pages: pages.map((page) => ({
+        ref: pageRef(page),
+        title: page.title,
+        order: page.order,
+        type: page.type,
+        systemKey: page.systemKey,
+        icon: page.icon,
+        filters: page.filters,
+        sort: page.sort,
+      })),
+      mangas,
     };
   },
 });
@@ -277,7 +248,8 @@ export const exportLibrary = query({
 
    Always additive: nothing already in the library is removed.
 
-   When a manga in the file is already in the library:
+   When a manga in the file is already in the library (Title And
+   Page, All Settings):
      chapters — the bigger chapter number becomes current; the smaller
                 is saved to reading history so the user can go back
      pages    — progress page chosen by PROGRESS_PRIORITY
@@ -286,13 +258,9 @@ export const exportLibrary = query({
      trash    — left alone. Deleting was a deliberate choice, so an
                 import does not undo it; the manga is listed in the
                 report instead
-
-   Settings in a Full backup are applied only when the user ticks the
-   option to include them — importing someone else's backup should
-   not quietly replace your theme.
    ═══════════════════════════════════════════════════════════════ */
 
-type ImportReport = {
+export type ImportReport = {
   added: number;
   merged: number;
   alreadyInLibrary: number;
@@ -300,20 +268,6 @@ type ImportReport = {
 };
 
 const IN_TRASH = "in your trash, so it was left there";
-
-async function isInTrash(
-  ctx: MutationCtx,
-  userId: Id<"users">,
-  mangaId: Id<"mangas">,
-): Promise<boolean> {
-  const row = await ctx.db
-    .query("userMangas")
-    .withIndex("by_user_manga", (q) =>
-      q.eq("userId", userId).eq("mangaId", mangaId),
-    )
-    .unique();
-  return row !== null && row.isDeleted;
-}
 
 async function resolveManga(
   ctx: MutationCtx,
@@ -355,46 +309,16 @@ async function resolveSite(
   return null;
 }
 
-/** Maps each page ref in the file to a page in this account, creating
-    custom pages the account doesn't have. Existing pages keep their
-    own title, filters and sort. */
-async function ensurePages(
+/** Every page this account has, keyed by the same ref the file uses. */
+async function pageIdsByRef(
   ctx: MutationCtx,
   userId: Id<"users">,
-  filePages: PageEntry[],
 ): Promise<Map<string, Id<"userPages">>> {
-  const existing = await ctx.db
+  const pages = await ctx.db
     .query("userPages")
     .withIndex("by_user_order", (q) => q.eq("userId", userId))
     .collect();
-
-  const idByRef = new Map<string, Id<"userPages">>();
-  let nextOrder = 0;
-  for (const page of existing) {
-    idByRef.set(pageRef(page), page._id);
-    nextOrder = Math.max(nextOrder, page.order + 1);
-  }
-
-  for (const page of filePages) {
-    if (idByRef.has(page.ref)) continue;
-    // Every account has every system page, so an unknown system ref
-    // comes from a different format version. Nothing to create.
-    if (page.type === "system") continue;
-
-    const id = await ctx.db.insert("userPages", {
-      userId,
-      title: page.title,
-      order: nextOrder++,
-      type: "custom",
-      systemKey: null,
-      icon: page.icon,
-      filters: page.filters,
-      sort: page.sort,
-    });
-    idByRef.set(page.ref, id);
-  }
-
-  return idByRef;
+  return new Map(pages.map((page) => [pageRef(page), page._id]));
 }
 
 type ChapterSide = {
@@ -472,20 +396,60 @@ async function mergeChapters(
   }
 }
 
-export const importLibrary = mutation({
-  args: {
-    file: exportFile,
-    // The "also import settings" choice shown during import. Ignored
-    // for Titles only files, which carry no settings.
-    includeSettings: v.boolean(),
-  },
-  handler: async (ctx, { file, includeSettings }): Promise<ImportReport> => {
-    if (file.kollect !== EXPORT_FORMAT_VERSION) {
-      throw new Error(
-        `This file uses export format ${file.kollect}; this version of Kollect reads format ${EXPORT_FORMAT_VERSION}.`,
-      );
+/** Step 1 (Title And Page, All Settings): creates the file's custom
+    pages that this account doesn't have. Existing pages keep their
+    own title, filters and sort. */
+export const importPages = mutation({
+  args: { kollect: v.number(), pages: v.array(pageEntry) },
+  handler: async (ctx, { kollect, pages }) => {
+    assertFormat(kollect);
+    const user = await requireUser(ctx);
+
+    const idByRef = await pageIdsByRef(ctx, user._id);
+    let nextOrder = 0;
+    for (const id of idByRef.values()) {
+      const page = await ctx.db.get(id);
+      if (page !== null) nextOrder = Math.max(nextOrder, page.order + 1);
     }
 
+    let created = 0;
+    for (const page of pages as PageEntry[]) {
+      if (idByRef.has(page.ref)) continue;
+      // Every account has every system page, so an unknown system ref
+      // comes from a different format version. Nothing to create.
+      if (page.type === "system") continue;
+
+      const id = await ctx.db.insert("userPages", {
+        userId: user._id,
+        title: page.title,
+        order: nextOrder++,
+        type: "custom",
+        systemKey: null,
+        icon: page.icon,
+        filters: page.filters,
+        sort: page.sort,
+      });
+      idByRef.set(page.ref, id);
+      created++;
+    }
+
+    return { created };
+  },
+});
+
+/** Step 2: imports a batch of manga. Call it repeatedly with small
+    batches and add the reports up; the extension can show each
+    batch's titles while it waits. */
+export const importMangas = mutation({
+  args: {
+    kollect: v.number(),
+    // "titles" for Titles Only; "titlesAndPages" for Title And Page
+    // and All Settings.
+    mode: v.union(v.literal("titles"), v.literal("titlesAndPages")),
+    mangas: v.array(mangaEntry),
+  },
+  handler: async (ctx, { kollect, mode, mangas }): Promise<ImportReport> => {
+    assertFormat(kollect);
     const user = await requireUser(ctx);
     const settings = await requireSettings(ctx, user._id);
 
@@ -496,72 +460,15 @@ export const importLibrary = mutation({
       skipped: [],
     };
 
-    const mangaIds: (Id<"mangas"> | null)[] = [];
-    for (const entry of file.mangas) {
-      mangaIds.push(await resolveManga(ctx, entry));
-    }
+    const pageIdByRef =
+      mode === "titlesAndPages" ? await pageIdsByRef(ctx, user._id) : new Map();
 
-    /* ── Titles only ──────────────────────────────────────────── */
-
-    if (file.kind === "titles") {
-      for (const [i, entry] of file.mangas.entries()) {
-        const mangaId = mangaIds[i];
-        if (mangaId === null) {
-          report.skipped.push({ title: entry.title, reason: "not in the catalogue" });
-          continue;
-        }
-        if (await isInTrash(ctx, user._id, mangaId)) {
-          report.skipped.push({ title: entry.title, reason: IN_TRASH });
-          continue;
-        }
-        const { action } = await addToLibrary(
-          ctx,
-          user._id,
-          mangaId,
-          settings.defaultProgressKey,
-        );
-        if (action === "created") report.added++;
-        else report.alreadyInLibrary++;
-      }
-      return report;
-    }
-
-    /* ── Full backup ──────────────────────────────────────────── */
-
-    const pageIdByRef = await ensurePages(ctx, user._id, file.pages);
-
-    for (const item of file.items) {
-      const entry = file.mangas[item.m];
-      if (entry === undefined) {
-        report.skipped.push({
-          title: `entry #${item.m}`,
-          reason: "the file refers to a manga it does not contain",
-        });
-        continue;
-      }
-      const mangaId = mangaIds[item.m];
+    for (const entry of mangas) {
+      const mangaId = await resolveManga(ctx, entry);
       if (mangaId === null) {
         report.skipped.push({ title: entry.title, reason: "not in the catalogue" });
         continue;
       }
-
-      const siteId = await resolveSite(ctx, item.currentSiteId, item.currentSiteDomain);
-      const fileSide: ChapterSide = {
-        number: item.currentChapterNumber,
-        label: item.currentChapterLabel,
-        url: item.currentChapterUrl,
-        percentage: item.currentPercentage,
-        siteId: siteId ?? undefined,
-        lastReadAt: item.lastReadAt,
-      };
-
-      const fileKey =
-        (item.pages.find((ref) => isProgressKey(ref)) as ProgressKey | undefined) ??
-        null;
-      const extraPageIds = item.pages
-        .filter((ref) => !isProgressKey(ref))
-        .map((ref) => pageIdByRef.get(ref))
-        .filter((id): id is Id<"userPages"> => id !== undefined);
 
       const existing = await ctx.db
         .query("userMangas")
@@ -570,11 +477,48 @@ export const importLibrary = mutation({
         )
         .unique();
 
+      if (existing?.isDeleted) {
+        report.skipped.push({ title: entry.title, reason: IN_TRASH });
+        continue;
+      }
+
+      /* ── Titles Only ──────────────────────────────────────── */
+
+      if (mode === "titles") {
+        if (existing !== null) {
+          report.alreadyInLibrary++;
+        } else {
+          await addToLibrary(ctx, user._id, mangaId, settings.defaultProgressKey);
+          report.added++;
+        }
+        continue;
+      }
+
+      /* ── Title And Page ───────────────────────────────────── */
+
+      const siteId = await resolveSite(ctx, entry.currentSiteId, entry.currentSiteDomain);
+      const fileSide: ChapterSide = {
+        number: entry.currentChapterNumber,
+        label: entry.currentChapterLabel,
+        url: entry.currentChapterUrl,
+        percentage: entry.currentPercentage,
+        siteId: siteId ?? undefined,
+        lastReadAt: entry.lastReadAt,
+      };
+
+      const fileKey =
+        (entry.pages.find((ref) => isProgressKey(ref)) as ProgressKey | undefined) ??
+        null;
+      const extraPageIds = entry.pages
+        .filter((ref) => !isProgressKey(ref))
+        .map((ref) => pageIdByRef.get(ref))
+        .filter((id): id is Id<"userPages"> => id !== undefined);
+
       if (existing === null) {
         const userMangaId = await ctx.db.insert("userMangas", {
           userId: user._id,
           mangaId,
-          addedAt: item.addedAt,
+          addedAt: entry.addedAt,
           isDeleted: false,
           currentChapterNumber: fileSide.number,
           currentChapterLabel: fileSide.label,
@@ -596,12 +540,7 @@ export const importLibrary = mutation({
         continue;
       }
 
-      if (existing.isDeleted) {
-        report.skipped.push({ title: entry.title, reason: IN_TRASH });
-        continue;
-      }
       report.merged++;
-
       await mergeChapters(ctx, existing, fileSide, entry.title, report);
 
       const accountKey = await currentProgressKey(ctx, existing._id);
@@ -615,11 +554,18 @@ export const importLibrary = mutation({
       }
     }
 
-    // Same validation and retention rewrite as the settings screen.
-    if (includeSettings) {
-      await applySettingsPatch(ctx, settings, file.settings);
-    }
-
     return report;
+  },
+});
+
+/** Step 3 (All Settings only): same validation and trash-timer
+    rewrite as the settings screen. */
+export const importSettings = mutation({
+  args: { kollect: v.number(), settings: settingsEntry },
+  handler: async (ctx, { kollect, settings: fileSettings }) => {
+    assertFormat(kollect);
+    const user = await requireUser(ctx);
+    const settings = await requireSettings(ctx, user._id);
+    await applySettingsPatch(ctx, settings, fileSettings);
   },
 });

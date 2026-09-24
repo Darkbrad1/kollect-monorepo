@@ -33,12 +33,22 @@ These were settled with me, so don't reopen them without asking.
 - **Deleting:** deleting moves a manga to the trash. Deleting from the trash page removes it permanently, after the user confirms.
 - **Trash settings:** "Auto Clear Trash" is its own on/off switch, separate from "Clear Trash Time", so switching it off doesn't lose the number of days.
 - **Scroll threshold:** a value from 0 to 100.
-- **Export:** two options, "Full backup" (pages, progress and settings) and "Titles only" (just the list).
-- **Import:**
+- **Export:** always exports everything: every manga with its pages and reading progress, the page list, and the settings.
+- **Import:** the user picks one of three options from a dropdown:
+  - **Titles Only:** just the manga. New ones land on the default page. Manga already in the library aren't changed.
+  - **Title And Page:** the manga, which pages they're on, and reading progress (the progress part is not yet confirmed).
+  - **All Settings:** everything in Title And Page, plus the settings.
+- **Import rules:**
   - It never removes anything.
   - When a manga is already in the library, the bigger chapter number becomes current and the smaller one is saved to reading history.
   - When the pages disagree, priority is Completed, then Reading, then Paused, then Planned.
   - Manga in the trash stay in the trash.
   - Manga the app doesn't recognise are skipped and listed in the import report. They are never added to the shared manga list. This only happens when a file comes from a different database (for example development vs. the real app), so real users won't see it.
-  - Settings are only imported if the user ticks the option to include them.
+  - Settings are only imported with the All Settings option.
+  - Import runs in small batches so the extension can show "Importing *[title]*…" while it works.
+- **Filters:** every filter on a page must match. The options are:
+  - **Last read chapter** and **Latest chapter:** greater than, equal, less than, between.
+  - **Date added:** greater than, less than, between, counted in days ago (not yet confirmed).
+  - **Source:** equal (the site you're reading it on) or contains (any site that has the series). This meaning is not yet confirmed.
+  - "Between" includes both ends. A manga with no value for a field (for example, never read) doesn't match filters on that field.
 - **The latest chapter** for each manga is stored on the manga itself and refreshed by a weekly job.
