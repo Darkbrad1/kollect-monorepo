@@ -1,63 +1,18 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { requireOwnedManga, requireSettings, requireUser } from "./lib/auth";
+import { addToLibrary, recordHistory } from "./lib/library";
 import { placeOnProgressPage } from "./lib/pages";
-import { restoreUserManga } from "./lib/trash";
-import type { ProgressKey } from "./lib/constants";
+import { progressKey } from "./lib/validators";
 
-const progressKey = v.union(
-  v.literal("reading"),
-  v.literal("planned"),
-  v.literal("paused"),
-  v.literal("completed"),
-);
-
-/**
- * Adds a manga to the caller's library, or brings one back.
- *
- *   found + deleted -> restore, memberships intact, back where it was
- *   found + live    -> no-op
- *   not found       -> create, and land it on defaultProgressKey in
- *                      the same transaction, so the "exactly one
- *                      progress page" invariant never has a gap
- */
+/** Adds a manga to the caller's library, or brings one back from the
+    trash. See addToLibrary for the three cases. */
 export const addManga = mutation({
   args: { mangaId: v.id("mangas") },
   handler: async (ctx, { mangaId }) => {
     const user = await requireUser(ctx);
-
-    const existing = await ctx.db
-      .query("userMangas")
-      .withIndex("by_user_manga", (q) =>
-        q.eq("userId", user._id).eq("mangaId", mangaId),
-      )
-      .unique();
-
-    if (existing !== null) {
-      if (!existing.isDeleted) return { userMangaId: existing._id, action: "noop" as const };
-
-      // Same restore the trash page performs — memberships survived
-      // the soft delete, so the manga reappears where it was.
-      await restoreUserManga(ctx, existing._id);
-      return { userMangaId: existing._id, action: "restored" as const };
-    }
-
     const settings = await requireSettings(ctx, user._id);
-    const userMangaId = await ctx.db.insert("userMangas", {
-      userId: user._id,
-      mangaId,
-      addedAt: Date.now(),
-      isDeleted: false,
-    });
-
-    await placeOnProgressPage(
-      ctx,
-      user._id,
-      userMangaId,
-      settings.defaultProgressKey,
-    );
-
-    return { userMangaId, action: "created" as const };
+    return await addToLibrary(ctx, user._id, mangaId, settings.defaultProgressKey);
   },
 });
 
@@ -82,13 +37,82 @@ export const moveToProgressPage = mutation({
       );
     }
 
-    const pageId = await placeOnProgressPage(
-      ctx,
-      user._id,
-      userMangaId,
-      systemKey as ProgressKey,
-    );
-
+    const pageId = await placeOnProgressPage(ctx, user._id, userMangaId, systemKey);
     return { pageId };
+  },
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   READING HISTORY
+
+   Lets a user step back to a chapter they read before — for
+   instance the smaller chapter an import set aside. No screen uses
+   these yet; the UI is still being designed.
+   ═══════════════════════════════════════════════════════════════ */
+
+/** Every saved chapter for one manga, highest chapter first. */
+export const chapterHistory = query({
+  args: { userMangaId: v.id("userMangas") },
+  handler: async (ctx, { userMangaId }) => {
+    const user = await requireUser(ctx);
+    await requireOwnedManga(ctx, user._id, userMangaId);
+
+    return await ctx.db
+      .query("readChapters")
+      .withIndex("by_userManga_number", (q) => q.eq("userMangaId", userMangaId))
+      .order("desc")
+      .collect();
+  },
+});
+
+/**
+ * Makes a history chapter the current chapter again.
+ *
+ * The chapter being left is saved into history first, so switching is
+ * never lossy — you can always switch forward again. The only case it
+ * cannot save is a current chapter with no known website, since every
+ * history row must name one; `keptPrevious` reports that.
+ */
+export const switchToHistoryChapter = mutation({
+  args: { readChapterId: v.id("readChapters") },
+  handler: async (ctx, { readChapterId }) => {
+    const user = await requireUser(ctx);
+
+    const chapter = await ctx.db.get(readChapterId);
+    if (chapter === null) throw new Error("No such chapter in history.");
+
+    const userManga = await requireOwnedManga(ctx, user._id, chapter.userMangaId);
+    if (userManga.isDeleted) {
+      throw new Error("That manga is in the trash. Restore it first.");
+    }
+
+    let keptPrevious = true;
+    if (userManga.currentChapterNumber !== undefined) {
+      if (userManga.currentSiteId === undefined) {
+        keptPrevious = false;
+      } else {
+        await recordHistory(ctx, userManga._id, {
+          number: userManga.currentChapterNumber,
+          label: userManga.currentChapterLabel,
+          url: userManga.currentChapterUrl,
+          siteId: userManga.currentSiteId,
+          percentage: userManga.currentPercentage,
+          readAt: userManga.lastReadAt,
+        });
+      }
+    }
+
+    // All current-chapter fields come from the one history row. A
+    // missing url deliberately clears the old one, which pointed at
+    // the chapter being left.
+    await ctx.db.patch(userManga._id, {
+      currentChapterNumber: chapter.number,
+      currentChapterLabel: chapter.label,
+      currentChapterUrl: chapter.url,
+      currentSiteId: chapter.siteId,
+      currentPercentage: chapter.percentage,
+    });
+
+    return { keptPrevious };
   },
 });

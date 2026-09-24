@@ -24,6 +24,30 @@ export type SystemKey = (typeof SYSTEM_KEYS)[number];
 export const isProgressKey = (k: string | null): k is ProgressKey =>
   k !== null && (PROGRESS_KEYS as readonly string[]).includes(k);
 
+/* ── progress priority ──────────────────────────────────────────
+   When an import finds a manga on one progress page in the file and
+   a different one in the account, the page earlier in this list
+   wins. Completed outranks everything: importing an older file never
+   pulls a finished series back into Reading.
+   ─────────────────────────────────────────────────────────────── */
+
+export const PROGRESS_PRIORITY: readonly ProgressKey[] = [
+  "completed",
+  "reading",
+  "paused",
+  "planned",
+];
+
+/** The higher-priority of two progress pages; either side may be absent. */
+export function higherPriority(
+  a: ProgressKey | null,
+  b: ProgressKey | null,
+): ProgressKey | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return PROGRESS_PRIORITY.indexOf(a) <= PROGRESS_PRIORITY.indexOf(b) ? a : b;
+}
+
 /* ── system pages seeded by createUser ──────────────────────────
    Order matches the page selector in the Figma file: Favourites
    first, then the four progress pages. "Deleted" in that menu is

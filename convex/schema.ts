@@ -1,46 +1,18 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import {
+  filterRule,
+  mangaStatus,
+  mangaType,
+  progressKey,
+  sortRule,
+  systemKey,
+  theme,
+} from "./lib/validators";
 
-/* Exclusivity constants live in convex/lib/constants.ts so that
-   mutations can import them without pulling defineSchema along.
-   The validators below must stay in step with PROGRESS_KEYS. */
-
-const progressKey = v.union(
-  v.literal("reading"),
-  v.literal("planned"),
-  v.literal("paused"),
-  v.literal("completed"),
-);
-
-// null for custom pages
-const systemKey = v.union(
-  v.literal("reading"),
-  v.literal("planned"),
-  v.literal("paused"),
-  v.literal("completed"),
-  v.literal("favourites"),
-  v.null(),
-);
-
-const filterRule = v.object({
-  field: v.union(
-    v.literal("type"),
-    v.literal("site"),
-    v.literal("author"),
-    v.literal("tag"),
-  ),
-  value: v.string(),
-});
-
-const sortRule = v.object({
-  field: v.union(
-    v.literal("title"),
-    v.literal("lastReadAt"),
-    v.literal("addedAt"),
-    v.literal("progress"),
-  ),
-  direction: v.union(v.literal("asc"), v.literal("desc")),
-});
+/* Validators live in convex/lib/validators.ts so the import/export
+   format is checked against the same definitions as these tables.
+   They must stay in step with PROGRESS_KEYS in lib/constants.ts. */
 
 /* ═══════════════════════════════════════════════════════════════
    SCHEMA
@@ -84,14 +56,7 @@ export default defineSchema({
     hasPercentageBar: v.boolean(),
     hasScreenOverlayOptions: v.boolean(),
 
-    theme: v.object({
-      colors: v.object({
-        primary: v.string(),
-        secondary: v.string(),
-        base: v.string(),
-      }),
-      font: v.string(),
-    }),
+    theme,
   }).index("by_user", ["userId"]),
 
   /* ─── PAGES ───────────────────────────────────────────────────
@@ -165,6 +130,9 @@ export default defineSchema({
     userMangaId: v.id("userMangas"),
     number: v.number(), // sortable — 12.5 works
     label: v.string(), // what was actually displayed
+    // Optional so rows written before it existed stay valid. Kept so
+    // switching back to this chapter can restore its link.
+    url: v.optional(v.string()),
     siteId: v.id("sites"),
     percentage: v.number(),
     readAt: v.number(),
@@ -181,13 +149,7 @@ export default defineSchema({
     altTitles: v.array(v.string()),
 
     image: v.string(),
-    type: v.union(
-      v.literal("manga"),
-      v.literal("manhwa"),
-      v.literal("manhua"),
-      v.literal("webtoon"),
-      v.literal("other"),
-    ),
+    type: mangaType,
     authors: v.array(v.string()),
 
     // Denormalised highest chapter seen across this manga's
@@ -200,14 +162,7 @@ export default defineSchema({
     // the SERIES status — not the user's progress.
     // "hiatus" here means the publisher stopped; the user-side
     // equivalent is the "paused" page.
-    status: v.optional(
-      v.union(
-        v.literal("ongoing"),
-        v.literal("hiatus"),
-        v.literal("completed"),
-        v.literal("cancelled"),
-      ),
-    ),
+    status: v.optional(mangaStatus),
     year: v.optional(v.number()),
     tags: v.array(v.string()),
   })

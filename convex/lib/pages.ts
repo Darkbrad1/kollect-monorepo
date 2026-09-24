@@ -73,3 +73,42 @@ export async function placeOnProgressPage(
 
   return target._id;
 }
+
+/** Adds a membership unless the manga is already on that page. For
+    favourites and custom pages only — progress pages go through
+    placeOnProgressPage so the one-page invariant holds. */
+export async function ensureMembership(
+  ctx: MutationCtx,
+  pageId: Id<"userPages">,
+  userMangaId: Id<"userMangas">,
+): Promise<void> {
+  const memberships = await ctx.db
+    .query("userPageMangas")
+    .withIndex("by_userManga", (q) => q.eq("userMangaId", userMangaId))
+    .collect();
+  if (memberships.some((m) => m.pageId === pageId)) return;
+
+  await ctx.db.insert("userPageMangas", {
+    pageId,
+    userMangaId,
+    order: await nextOrder(ctx, pageId),
+  });
+}
+
+/** Which progress page a manga is on, or null if the invariant has
+    been broken and it is on none. */
+export async function currentProgressKey(
+  ctx: QueryCtx | MutationCtx,
+  userMangaId: Id<"userMangas">,
+): Promise<ProgressKey | null> {
+  const memberships = await ctx.db
+    .query("userPageMangas")
+    .withIndex("by_userManga", (q) => q.eq("userMangaId", userMangaId))
+    .collect();
+
+  for (const membership of memberships) {
+    const page = await ctx.db.get(membership.pageId);
+    if (page !== null && isProgressKey(page.systemKey)) return page.systemKey;
+  }
+  return null;
+}
