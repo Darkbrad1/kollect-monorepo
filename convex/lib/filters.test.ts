@@ -6,6 +6,8 @@ import { matchesAllFilters, matchesFilter, type FilterableManga } from "./filter
 const NOW = 1_800_000_000_000;
 const asura = "site_asura" as Id<"sites">;
 const flame = "site_flame" as Id<"sites">;
+const murim = "tag_murim" as Id<"userTags">;
+const isekai = "tag_isekai" as Id<"userTags">;
 
 const manga = (overrides: Partial<FilterableManga> = {}): FilterableManga => ({
   lastReadChapter: 50,
@@ -13,6 +15,7 @@ const manga = (overrides: Partial<FilterableManga> = {}): FilterableManga => ({
   addedAt: NOW - 10 * DAY_MS, // added 10 days ago
   currentSiteId: asura,
   readSiteIds: [flame], // read on Flame before, reading on Asura now
+  tagIds: [murim],
   ...overrides,
 });
 
@@ -82,6 +85,23 @@ describe("source filters", () => {
 
   test("contains: the site you're reading on now counts too", () => {
     expect(matchesFilter(manga(), { field: "source", op: "contains", siteId: asura }, NOW)).toBe(true);
+  });
+});
+
+describe("tag filters", () => {
+  test("has", () => {
+    expect(matchesFilter(manga(), { field: "tag", op: "has", tagId: murim }, NOW)).toBe(true);
+    expect(matchesFilter(manga(), { field: "tag", op: "has", tagId: isekai }, NOW)).toBe(false);
+  });
+
+  test("doesn't have", () => {
+    expect(matchesFilter(manga(), { field: "tag", op: "doesNotHave", tagId: isekai }, NOW)).toBe(true);
+    expect(matchesFilter(manga(), { field: "tag", op: "doesNotHave", tagId: murim }, NOW)).toBe(false);
+  });
+
+  test("a manga with no tags doesn't have any tag", () => {
+    const untagged = manga({ tagIds: [] });
+    expect(matchesFilter(untagged, { field: "tag", op: "doesNotHave", tagId: murim }, NOW)).toBe(true);
   });
 });
 

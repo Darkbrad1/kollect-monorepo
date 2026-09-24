@@ -60,41 +60,50 @@ export default defineSchema({
   }).index("by_user", ["userId"]),
 
   /* ─── PAGES ───────────────────────────────────────────────────
-     Membership IS status. There is no status field on userMangas.
+     Five pages per user, created at sign-up: Reading, Planned,
+     Paused, Completed and Favourites. There are no custom pages —
+     tags do that job, so nothing can clash with these.
 
-     INVARIANT: every LIVE userManga is on exactly one page whose
-     systemKey is in PROGRESS_KEYS. Soft-deleted rows keep their
-     membership but are excluded from every live query.
+     Pages don't hold manga. A progress page shows the manga whose
+     progressKey matches it; Favourites shows the manga carrying the
+     Favourite tag. A page stores only its title, icon, order in the
+     menu, and its saved filters and sort.
      ─────────────────────────────────────────────────────────── */
 
   userPages: defineTable({
     userId: v.id("users"),
-    title: v.string(), // renameable, even for system pages
+    title: v.string(), // renameable
     order: v.number(),
-    type: v.union(v.literal("system"), v.literal("custom")),
 
     // load-bearing: code finds pages by this, never by title.
-    // renamePage must not touch it.
     systemKey,
 
     icon: v.optional(v.string()),
 
-    // display options only — these never determine membership
+    // display options only — these never decide what's on the page
     filters: v.array(filterRule),
     sort: v.array(sortRule),
   })
     .index("by_user_order", ["userId", "order"])
     .index("by_user_systemKey", ["userId", "systemKey"]),
 
-  userPageMangas: defineTable({
-    pageId: v.id("userPages"),
-    userMangaId: v.id("userMangas"),
-    order: v.number(),
-    // userId and mangaId deliberately absent — both derivable
-    // from userMangaId. Duplicating them is three chances to drift.
+  /* ─── TAGS ────────────────────────────────────────────────────
+     Each user's own labels. A manga can carry any number of them
+     (userMangas.tagIds), and filters can pick manga out by tag.
+     ─────────────────────────────────────────────────────────── */
+
+  userTags: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    // Lowercased with spaces tidied, for the no-duplicates check:
+    // "Murim" and "murim " are the same tag.
+    normalizedName: v.string(),
+    // "favourite" for the built-in Favourite tag, which can't be
+    // renamed or deleted. null for the user's own tags.
+    builtIn: v.union(v.literal("favourite"), v.null()),
   })
-    .index("by_page_order", ["pageId", "order"])
-    .index("by_userManga", ["userMangaId"]), // "what pages is this on?"
+    .index("by_user_name", ["userId", "normalizedName"])
+    .index("by_user_builtIn", ["userId", "builtIn"]),
 
   /* ─── LIBRARY + PROGRESS ──────────────────────────────────── */
 
@@ -102,6 +111,14 @@ export default defineSchema({
     userId: v.id("users"),
     mangaId: v.id("mangas"),
     addedAt: v.number(),
+
+    // Which page it's on: Reading, Planned, Paused or Completed.
+    // Every row has exactly one, even in the trash, so restoring puts
+    // it back where it was. Changed only through moveToProgressPage.
+    progressKey,
+
+    // The user's tags on this manga, including Favourite.
+    tagIds: v.array(v.id("userTags")),
 
     // Flat, not nested. ctx.db.patch is shallow, so a nested
     // chapter object would mean read-modify-write on every
@@ -128,6 +145,8 @@ export default defineSchema({
     purgeAt: v.optional(v.number()),
   })
     .index("by_user_manga", ["userId", "mangaId"]) // dedupe check
+    // a progress page's contents
+    .index("by_user_live_progress", ["userId", "isDeleted", "progressKey", "addedAt"])
     .index("by_user_live_read", ["userId", "isDeleted", "lastReadAt"])
     .index("by_user_live_added", ["userId", "isDeleted", "addedAt"])
     .index("by_user_trash", ["userId", "isDeleted", "deletedAt"])

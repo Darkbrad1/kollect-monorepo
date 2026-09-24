@@ -31,20 +31,21 @@ Useful commands:
 These were settled with me, so don't reopen them without asking.
 
 - **Pages:** four progress pages (Reading, Planned, Paused, Completed) plus Favourites. There is no "Dropped" page. "Deleted" in the menu is the trash view, not a page. There are **no custom pages**: tags replace them (see below).
-- **Being on a page *is* the status.** Every manga that isn't in the trash sits on exactly one progress page. Status changes always go through `moveToProgressPage`.
+- **Being on a page *is* the status.** Every manga sits on exactly one progress page, stored as `progressKey` on the manga. It keeps it in the trash, so restoring puts it back. Status changes always go through `moveToProgressPage`.
 - **Sorting and filtering happen in the extension, not in Convex.** Convex only stores each page's filter and sort settings and returns every manga on the page. The extension shows about 10 on screen and loads 10 ahead and 10 behind as you scroll.
 - **Deleting:** deleting moves a manga to the trash. Deleting from the trash page removes it permanently, after the user confirms.
 - **Trash settings:** "Auto Clear Trash" is its own on/off switch, separate from "Clear Trash Time", so switching it off doesn't lose the number of days.
 - **Scroll threshold:** a value from 0 to 100.
-- **Export:** always exports everything: every manga with its pages and reading progress, the page list, and the settings.
+- **Export:** always exports everything: every manga with its page, tags and reading progress, the page list, the tag list, and the settings.
 - **Import:** the user picks one of three options from a dropdown:
   - **Titles Only:** just the manga. New ones land on the default page. Manga already in the library aren't changed.
-  - **Title And Page:** the manga, which pages they're on, and reading progress.
+  - **Title And Page:** the manga, which page they're on, their tags (Favourite included), and reading progress.
   - **All Settings:** everything in Title And Page, plus the settings.
 - **Import rules:**
   - It never removes anything.
   - When a manga is already in the library, the bigger chapter number becomes current and the smaller one is saved to reading history.
   - When the pages disagree, priority is Completed, then Reading, then Paused, then Planned.
+  - The file's tags are added on top of the ones a manga already has.
   - Manga in the trash stay in the trash.
   - Manga the app doesn't recognise are skipped and listed in the import report. They are never added to the shared manga list. This only happens when a file comes from a different database (for example development vs. the real app), so real users won't see it.
   - Settings are only imported with the All Settings option.
@@ -53,11 +54,13 @@ These were settled with me, so don't reopen them without asking.
   - **Last read chapter** and **Latest chapter:** greater than, equal, less than, between.
   - **Date added:** greater than, less than, between, counted in days ago. "Greater than 7" means added more than 7 days ago.
   - **Source:** equal means the site you're reading it on now. Contains means any site you've read it on before, from your reading history (the current site counts too).
+  - **Tag:** has, doesn't have.
   - "Between" includes both ends. A manga with no value for a field (for example, never read) doesn't match filters on that field.
-- **Tags** (decided, not built yet; the details are still being settled):
-  - Users put their own tags on manga instead of making custom pages, so nothing can clash with the built-in pages.
-  - Tags can be used in filters.
-  - **Favourite is a tag.** The Favourites page stays, but it shows the manga that have the Favourite tag, instead of holding its own list.
+- **Tags:**
+  - Users put their own tags on manga instead of making custom pages, so nothing can clash with the built-in pages. Tags can be used in filters.
+  - Tags are the user's own labels only, not the series' genres (genre filtering may come later).
+  - Users manage a list of tags. Renaming or deleting a tag changes it everywhere. Names are unique, ignoring capitals and extra spaces. Deleting a tag also removes it from every manga and from any filters that used it.
+  - **Favourite is a built-in tag.** It can't be renamed or deleted. The "Favourite" item in the card menu adds or removes it. The Favourites page shows every manga with the Favourite tag, from all four progress pages.
 - **Reading tracking** (for later): the reading page talks to the backend directly, whether or not the popup is open. Don't route it through the popup.
 - **On hold:** the extension screens and reading tracking wait until the design is final. Don't start them unless asked.
 - **The latest chapter** for each manga is stored on the manga itself and refreshed by a weekly job.

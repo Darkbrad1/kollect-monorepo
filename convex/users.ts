@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getCurrentUser, requireSettings, requireUser } from "./lib/auth";
+import { ensureFavouriteTag } from "./lib/tags";
 import {
   DEFAULT_SETTINGS,
   DEFAULT_THEME,
@@ -24,9 +25,11 @@ function displayName(identity: {
 }
 
 /**
- * Provisions a user, their settings, and their system pages in one
- * transaction — the doc's "createUser" step. Idempotent, so the client
- * can call it on every sign-in without guarding.
+ * Provisions a user, their settings, their five pages and the built-in
+ * Favourite tag in one transaction. Idempotent, so the client can call
+ * it on every popup open without guarding. For an existing user it
+ * fills in anything missing, such as the Favourite tag for accounts
+ * made before tags existed.
  */
 export const createUser = mutation({
   args: {},
@@ -38,7 +41,10 @@ export const createUser = mutation({
       .query("users")
       .withIndex("by_token", (q) => q.eq("token", identity.tokenIdentifier))
       .unique();
-    if (existing !== null) return existing._id;
+    if (existing !== null) {
+      await ensureFavouriteTag(ctx, existing._id);
+      return existing._id;
+    }
 
     const userId = await ctx.db.insert("users", {
       token: identity.tokenIdentifier,
@@ -54,7 +60,6 @@ export const createUser = mutation({
           userId,
           title: page.title,
           order,
-          type: "system",
           systemKey: page.systemKey,
           icon: page.icon,
           filters: [],
@@ -68,6 +73,8 @@ export const createUser = mutation({
         (p) => p.systemKey === DEFAULT_SETTINGS.defaultProgressKey,
       )
     ];
+
+    await ensureFavouriteTag(ctx, userId);
 
     await ctx.db.insert("settings", {
       userId,

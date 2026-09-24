@@ -1,9 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════
    SHARED CONSTANTS
 
-   PROGRESS_KEYS is the source of truth for exclusivity. A manga
-   sits on exactly one of these at a time; favourites is outside
-   the group. Nothing stores this — it is derived in code.
+   PROGRESS_KEYS are the four pages a manga can be on. Every manga
+   that isn't in the trash is on exactly one, stored as
+   userMangas.progressKey. Favourites is a page too, but it doesn't
+   hold manga: it shows the ones with the Favourite tag.
 
    These live apart from schema.ts so mutations can import them
    without pulling defineSchema along.
@@ -68,6 +69,12 @@ export const SYSTEM_PAGES: ReadonlyArray<{
   { systemKey: "paused", title: "Paused", icon: "pause-circle-line" },
   { systemKey: "completed", title: "Completed", icon: "archive-2-line" },
 ];
+
+/* ── tags ────────────────────────────────────────────────────── */
+
+// The built-in tag behind the Favourites page. It can't be renamed or
+// deleted, because that page depends on it.
+export const FAVOURITE_TAG_NAME = "Favourite";
 
 /* ── hard-coded views ───────────────────────────────────────── */
 
