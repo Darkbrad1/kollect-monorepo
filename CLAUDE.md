@@ -36,7 +36,7 @@ These were settled with me, so don't reopen them without asking.
 - **Export:** always exports everything: every manga with its pages and reading progress, the page list, and the settings.
 - **Import:** the user picks one of three options from a dropdown:
   - **Titles Only:** just the manga. New ones land on the default page. Manga already in the library aren't changed.
-  - **Title And Page:** the manga, which pages they're on, and reading progress (the progress part is not yet confirmed).
+  - **Title And Page:** the manga, which pages they're on, and reading progress.
   - **All Settings:** everything in Title And Page, plus the settings.
 - **Import rules:**
   - It never removes anything.
@@ -48,7 +48,7 @@ These were settled with me, so don't reopen them without asking.
   - Import runs in small batches so the extension can show "Importing *[title]*…" while it works.
 - **Filters:** every filter on a page must match. The options are:
   - **Last read chapter** and **Latest chapter:** greater than, equal, less than, between.
-  - **Date added:** greater than, less than, between, counted in days ago (not yet confirmed).
-  - **Source:** equal (the site you're reading it on) or contains (any site that has the series). This meaning is not yet confirmed.
+  - **Date added:** greater than, less than, between, counted in days ago. "Greater than 7" means added more than 7 days ago.
+  - **Source:** equal means the site you're reading it on now. Contains means any site you've read it on before, from your reading history (the current site counts too).
   - "Between" includes both ends. A manga with no value for a field (for example, never read) doesn't match filters on that field.
 - **The latest chapter** for each manga is stored on the manga itself and refreshed by a weekly job.

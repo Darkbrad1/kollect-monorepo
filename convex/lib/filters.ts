@@ -28,21 +28,21 @@ export type FilterableManga = {
   latestChapter?: number;
   addedAt: number;
   currentSiteId?: Id<"sites">;
-  sourceSiteIds: readonly Id<"sites">[];
+  // Sites in this manga's reading history.
+  readSiteIds: readonly Id<"sites">[];
 };
 
 /** Builds the filter input from what the page loader returns. */
 export function toFilterable(item: {
   userManga: Doc<"userMangas">;
   manga: Doc<"mangas">;
-  sourceSiteIds: readonly Id<"sites">[];
 }): FilterableManga {
   return {
     lastReadChapter: item.userManga.currentChapterNumber,
     latestChapter: item.manga.latestChapter,
     addedAt: item.userManga.addedAt,
     currentSiteId: item.userManga.currentSiteId,
-    sourceSiteIds: item.sourceSiteIds,
+    readSiteIds: item.userManga.readSiteIds ?? [],
   };
 }
 
@@ -79,9 +79,13 @@ export function matchesFilter(
     case "dateAdded":
       return compare((now - manga.addedAt) / DAY_MS, rule);
     case "source":
+      // equal: the site you're reading it on now.
+      // contains: a site you've read it on at some point. The current
+      // site counts too — you're reading it there.
       return rule.op === "equal"
         ? manga.currentSiteId === rule.siteId
-        : manga.sourceSiteIds.includes(rule.siteId);
+        : manga.currentSiteId === rule.siteId ||
+            manga.readSiteIds.includes(rule.siteId);
   }
 }
 

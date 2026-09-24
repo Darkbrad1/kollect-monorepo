@@ -60,7 +60,7 @@ export const filterRule = v.union(
     max: v.number(),
   }),
   // "equal": the site you're currently reading it on.
-  // "contains": any site known to carry the series.
+  // "contains": any site you've read it on, from your reading history.
   v.object({
     field: v.literal("source"),
     op: v.union(v.literal("equal"), v.literal("contains")),

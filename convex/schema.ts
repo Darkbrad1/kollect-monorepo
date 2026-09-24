@@ -113,6 +113,13 @@ export default defineSchema({
     currentPercentage: v.optional(v.number()),
     lastReadAt: v.optional(v.number()),
 
+    // Every site this manga has been read on, taken from its reading
+    // history. Kept here rather than worked out from readChapters on
+    // each page load, which would mean reading every history row for
+    // every manga on the page. Powers the "Source contains" filter.
+    // Optional so rows written before it existed stay valid.
+    readSiteIds: v.optional(v.array(v.id("sites"))),
+
     // Soft delete. isDeleted is the indexable equality field;
     // deletedAt is what the trash view displays; purgeAt is what
     // the cron scans (deletedAt + settings.trashRetentionDays).

@@ -88,7 +88,7 @@ The filter matching lives in `convex/lib/filters.ts`. It's plain code with no da
 | Last read chapter | greater than, equal, less than, between |
 | Latest chapter | greater than, equal, less than, between |
 | Date added (in days ago) | greater than, less than, between |
-| Source | equal (the site you're reading it on), contains (any site that has the series) |
+| Source | equal (the site you're reading it on now), contains (any site you've read it on, from your reading history) |
 
 A manga has to pass *every* filter on the page. "Between" includes both ends. A manga with no value for a field (for example, one you haven't started) doesn't match filters on that field.
 

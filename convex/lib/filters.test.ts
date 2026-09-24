@@ -12,7 +12,7 @@ const manga = (overrides: Partial<FilterableManga> = {}): FilterableManga => ({
   latestChapter: 120,
   addedAt: NOW - 10 * DAY_MS, // added 10 days ago
   currentSiteId: asura,
-  sourceSiteIds: [asura, flame],
+  readSiteIds: [flame], // read on Flame before, reading on Asura now
   ...overrides,
 });
 
@@ -73,11 +73,15 @@ describe("source filters", () => {
     expect(matchesFilter(manga(), { field: "source", op: "equal", siteId: flame }, NOW)).toBe(false);
   });
 
-  test("contains: any site that carries it", () => {
+  test("contains: a site in your reading history", () => {
     expect(matchesFilter(manga(), { field: "source", op: "contains", siteId: flame }, NOW)).toBe(true);
     expect(
       matchesFilter(manga(), { field: "source", op: "contains", siteId: "site_other" as Id<"sites"> }, NOW),
     ).toBe(false);
+  });
+
+  test("contains: the site you're reading on now counts too", () => {
+    expect(matchesFilter(manga(), { field: "source", op: "contains", siteId: asura }, NOW)).toBe(true);
   });
 });
 

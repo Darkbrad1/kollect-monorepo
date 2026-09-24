@@ -4,6 +4,7 @@ import type { FunctionReturnType } from "convex/server";
 import { describe, expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { matchesFilter, toFilterable } from "./lib/filters";
 import schema from "./schema";
 
 // Test files are never deployed: the Convex bundler skips any file
@@ -410,24 +411,30 @@ describe("scheduled purge", () => {
   });
 });
 
-describe("page loader", () => {
-  test("includes every site that carries each manga, for the source filter", async () => {
+describe("source contains filter", () => {
+  test("a site gets remembered once a chapter from it lands in history", async () => {
     const c = await setup();
-    const flame = await c.t.run(async (ctx) => {
-      const flame = await ctx.db.insert("sites", {
+    const flame = await c.t.run((ctx) =>
+      ctx.db.insert("sites", {
         domain: "flamecomics.xyz", icon: "flame.png", title: "Flame", link: "https://flamecomics.xyz",
         chapterInUrl: true, caseSensitive: false, configVersion: 1,
-      });
-      await ctx.db.insert("mangaSources", { mangaId: c.mangaIds[0], siteId: c.siteId, url: "https://asurascans.com/x" });
-      await ctx.db.insert("mangaSources", { mangaId: c.mangaIds[0], siteId: flame, url: "https://flamecomics.xyz/x" });
-      return flame;
-    });
-    await libraryWith(c, c.alice, c.mangaIds[0], { page: "reading" });
+      }),
+    );
+    // Bob read chapter 50 on Flame; Alice's file has chapter 80 on Asura.
+    await libraryWith(c, c.alice, c.mangaIds[0], { chapter: 80, siteId: c.siteId, page: "reading" });
+    await libraryWith(c, c.bob, c.mangaIds[0], { chapter: 50, siteId: flame, page: "reading" });
 
-    const me = await c.alice.query(api.users.me, {});
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    await importFile(c.bob, file, "titlesAndPages");
+
+    const me = await c.bob.query(api.users.me, {});
     const reading = me!.pages.find((p) => p.systemKey === "reading")!;
-    const { items } = await c.alice.query(api.pages.mangasForPage, { pageId: reading._id });
+    const { items } = await c.bob.query(api.pages.mangasForPage, { pageId: reading._id });
+    const manga = toFilterable(items[0]);
 
-    expect(items[0].sourceSiteIds.sort()).toEqual([c.siteId, flame].sort());
+    // Now reading on Asura, with Flame in the history.
+    expect(matchesFilter(manga, { field: "source", op: "equal", siteId: c.siteId }, Date.now())).toBe(true);
+    expect(matchesFilter(manga, { field: "source", op: "equal", siteId: flame }, Date.now())).toBe(false);
+    expect(matchesFilter(manga, { field: "source", op: "contains", siteId: flame }, Date.now())).toBe(true);
   });
 });

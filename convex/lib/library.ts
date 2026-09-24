@@ -83,5 +83,12 @@ export async function recordHistory(
     percentage: entry.percentage ?? 0,
     readAt: entry.readAt ?? Date.now(),
   });
+
+  // Keep the manga's list of read-on sites in step with its history.
+  const userManga = await ctx.db.get(userMangaId);
+  const readSiteIds = userManga?.readSiteIds ?? [];
+  if (userManga !== null && !readSiteIds.includes(entry.siteId)) {
+    await ctx.db.patch(userMangaId, { readSiteIds: [...readSiteIds, entry.siteId] });
+  }
   return true;
 }
