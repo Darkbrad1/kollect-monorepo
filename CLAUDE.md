@@ -25,6 +25,14 @@ Useful commands:
 - `pnpm dev:app`: runs the sign-in web app on port 3000
 - `pnpm dev:extension`: runs the extension in development
 - `pnpm --filter app exec convex <command>`: any other Convex command, for example `dashboard` or `run`
+- `pnpm --filter extension icons`: rewrites `extension/lib/icons.tsx` with every Remix icon the extension uses. Run it after using a new icon.
+
+## Extension code conventions
+
+- Import icons from `~lib/icons`, never from `@remixicon/react` directly (the full package is 3 MB). Then run `pnpm --filter extension icons`.
+- Screens reach the backend through `useQ`, `useM` and `useOnce` from `~lib/data`, not Convex's hooks directly, so the preview page can swap in made-up data.
+- When a screen starts using a new backend function, add a fake version of it to `extension/lib/sample.ts` so the preview page keeps working.
+- Colours come from the theme (`bg-surface`, `text-muted`, `bg-primary` and so on in Tailwind). Don't hard-code colours, or the user's theme won't apply.
 
 ## Decisions already made
 
@@ -74,5 +82,7 @@ These were settled with me, so don't reopen them without asking.
 - **Search** (top bar) searches the **whole library**, not just the page you're on, by title and alternative titles. Capitals and punctuation don't matter. Titles that start with what you typed come first. Manga in the trash aren't included.
 - **Automatic checks:** every push to `dev` or `master`, and every pull request, runs the typechecks, the web app's lint, and the backend tests on GitHub (`.github/workflows/checks.yml`). Keep them passing.
 - **Reading tracking** (for later): the reading page talks to the backend directly, whether or not the popup is open. Don't route it through the popup.
-- **On hold:** the extension screens and reading tracking wait until the design is final. Don't start them unless asked.
+- **On hold:** reading tracking and adding reading websites. Don't start them unless asked.
+- **The extension screens** are built on the `design` branch. Some parts weren't in the Figma design and were guessed; they're listed for the user to review, so don't treat them as settled yet.
+- **Default theme:** base `#1C1C1C`, primary `#D9D9D9`, secondary `#5FA8B0`, font Manrope.
 - **The latest chapter** for each manga is stored on the manga itself and refreshed by a weekly job.

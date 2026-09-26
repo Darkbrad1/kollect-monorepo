@@ -105,14 +105,15 @@ export const SCROLL_THRESHOLD_MAX = 100;
 
 export const DEFAULT_TRASH_RETENTION_DAYS = 30;
 
-/* Font matches the Font row in the settings design. The hexes are
-   still a close read of the mockups rather than sampled tokens —
-   TODO(ui-slice): lift the exact values when the screen is built. */
+/* Read off the design's settings screen: a light grey primary (selected
+   tabs and buttons), a teal secondary (progress), and a near-black base.
+   A close read of the mockups rather than sampled values; the extension
+   mirrors these in lib/theme.ts as FALLBACK_THEME. */
 export const DEFAULT_THEME = {
   colors: {
-    primary: "#E8615D",
-    secondary: "#5FD9C8",
-    base: "#0F0F0F",
+    primary: "#D9D9D9",
+    secondary: "#5FA8B0",
+    base: "#1C1C1C",
   },
   font: "Manrope",
 } as const;

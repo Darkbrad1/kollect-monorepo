@@ -2,7 +2,7 @@
 
 A Chrome extension for keeping track of the manga, manhwa and manhua you're reading. It remembers which chapter you're on, sorts your series into pages (Reading, Planned, Paused, Completed and Favourites), lets you label them with your own tags, and syncs everything to your account.
 
-> **Status:** the backend (database and server functions) is in place and tested. The extension's screens are being designed in Figma and haven't been built yet. See [What's not built yet](#whats-not-built-yet).
+> **Status:** the backend (database and server functions) is in place and tested. The extension's screens are built on the `design` branch, following the Figma design. Reading tracking and reading websites aren't built yet. See [What's not built yet](#whats-not-built-yet).
 
 ## What's in this repo
 
@@ -49,6 +49,16 @@ You'll need Node.js and [pnpm](https://pnpm.io). The project uses pnpm only, so 
    ```
    Then in Chrome, open `chrome://extensions`, turn on Developer mode, click "Load unpacked", and choose `extension/build/chrome-mv3-dev`.
 
+## Looking at the screens without an account
+
+The extension has a **preview page** that shows every screen filled with made-up manga, so you can click around without signing in or having anything in your library. Nothing you do there is saved: it all resets when you reload.
+
+1. Run `pnpm dev:extension` and load it in Chrome (step 7 above).
+2. On `chrome://extensions`, copy the Kollect extension's ID.
+3. Open `chrome-extension://<the ID>/tabs/preview.html`.
+
+The made-up data lives in `extension/lib/sample.ts`.
+
 ## Running the tests
 
 ```bash
@@ -58,6 +68,38 @@ pnpm test
 GitHub also runs the checks automatically on every push to `dev` or `master` and on every pull request: typechecks for all three parts, the web app's lint, and these tests. A red cross next to a commit on GitHub means one of them failed; click it to see which.
 
 The tests run the backend functions against a fake, in-memory database, so they don't touch your real data. They live next to the code as `convex/*.test.ts`. Convex never deploys them, because its bundler skips any file name with more than one dot.
+
+## How the extension works
+
+The popup is 800 × 600 pixels. When you're signed out it shows a "Sign in on the web" button. When you're signed in it shows your library.
+
+| File | What it is |
+|---|---|
+| `popup.tsx` | The starting point. Sets up Clerk (logins) and Convex (the backend), and creates your account the first time you sign in. |
+| `components/App.tsx` | Chooses between the library and the Settings screen, and remembers which page you were on. |
+| `components/ControlsBar.tsx` | The top bar: page tabs, the "all pages" dropdown, Search, Filter, Sort and the Settings button. |
+| `components/Library.tsx` | Loads the manga for the page (or the trash, or your search), filters and sorts them, and shows the grid. |
+| `components/CardGrid.tsx` | The grid itself. It only draws the rows you can see, plus 10 manga above and 10 below, so big libraries stay fast. |
+| `components/MangaCard.tsx` | One card: cover, title, site icon, chapter and how long ago you read it. |
+| `components/CardMenu.tsx` | The ⋯ menu on a card, and the Add Tags panel. |
+| `components/CardDetails.tsx` | The Details panel: chapter, last read, the site and chapter dropdowns, and the progress bar. |
+| `components/PagePopups.tsx` | The Filter and Sort popups. Changes save on their own a moment after you stop clicking. |
+| `components/SettingsPage.tsx` | The Settings screen: Account, General, Theme and Tags. |
+| `components/ImportExport.tsx` | The Import and Export buttons, the "Importing…" screen and the import report. |
+| `components/ui.tsx` | Small shared pieces: buttons, switches, dropdowns, menus and the "Are You Sure?" popup. |
+| `lib/theme.ts` | Turns your theme settings (three colours and a font) into the colours the screens use. |
+| `lib/data.tsx` | How screens talk to the backend. The preview page swaps it for made-up data. |
+| `tabs/preview.tsx` | The preview page described above. |
+
+**Theme.** Your three colours set everything: *base* is the background (panels are slightly lighter or darker shades of it), *primary* is for selected things and main buttons, and *secondary* is for the progress bars. Text switches between light and dark on its own so it's always readable. The default theme is base `#1C1C1C`, primary `#D9D9D9`, secondary `#5FA8B0`, font Manrope. The fonts on offer are Manrope, Inter, Montserrat and Nunito.
+
+**Icons.** The icons come from Remix Icon, but only the ones actually used are copied into `extension/lib/icons.tsx` (the full set is 3 MB). After using a new icon, import it from `~lib/icons` and run:
+
+```bash
+pnpm --filter extension icons
+```
+
+That command finds every `Ri…` icon name in the extension's code and rewrites `lib/icons.tsx`.
 
 ## How the backend works
 
@@ -167,7 +209,8 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 
 ## What's not built yet
 
-- **The extension's screens.** On hold until the design is final. The popup is still a placeholder.
+- **Checking the screens with you.** The screens follow the Figma design, but some parts weren't in it and were guessed. They're waiting for your review.
 - **Reading tracking.** On hold until the design is final. Nothing watches reading sites yet, so chapters don't update on their own. When it's built, the reading page will talk to the backend directly, so it works even when the popup is closed.
 - **Latest-chapter lookups.** The weekly job runs, but the part that actually looks up each series' newest chapter is a placeholder until reading websites are added.
+- **Removing the preview page before release.** `tabs/preview.html` is handy while designing, but it ships inside the extension, so it should be taken out (or hidden) before the extension is published.
 - **Production builds.** `plasmo build` only reads `extension/.env.chrome`, which doesn't have the Clerk or Convex settings yet, so a production build won't work until they're added there.

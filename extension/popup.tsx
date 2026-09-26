@@ -4,7 +4,9 @@ import {
   ClerkProvider,
   SignedIn,
   SignedOut,
-  useAuth
+  useAuth,
+  useClerk,
+  useUser
 } from "@clerk/chrome-extension"
 import { useMutation } from "convex/react"
 import { ConvexProviderWithClerk } from "convex/react-clerk"
@@ -12,8 +14,10 @@ import { useEffect, useState } from "react"
 import type { ReactNode } from "react"
 
 import { api } from "../convex/_generated/api"
-import Home from "./Home"
+import { App } from "./components/App"
+import { Button } from "./components/ui"
 import { convex } from "./convex-client"
+import { themeStyle, FALLBACK_THEME } from "./lib/theme"
 
 const PUBLISHABLE_KEY = process.env.PLASMO_PUBLIC_CLERK_PUBLISHABLE_KEY
 const SYNC_HOST = process.env.PLASMO_PUBLIC_CLERK_SYNC_HOST
@@ -24,9 +28,21 @@ if (!PUBLISHABLE_KEY || !SYNC_HOST) {
   )
 }
 
+/** A centred message on the default theme, for the moments before the
+    library has loaded. */
+function Screen({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={themeStyle(FALLBACK_THEME)}
+      className="grid h-[600px] w-[800px] place-items-center bg-base font-sans text-fg">
+      <div className="flex max-w-[320px] flex-col items-center gap-3 text-center">{children}</div>
+    </div>
+  )
+}
+
 /**
- * Provisions the user row, settings and system pages on first open.
- * createUser is idempotent, so running it on every popup open is
+ * Provisions the user row, settings, pages and Favourite tag on first
+ * open. createUser is idempotent, so running it on every popup open is
  * cheap and means nothing downstream has to handle a missing user.
  */
 function EnsureUser({ children }: { children: ReactNode }) {
@@ -49,37 +65,45 @@ function EnsureUser({ children }: { children: ReactNode }) {
   }, [createUser])
 
   if (error) {
-    return <p className="p-3 text-sm text-red-400">Couldn't load your library: {error}</p>
+    return (
+      <Screen>
+        <p className="text-sm font-bold">Couldn't load your library</p>
+        <p className="text-xs text-muted">{error}</p>
+      </Screen>
+    )
   }
-  if (!ready) {
-    return <p className="p-3 text-sm text-neutral-400">Loading your library…</p>
-  }
-  return <>{children}</>
+  // App draws its own loading placeholders, so show it straight away.
+  return ready ? <>{children}</> : <Screen>{null}</Screen>
+}
+
+function SignedInApp() {
+  const { user } = useUser()
+  const { signOut } = useClerk()
+  return <App account={{ imageUrl: user?.imageUrl, signOut: () => void signOut() }} />
 }
 
 function IndexPopup() {
   return (
     <ClerkProvider publishableKey={PUBLISHABLE_KEY} syncHost={SYNC_HOST}>
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-        <div className="bg-black text-white w-[800px] h-[600px]">
-          <SignedOut>
-            <p className="mb-3 text-sm">
-              Sign in to Kollect to sync your library.
+        <SignedOut>
+          <Screen>
+            <h1 className="text-lg font-extrabold">Kollect</h1>
+            <p className="text-[13px] text-muted">
+              Sign in to keep track of the manga, manhwa and manhua you're reading.
             </p>
-            <button
-              className="rounded bg-white px-3 py-2 text-sm text-black"
-              onClick={() =>
-                chrome.tabs.create({ url: `${SYNC_HOST}:3000/sign-in` })
-              }>
+            <Button
+              variant="primary"
+              onClick={() => chrome.tabs.create({ url: `${SYNC_HOST}:3000/sign-in` })}>
               Sign in on the web
-            </button>
-          </SignedOut>
-          <SignedIn>
-            <EnsureUser>
-              <Home />
-            </EnsureUser>
-          </SignedIn>
-        </div>
+            </Button>
+          </Screen>
+        </SignedOut>
+        <SignedIn>
+          <EnsureUser>
+            <SignedInApp />
+          </EnsureUser>
+        </SignedIn>
       </ConvexProviderWithClerk>
     </ClerkProvider>
   )

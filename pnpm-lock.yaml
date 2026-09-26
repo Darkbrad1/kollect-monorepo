@@ -84,6 +84,18 @@ importers:
       '@clerk/chrome-extension':
         specifier: 2.5.21
         version: 2.5.21(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.3.3)(utf-8-validate@6.0.6))(@types/react@18.2.48)(bs58@6.0.0)(bufferutil@4.1.0)(react-dom@18.2.0(react@18.2.0))(react-native@0.87.0(@babel/core@7.29.7)(@types/react@18.2.48)(bufferutil@4.1.0)(react@18.2.0)(utf-8-validate@6.0.6))(react@18.2.0)(typescript@5.3.3)(use-sync-external-store@1.7.0(react@18.2.0))(utf-8-validate@6.0.6)(zod@4.4.3)
+      '@fontsource-variable/inter':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource-variable/manrope':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource-variable/montserrat':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource-variable/nunito':
+        specifier: ^5.3.0
+        version: 5.3.0
       convex:
         specifier: ^1.45.0
         version: 1.45.0(@clerk/clerk-react@5.61.3(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(@clerk/react@6.14.5(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(bufferutil@4.1.0)(react@18.2.0)(utf-8-validate@6.0.6)
@@ -100,6 +112,9 @@ importers:
       '@ianvs/prettier-plugin-sort-imports':
         specifier: 4.1.1
         version: 4.1.1(@vue/compiler-sfc@3.3.4)(prettier@3.2.4)
+      '@remixicon/react':
+        specifier: ^4.9.0
+        version: 4.9.0(react@18.2.0)
       '@types/chrome':
         specifier: 0.0.258
         version: 0.0.258
@@ -685,6 +700,18 @@ packages:
 
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
+  '@fontsource-variable/inter@5.3.0':
+    resolution: {integrity: sha512-OupL48va4JNofb97w6NYeF9S7W/kHNKM0Er8Dem5nqi4jeOLrVJDoE8tZEpnMJmtkvNbB1EIPPwHcdkF6b1oUA==}
+
+  '@fontsource-variable/manrope@5.3.0':
+    resolution: {integrity: sha512-6D5dgokHsWDDMtmXHznKa0hK229NN+1a4BLPmUCLqcO1Pw5EEhWY5RFt0AcXnVRAljFFPfRtLkJePQj6LSsV6g==}
+
+  '@fontsource-variable/montserrat@5.3.0':
+    resolution: {integrity: sha512-7PaZoxaxrWLAyrhO46v65An9LhUhfkTExWLhfbywYZCnZEgg/W1rEHnlNmZKjNZ3nJTVYyicqxlJt10z/26yTA==}
+
+  '@fontsource-variable/nunito@5.3.0':
+    resolution: {integrity: sha512-tw0ch7evIDSwoeUy+0XzocYHfbRWLeCRPJy22KgbrLjDLAbNw/fErBiil10Ssrs3Sjr55zaZrr36a975j8cBkQ==}
 
   '@formkit/auto-animate@0.8.4':
     resolution: {integrity: sha512-DHHC01EJ1p70Q0z/ZFRBIY8NDnmfKccQoyoM84Tgb6omLMat6jivCdf272Y8k3nf4Lzdin/Y4R9q8uFtU0GbnA==}
@@ -1917,6 +1944,11 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  '@remixicon/react@4.9.0':
+    resolution: {integrity: sha512-5/jLDD4DtKxH2B4QVXTobvV1C2uL8ab9D5yAYNtFt+w80O0Ys1xFOrspqROL3fjrZi+7ElFUWE37hBfaAl6U+Q==}
+    peerDependencies:
+      react: '>=18.2.0'
 
   '@rolldown/binding-android-arm-eabi@1.2.5':
     resolution: {integrity: sha512-DLe/i+l8ynIBY7XEQ191TeZvCoowIGa18R+dIV30GW7DiOtp74i/xX8hs8GUjW5ARV7VZuie3d6AumSmCwbeRA==}
@@ -6371,6 +6403,14 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
+  '@fontsource-variable/inter@5.3.0': {}
+
+  '@fontsource-variable/manrope@5.3.0': {}
+
+  '@fontsource-variable/montserrat@5.3.0': {}
+
+  '@fontsource-variable/nunito@5.3.0': {}
+
   '@formkit/auto-animate@0.8.4': {}
 
   '@humanfs/core@0.19.2':
@@ -7916,6 +7956,10 @@ snapshots:
       react-native: 0.87.0(@babel/core@7.29.7)(@types/react@18.2.48)(bufferutil@4.1.0)(react@18.2.0)(utf-8-validate@6.0.6)
     optionalDependencies:
       '@types/react': 18.2.48
+
+  '@remixicon/react@4.9.0(react@18.2.0)':
+    dependencies:
+      react: 18.2.0
 
   '@rolldown/binding-android-arm-eabi@1.2.5':
     optional: true
