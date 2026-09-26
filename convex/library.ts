@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { requireOwnedManga, requireSettings, requireUser } from "./lib/auth";
 import { addToLibrary, recordHistory } from "./lib/library";
@@ -111,5 +112,87 @@ export const switchToHistoryChapter = mutation({
     });
 
     return { keptPrevious };
+  },
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   READING SOURCE
+
+   The site dropdown in the card details popup. It lists every site
+   known to have the series, and picking one switches where you're
+   reading it.
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * The sites to offer in the dropdown: every site known to carry the
+ * series, plus any site you've read it on, with the current one marked.
+ */
+export const sourcesFor = query({
+  args: { userMangaId: v.id("userMangas") },
+  handler: async (ctx, { userMangaId }) => {
+    const user = await requireUser(ctx);
+    const userManga = await requireOwnedManga(ctx, user._id, userMangaId);
+
+    const carrying = await ctx.db
+      .query("mangaSources")
+      .withIndex("by_manga", (q) => q.eq("mangaId", userManga.mangaId))
+      .collect();
+
+    const siteIds = new Set<Id<"sites">>(carrying.map((source) => source.siteId));
+    for (const id of userManga.readSiteIds ?? []) siteIds.add(id);
+    if (userManga.currentSiteId !== undefined) siteIds.add(userManga.currentSiteId);
+
+    const sites = [];
+    for (const id of siteIds) {
+      const site = await ctx.db.get(id);
+      if (site === null) continue;
+      sites.push({
+        siteId: site._id,
+        title: site.title,
+        icon: site.icon,
+        isCurrent: site._id === userManga.currentSiteId,
+      });
+    }
+    return sites.sort((a, b) => a.title.localeCompare(b.title));
+  },
+});
+
+/**
+ * Switches which site you're reading a manga on. Your chapter stays
+ * the same. The old site counts as one you've read it on, so the
+ * "Source contains" filter still finds it there. The "continue
+ * reading" link becomes the series page on the new site until you
+ * read a chapter there.
+ */
+export const switchSource = mutation({
+  args: { userMangaId: v.id("userMangas"), siteId: v.id("sites") },
+  handler: async (ctx, { userMangaId, siteId }) => {
+    const user = await requireUser(ctx);
+    const userManga = await requireOwnedManga(ctx, user._id, userMangaId);
+    if (userManga.isDeleted) {
+      throw new Error("That manga is in the trash. Restore it first.");
+    }
+    if ((await ctx.db.get(siteId)) === null) throw new Error("No such site.");
+    if (userManga.currentSiteId === siteId) return;
+
+    const readSiteIds = [...(userManga.readSiteIds ?? [])];
+    const previous = userManga.currentSiteId;
+    if (previous !== undefined && !readSiteIds.includes(previous)) {
+      readSiteIds.push(previous);
+    }
+
+    const source = await ctx.db
+      .query("mangaSources")
+      .withIndex("by_manga", (q) => q.eq("mangaId", userManga.mangaId))
+      .filter((q) => q.eq(q.field("siteId"), siteId))
+      .first();
+
+    await ctx.db.patch(userMangaId, {
+      currentSiteId: siteId,
+      // The old link pointed at a chapter on the old site. Undefined
+      // clears it when the new site has no known series page.
+      currentChapterUrl: source?.url,
+      readSiteIds,
+    });
   },
 });

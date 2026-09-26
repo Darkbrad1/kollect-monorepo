@@ -74,7 +74,7 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 | File | What it handles |
 |---|---|
 | `users.ts` | Creating your account on first sign-in (with your settings, the five pages and the Favourite tag), and loading your account info. |
-| `library.ts` | Adding manga, moving them between progress pages, and reading history (listing past chapters and switching back to one). |
+| `library.ts` | Adding manga, moving them between progress pages, reading history (listing past chapters and switching back to one), and switching which site you read a manga on. |
 | `pages.ts` | Loading every manga on a page, loading the trash, and saving a page's filters and sort. |
 | `tags.ts` | Your tag list (create, rename, recolour, delete), tagging manga (including creating a tag by typing its name), and favouriting. |
 | `trash.ts` | Moving to the trash, restoring, permanent delete, and emptying the trash. |
@@ -83,6 +83,13 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 | `sites.ts` | The list of supported reading websites. |
 | `catalogue.ts` | Keeping each manga's latest chapter number up to date. |
 | `lib/` | Helpers shared by the files above. These aren't called directly. |
+
+### Card details
+
+The details popup has two dropdowns:
+
+- **Site:** lists every site known to have the series, plus any you've read it on (`library:sourcesFor`). Picking one switches where you're reading it (`library:switchSource`). Your chapter stays the same, the old site is remembered as one you've read it on, and the "continue reading" link becomes the series page on the new site until you read a chapter there.
+- **Chapter:** your reading history (`library:chapterHistory`). Picking a chapter makes it current again (`library:switchToHistoryChapter`), and the chapter you left is kept in history.
 
 ### Sorting and filtering
 

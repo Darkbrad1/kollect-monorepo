@@ -255,3 +255,57 @@ describe("pages", () => {
     expect(await pageTitles("paused")).toEqual(["Solo Leveling"]);
   });
 });
+
+describe("switching the reading source", () => {
+  async function withSites() {
+    const c = await setup();
+    const [asura, flame] = await c.t.run(async (ctx) => {
+      const site = (domain: string, title: string) =>
+        ctx.db.insert("sites", {
+          domain, icon: `${domain}.png`, title, link: `https://${domain}`,
+          chapterInUrl: true, caseSensitive: false, configVersion: 1,
+        });
+      return [await site("asurascans.com", "Asurascans"), await site("flamecomics.xyz", "Flame")];
+    });
+    await c.t.run((ctx) =>
+      ctx.db.insert("mangaSources", {
+        mangaId: c.mangaIds[0], siteId: flame, url: "https://flamecomics.xyz/series/solo",
+      }),
+    );
+    const row = await c.add(c.mangaIds[0], "reading");
+    await c.t.run((ctx) =>
+      ctx.db.patch(row, {
+        currentChapterNumber: 98,
+        currentSiteId: asura,
+        currentChapterUrl: "https://asurascans.com/solo/98",
+      }),
+    );
+    return { ...c, row, asura, flame };
+  }
+
+  test("the dropdown lists every known site, with the current one marked", async () => {
+    const { me, row } = await withSites();
+    const sites = await me.query(api.library.sourcesFor, { userMangaId: row });
+    expect(sites.map((s) => [s.title, s.isCurrent])).toEqual([
+      ["Asurascans", true],
+      ["Flame", false],
+    ]);
+  });
+
+  test("switching keeps the chapter, remembers the old site, and links to the new one", async () => {
+    const { t, me, row, asura, flame } = await withSites();
+    await me.mutation(api.library.switchSource, { userMangaId: row, siteId: flame });
+
+    const after = await t.run((ctx) => ctx.db.get(row));
+    expect(after!.currentSiteId).toBe(flame);
+    expect(after!.currentChapterNumber).toBe(98);
+    expect(after!.currentChapterUrl).toBe("https://flamecomics.xyz/series/solo");
+    expect(after!.readSiteIds).toEqual([asura]);
+  });
+
+  test("a manga in the trash can't switch", async () => {
+    const { me, row, flame } = await withSites();
+    await me.mutation(api.trash.softDelete, { userMangaId: row });
+    await expect(me.mutation(api.library.switchSource, { userMangaId: row, siteId: flame })).rejects.toThrow(/trash/);
+  });
+});
