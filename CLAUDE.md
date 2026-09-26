@@ -64,7 +64,12 @@ These were settled with me, so don't reopen them without asking.
   - **Each tag has a colour**, shown on its chip. New tags take the next colour from a set list unless one is picked, and the colour can be changed later.
   - **Settings has a Tags section** (Search/Create Tags, Add Tag, and the tag chips). It replaces the old Pages section. The card menu's **Add Tags** has the same Search/Create box: typing a new name creates the tag and adds it.
   - **Favourite is a built-in tag.** It can't be renamed or deleted. The "Favourite" item in the card menu adds or removes it. The Favourites page shows every manga with the Favourite tag, from all four progress pages.
-- **Card details:** the site dropdown lists every site known to have the series (plus any you've read it on). Picking one **switches where you're reading it**: the chapter stays the same, the old site counts as one you've read it on, and the "continue reading" link becomes the series page on the new site. The chapter dropdown is the reading history; picking a chapter switches back to it.
+- **Card details:**
+  - The site dropdown lists **only the sites you've read that manga on**, not every site that has it.
+  - Picking a site **switches back to reading it there, at the chapter you last read on that site** (the most recent one by time), along with that chapter's link and percentage.
+  - The chapter you're leaving is saved to your history first, so switching back returns you to it. The site you left still counts as one you've read it on.
+  - The chapter dropdown is the reading history; picking a chapter switches back to it.
+  - The top bar has two layout styles in the design. They work the same way, so the backend treats them the same.
 - **Reading tracking** (for later): the reading page talks to the backend directly, whether or not the popup is open. Don't route it through the popup.
 - **On hold:** the extension screens and reading tracking wait until the design is final. Don't start them unless asked.
 - **The latest chapter** for each manga is stored on the manga itself and refreshed by a weekly job.

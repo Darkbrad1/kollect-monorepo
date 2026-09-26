@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import type { Id } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { requireOwnedManga, requireSettings, requireUser } from "./lib/auth";
 import { addToLibrary, recordHistory } from "./lib/library";
 import { setProgressPage } from "./lib/pages";
@@ -118,39 +118,53 @@ export const switchToHistoryChapter = mutation({
 /* ═══════════════════════════════════════════════════════════════
    READING SOURCE
 
-   The site dropdown in the card details popup. It lists every site
-   known to have the series, and picking one switches where you're
-   reading it.
+   The site dropdown in the card details popup. It lists only the
+   sites you've read this manga on, and picking one switches back to
+   reading it there, at the chapter you were last on at that site.
    ═══════════════════════════════════════════════════════════════ */
 
-/**
- * The sites to offer in the dropdown: every site known to carry the
- * series, plus any site you've read it on, with the current one marked.
- */
+/** The history entry you read most recently on one site, if any. */
+async function lastReadOnSite(
+  ctx: QueryCtx,
+  userMangaId: Id<"userMangas">,
+  siteId: Id<"sites">,
+): Promise<Doc<"readChapters"> | null> {
+  const history = await ctx.db
+    .query("readChapters")
+    .withIndex("by_userManga_number", (q) => q.eq("userMangaId", userMangaId))
+    .collect();
+
+  let latest: Doc<"readChapters"> | null = null;
+  for (const entry of history) {
+    if (entry.siteId !== siteId) continue;
+    if (latest === null || entry.readAt > latest.readAt) latest = entry;
+  }
+  return latest;
+}
+
+/** The sites you've read a manga on, with the current one marked and
+    the chapter you were last on at each. */
 export const sourcesFor = query({
   args: { userMangaId: v.id("userMangas") },
   handler: async (ctx, { userMangaId }) => {
     const user = await requireUser(ctx);
     const userManga = await requireOwnedManga(ctx, user._id, userMangaId);
 
-    const carrying = await ctx.db
-      .query("mangaSources")
-      .withIndex("by_manga", (q) => q.eq("mangaId", userManga.mangaId))
-      .collect();
-
-    const siteIds = new Set<Id<"sites">>(carrying.map((source) => source.siteId));
-    for (const id of userManga.readSiteIds ?? []) siteIds.add(id);
+    const siteIds = new Set<Id<"sites">>(userManga.readSiteIds ?? []);
     if (userManga.currentSiteId !== undefined) siteIds.add(userManga.currentSiteId);
 
     const sites = [];
     for (const id of siteIds) {
       const site = await ctx.db.get(id);
       if (site === null) continue;
+      const isCurrent = id === userManga.currentSiteId;
+      const last = isCurrent ? null : await lastReadOnSite(ctx, userMangaId, id);
       sites.push({
         siteId: site._id,
         title: site.title,
         icon: site.icon,
-        isCurrent: site._id === userManga.currentSiteId,
+        isCurrent,
+        chapterLabel: isCurrent ? userManga.currentChapterLabel : last?.label,
       });
     }
     return sites.sort((a, b) => a.title.localeCompare(b.title));
@@ -158,11 +172,12 @@ export const sourcesFor = query({
 });
 
 /**
- * Switches which site you're reading a manga on. Your chapter stays
- * the same. The old site counts as one you've read it on, so the
- * "Source contains" filter still finds it there. The "continue
- * reading" link becomes the series page on the new site until you
- * read a chapter there.
+ * Switches back to reading a manga on a site you've read it on before.
+ *
+ * The chapter you're leaving is saved to your history first, so
+ * switching back returns you to it. Then your current chapter becomes
+ * the one you read most recently on the chosen site: its number,
+ * label, reading percentage and link.
  */
 export const switchSource = mutation({
   args: { userMangaId: v.id("userMangas"), siteId: v.id("sites") },
@@ -172,26 +187,44 @@ export const switchSource = mutation({
     if (userManga.isDeleted) {
       throw new Error("That manga is in the trash. Restore it first.");
     }
-    if ((await ctx.db.get(siteId)) === null) throw new Error("No such site.");
     if (userManga.currentSiteId === siteId) return;
-
-    const readSiteIds = [...(userManga.readSiteIds ?? [])];
-    const previous = userManga.currentSiteId;
-    if (previous !== undefined && !readSiteIds.includes(previous)) {
-      readSiteIds.push(previous);
+    if (!(userManga.readSiteIds ?? []).includes(siteId)) {
+      throw new Error("You haven't read this manga on that site.");
     }
 
-    const source = await ctx.db
-      .query("mangaSources")
-      .withIndex("by_manga", (q) => q.eq("mangaId", userManga.mangaId))
-      .filter((q) => q.eq(q.field("siteId"), siteId))
-      .first();
+    // Keep the chapter you're leaving, so you can switch back to it.
+    const leaving = userManga.currentSiteId;
+    if (leaving !== undefined && userManga.currentChapterNumber !== undefined) {
+      await recordHistory(ctx, userMangaId, {
+        number: userManga.currentChapterNumber,
+        label: userManga.currentChapterLabel,
+        url: userManga.currentChapterUrl,
+        siteId: leaving,
+        percentage: userManga.currentPercentage,
+        readAt: userManga.lastReadAt,
+      });
+    }
+
+    // recordHistory may have updated readSiteIds, so read the row again
+    // before touching that list.
+    const fresh = (await ctx.db.get(userMangaId))!;
+    const readSiteIds = [...(fresh.readSiteIds ?? [])];
+    if (leaving !== undefined && !readSiteIds.includes(leaving)) readSiteIds.push(leaving);
+
+    const target = await lastReadOnSite(ctx, userMangaId, siteId);
+    if (target === null) {
+      // A site in your list always has history behind it, but if it
+      // doesn't, switch the site and leave the chapter alone.
+      await ctx.db.patch(userMangaId, { currentSiteId: siteId, readSiteIds });
+      return;
+    }
 
     await ctx.db.patch(userMangaId, {
       currentSiteId: siteId,
-      // The old link pointed at a chapter on the old site. Undefined
-      // clears it when the new site has no known series page.
-      currentChapterUrl: source?.url,
+      currentChapterNumber: target.number,
+      currentChapterLabel: target.label,
+      currentChapterUrl: target.url,
+      currentPercentage: target.percentage,
       readSiteIds,
     });
   },

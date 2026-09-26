@@ -257,50 +257,84 @@ describe("pages", () => {
 });
 
 describe("switching the reading source", () => {
+  // You read chapters 1–40 on Flame, then moved to Asurascans and are
+  // on chapter 98 there. A third site, Reaper, carries the series but
+  // you've never read it there.
   async function withSites() {
     const c = await setup();
-    const [asura, flame] = await c.t.run(async (ctx) => {
+    const [asura, flame, reaper] = await c.t.run(async (ctx) => {
       const site = (domain: string, title: string) =>
         ctx.db.insert("sites", {
           domain, icon: `${domain}.png`, title, link: `https://${domain}`,
           chapterInUrl: true, caseSensitive: false, configVersion: 1,
         });
-      return [await site("asurascans.com", "Asurascans"), await site("flamecomics.xyz", "Flame")];
+      return [
+        await site("asurascans.com", "Asurascans"),
+        await site("flamecomics.xyz", "Flame"),
+        await site("reaperscans.com", "Reaper"),
+      ];
     });
-    await c.t.run((ctx) =>
-      ctx.db.insert("mangaSources", {
-        mangaId: c.mangaIds[0], siteId: flame, url: "https://flamecomics.xyz/series/solo",
-      }),
-    );
     const row = await c.add(c.mangaIds[0], "reading");
-    await c.t.run((ctx) =>
-      ctx.db.patch(row, {
+    await c.t.run(async (ctx) => {
+      await ctx.db.insert("mangaSources", {
+        mangaId: c.mangaIds[0], siteId: reaper, url: "https://reaperscans.com/solo",
+      });
+      for (const [number, readAt] of [[39, 100], [40, 200]]) {
+        await ctx.db.insert("readChapters", {
+          userMangaId: row, number, label: `Ch. ${number}`, siteId: flame,
+          url: `https://flamecomics.xyz/solo/${number}`, percentage: 100, readAt,
+        });
+      }
+      await ctx.db.patch(row, {
         currentChapterNumber: 98,
-        currentSiteId: asura,
+        currentChapterLabel: "Ch. 98",
         currentChapterUrl: "https://asurascans.com/solo/98",
-      }),
-    );
-    return { ...c, row, asura, flame };
+        currentPercentage: 30,
+        currentSiteId: asura,
+        lastReadAt: 300,
+        readSiteIds: [flame],
+      });
+    });
+    return { ...c, row, asura, flame, reaper };
   }
 
-  test("the dropdown lists every known site, with the current one marked", async () => {
+  test("the dropdown lists only sites you've read it on, with your chapter at each", async () => {
     const { me, row } = await withSites();
     const sites = await me.query(api.library.sourcesFor, { userMangaId: row });
-    expect(sites.map((s) => [s.title, s.isCurrent])).toEqual([
-      ["Asurascans", true],
-      ["Flame", false],
+    expect(sites.map((s) => [s.title, s.isCurrent, s.chapterLabel])).toEqual([
+      ["Asurascans", true, "Ch. 98"],
+      ["Flame", false, "Ch. 40"],
     ]);
   });
 
-  test("switching keeps the chapter, remembers the old site, and links to the new one", async () => {
-    const { t, me, row, asura, flame } = await withSites();
+  test("switching jumps to the chapter you were last on at that site", async () => {
+    const { t, me, row, flame } = await withSites();
     await me.mutation(api.library.switchSource, { userMangaId: row, siteId: flame });
 
     const after = await t.run((ctx) => ctx.db.get(row));
     expect(after!.currentSiteId).toBe(flame);
+    expect(after!.currentChapterNumber).toBe(40);
+    expect(after!.currentChapterUrl).toBe("https://flamecomics.xyz/solo/40");
+    expect(after!.currentPercentage).toBe(100);
+  });
+
+  test("switching back returns you to where you left off", async () => {
+    const { t, me, row, asura, flame } = await withSites();
+    await me.mutation(api.library.switchSource, { userMangaId: row, siteId: flame });
+    await me.mutation(api.library.switchSource, { userMangaId: row, siteId: asura });
+
+    const after = await t.run((ctx) => ctx.db.get(row));
+    expect(after!.currentSiteId).toBe(asura);
     expect(after!.currentChapterNumber).toBe(98);
-    expect(after!.currentChapterUrl).toBe("https://flamecomics.xyz/series/solo");
-    expect(after!.readSiteIds).toEqual([asura]);
+    expect(after!.currentChapterUrl).toBe("https://asurascans.com/solo/98");
+    expect(after!.readSiteIds!.sort()).toEqual([asura, flame].sort());
+  });
+
+  test("you can't switch to a site you've never read it on", async () => {
+    const { me, row, reaper } = await withSites();
+    await expect(
+      me.mutation(api.library.switchSource, { userMangaId: row, siteId: reaper }),
+    ).rejects.toThrow(/haven't read/);
   });
 
   test("a manga in the trash can't switch", async () => {
