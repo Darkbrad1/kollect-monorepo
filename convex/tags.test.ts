@@ -358,3 +358,45 @@ describe("switching the reading source", () => {
     await expect(me.mutation(api.library.switchSource, { userMangaId: row, siteId: flame })).rejects.toThrow(/trash/);
   });
 });
+
+describe("search", () => {
+  test("finds manga on every page, ignoring capitals and punctuation", async () => {
+    const { me, mangaIds, add } = await setup();
+    await add(mangaIds[0], "reading"); // Solo Leveling
+    await add(mangaIds[1], "completed"); // Omniscient Reader
+    await add(mangaIds[2], "planned"); // Tower of God
+
+    const found = await me.query(api.pages.searchLibrary, { text: "  LEVELING!" });
+    expect(found.items.map((i) => [i.manga.title, i.userManga.progressKey])).toEqual([
+      ["Solo Leveling", "reading"],
+    ]);
+  });
+
+  test("titles that start with the search come first", async () => {
+    const { me, mangaIds, add } = await setup();
+    for (const id of mangaIds) await add(id);
+    // "o" starts "Omniscient Reader" and appears inside the other two.
+    const found = await me.query(api.pages.searchLibrary, { text: "o" });
+    expect(found.items.map((i) => i.manga.title)).toEqual([
+      "Omniscient Reader",
+      "Solo Leveling",
+      "Tower of God",
+    ]);
+  });
+
+  test("matches alternative titles too", async () => {
+    const { t, me, mangaIds, add } = await setup();
+    await add(mangaIds[0]);
+    await t.run((ctx) => ctx.db.patch(mangaIds[0], { altTitles: ["Na Honjaman Level Up"] }));
+    const found = await me.query(api.pages.searchLibrary, { text: "honjaman" });
+    expect(found.items.map((i) => i.manga.title)).toEqual(["Solo Leveling"]);
+  });
+
+  test("leaves out the trash, and an empty search finds nothing", async () => {
+    const { me, mangaIds, add } = await setup();
+    const row = await add(mangaIds[0]);
+    await me.mutation(api.trash.softDelete, { userMangaId: row });
+    expect((await me.query(api.pages.searchLibrary, { text: "solo" })).items).toEqual([]);
+    expect((await me.query(api.pages.searchLibrary, { text: "  " })).items).toEqual([]);
+  });
+});

@@ -69,7 +69,10 @@ These were settled with me, so don't reopen them without asking.
   - Picking a site **switches back to reading it there, at the furthest chapter you reached on that site**, along with that chapter's link and percentage. Going back to re-read an earlier chapter doesn't change this: read up to 40, re-read 10, and you land on 40.
   - The chapter you're leaving is saved to your history first, so switching back returns you to it. The site you left still counts as one you've read it on.
   - The chapter dropdown is the reading history; picking a chapter switches back to it.
+  - The slider in card details only **shows** reading progress; it can't be dragged to change it.
   - The top bar has two layout styles in the design. They work the same way, so the backend treats them the same.
+- **Search** (top bar) searches the **whole library**, not just the page you're on, by title and alternative titles. Capitals and punctuation don't matter. Titles that start with what you typed come first. Manga in the trash aren't included.
+- **Automatic checks:** every push to `dev` or `master`, and every pull request, runs the typechecks, the web app's lint, and the backend tests on GitHub (`.github/workflows/checks.yml`). Keep them passing.
 - **Reading tracking** (for later): the reading page talks to the backend directly, whether or not the popup is open. Don't route it through the popup.
 - **On hold:** the extension screens and reading tracking wait until the design is final. Don't start them unless asked.
 - **The latest chapter** for each manga is stored on the manga itself and refreshed by a weekly job.

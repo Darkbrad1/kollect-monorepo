@@ -4,6 +4,7 @@ import { mutation, query, type MutationCtx } from "./_generated/server";
 import { requireUser } from "./lib/auth";
 import { isProgressKey } from "./lib/constants";
 import { favouriteTag, requireOwnedTag } from "./lib/tags";
+import { normalizeTitle } from "./lib/titles";
 import { filterRule, sortRule } from "./lib/validators";
 
 /* ═══════════════════════════════════════════════════════════════
@@ -99,6 +100,52 @@ export const trashMangas = query({
     }
 
     return { items };
+  },
+});
+
+/**
+ * The Search box in the top bar. Searches your whole library, not just
+ * the page you're on, by title and alternative titles. Capitals and
+ * punctuation don't matter. Titles that start with what you typed come
+ * first, then the rest, each A to Z. Manga in the trash aren't
+ * included. Each result's userManga.progressKey says which page it's on.
+ */
+export const searchLibrary = query({
+  args: { text: v.string() },
+  handler: async (ctx, { text }) => {
+    const user = await requireUser(ctx);
+    const needle = normalizeTitle(text);
+    if (needle === "") return { items: [] as GridItem[] };
+
+    const rows = await ctx.db
+      .query("userMangas")
+      .withIndex("by_user_live_added", (q) =>
+        q.eq("userId", user._id).eq("isDeleted", false),
+      )
+      .collect();
+
+    const hits: (GridItem & { startsWith: boolean; sortTitle: string })[] = [];
+    for (const userManga of rows) {
+      const manga = await ctx.db.get(userManga.mangaId);
+      if (manga === null) continue;
+
+      const title = normalizeTitle(manga.title);
+      const names = [title, ...manga.altTitles.map(normalizeTitle)];
+      if (!names.some((name) => name.includes(needle))) continue;
+
+      hits.push({
+        userManga,
+        manga,
+        startsWith: names.some((name) => name.startsWith(needle)),
+        sortTitle: title,
+      });
+    }
+
+    hits.sort((a, b) => {
+      if (a.startsWith !== b.startsWith) return a.startsWith ? -1 : 1;
+      return a.sortTitle.localeCompare(b.sortTitle);
+    });
+    return { items: hits.map(({ userManga, manga }) => ({ userManga, manga })) };
   },
 });
 

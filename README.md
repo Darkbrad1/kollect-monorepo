@@ -55,6 +55,8 @@ You'll need Node.js and [pnpm](https://pnpm.io). The project uses pnpm only, so 
 pnpm test
 ```
 
+GitHub also runs the checks automatically on every push to `dev` or `master` and on every pull request: typechecks for all three parts, the web app's lint, and these tests. A red cross next to a commit on GitHub means one of them failed; click it to see which.
+
 The tests run the backend functions against a fake, in-memory database, so they don't touch your real data. They live next to the code as `convex/*.test.ts`. Convex never deploys them, because its bundler skips any file name with more than one dot.
 
 ## How the backend works
@@ -75,7 +77,7 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 |---|---|
 | `users.ts` | Creating your account on first sign-in (with your settings, the five pages and the Favourite tag), and loading your account info. |
 | `library.ts` | Adding manga, moving them between progress pages, reading history (listing past chapters and switching back to one), and switching which site you read a manga on. |
-| `pages.ts` | Loading every manga on a page, loading the trash, and saving a page's filters and sort. |
+| `pages.ts` | Loading every manga on a page, loading the trash, searching your whole library, and saving a page's filters and sort. |
 | `tags.ts` | Your tag list (create, rename, recolour, delete), tagging manga (including creating a tag by typing its name), and favouriting. |
 | `trash.ts` | Moving to the trash, restoring, permanent delete, and emptying the trash. |
 | `settings.ts` | Changing settings. |
@@ -83,6 +85,10 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 | `sites.ts` | The list of supported reading websites. |
 | `catalogue.ts` | Keeping each manga's latest chapter number up to date. |
 | `lib/` | Helpers shared by the files above. These aren't called directly. |
+
+### Search
+
+The Search box in the top bar searches your **whole library** (`pages:searchLibrary`), not just the page you're on. It matches titles and alternative titles, ignoring capitals and punctuation. Titles that start with what you typed come first, then the rest, each A to Z. Each result says which page it's on. Manga in the trash aren't included.
 
 ### Card details
 
@@ -165,4 +171,3 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 - **Reading tracking.** On hold until the design is final. Nothing watches reading sites yet, so chapters don't update on their own. When it's built, the reading page will talk to the backend directly, so it works even when the popup is closed.
 - **Latest-chapter lookups.** The weekly job runs, but the part that actually looks up each series' newest chapter is a placeholder until reading websites are added.
 - **Production builds.** `plasmo build` only reads `extension/.env.chrome`, which doesn't have the Clerk or Convex settings yet, so a production build won't work until they're added there.
-- **Automatic checks on GitHub.** Tests only run when someone runs `pnpm test`. Nothing runs them automatically on a pull request yet.
