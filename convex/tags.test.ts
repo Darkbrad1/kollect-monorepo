@@ -68,7 +68,7 @@ describe("tags", () => {
     const row = await add(mangaIds[0]);
     const tag = await me.mutation(api.tags.create, { name: "Murm" });
     await me.mutation(api.tags.addTag, { userMangaId: row, tagId: tag });
-    await me.mutation(api.tags.rename, { tagId: tag, name: "Murim" });
+    await me.mutation(api.tags.update, { tagId: tag, name: "Murim" });
 
     const tags = await me.query(api.tags.list, {});
     expect(tags.map((t) => t.name)).toContain("Murim");
@@ -77,7 +77,7 @@ describe("tags", () => {
   test("Favourite can't be renamed or deleted", async () => {
     const { me } = await setup();
     const [favourite] = await me.query(api.tags.list, {});
-    await expect(me.mutation(api.tags.rename, { tagId: favourite._id, name: "Loved" })).rejects.toThrow();
+    await expect(me.mutation(api.tags.update, { tagId: favourite._id, name: "Loved" })).rejects.toThrow();
     await expect(me.mutation(api.tags.remove, { tagId: favourite._id })).rejects.toThrow();
   });
 
@@ -127,6 +127,93 @@ describe("tags", () => {
     await me.mutation(api.users.createUser, {});
     const tags = await me.query(api.tags.list, {});
     expect(tags.map((t) => t.builtIn)).toEqual(["favourite"]);
+  });
+});
+
+describe("tag colours and adding by name", () => {
+  test("new tags take the next colour in the list", async () => {
+    const { me } = await setup();
+    for (const name of ["A", "B", "C"]) await me.mutation(api.tags.create, { name });
+    const tags = (await me.query(api.tags.list, {})).filter((t) => t.builtIn === null);
+    expect(tags.map((t) => t.color)).toEqual(["#F7A1A1", "#B5F2A5", "#5B8FD6"]);
+  });
+
+  test("a colour can be picked, and changed later", async () => {
+    const { me } = await setup();
+    const tag = await me.mutation(api.tags.create, { name: "Murim", color: "#123abc" });
+    expect((await me.query(api.tags.list, {})).find((t) => t._id === tag)!.color).toBe("#123ABC");
+
+    await me.mutation(api.tags.update, { tagId: tag, color: "#00ff00" });
+    expect((await me.query(api.tags.list, {})).find((t) => t._id === tag)!.color).toBe("#00FF00");
+  });
+
+  test("a colour that isn't a colour code is refused", async () => {
+    const { me } = await setup();
+    await expect(me.mutation(api.tags.create, { name: "Murim", color: "red" })).rejects.toThrow(/colour code/);
+  });
+
+  test("Search/Create adds an existing tag, or makes a new one", async () => {
+    const { me, mangaIds, add } = await setup();
+    const row = await add(mangaIds[0]);
+    const existing = await me.mutation(api.tags.create, { name: "Murim" });
+
+    expect(await me.mutation(api.tags.addTagByName, { userMangaId: row, name: "murim" })).toBe(existing);
+    const created = await me.mutation(api.tags.addTagByName, { userMangaId: row, name: "Isekai" });
+
+    const tags = await me.query(api.tags.list, {});
+    expect(tags.map((t) => t.name)).toEqual(["Favourite", "Isekai", "Murim"]);
+    const info = await me.query(api.users.me, {});
+    const reading = info!.pages.find((p) => p.systemKey === "reading")!;
+    const { items } = await me.query(api.pages.mangasForPage, { pageId: reading._id });
+    expect(items[0].userManga.tagIds.sort()).toEqual([existing, created].sort());
+  });
+
+  test("Search/Create won't favourite", async () => {
+    const { me, mangaIds, add } = await setup();
+    const row = await add(mangaIds[0]);
+    await expect(me.mutation(api.tags.addTagByName, { userMangaId: row, name: "favourite" })).rejects.toThrow();
+  });
+});
+
+describe("saved filters and sort", () => {
+  test("a page saves its filters and sort, and Clear All empties them", async () => {
+    const { me } = await setup();
+    const info = await me.query(api.users.me, {});
+    const reading = info!.pages.find((p) => p.systemKey === "reading")!;
+    const tag = await me.mutation(api.tags.create, { name: "Murim" });
+
+    await me.mutation(api.pages.setFilters, {
+      pageId: reading._id,
+      filters: [{ field: "tag", op: "has", tagId: tag }],
+    });
+    await me.mutation(api.pages.setSort, {
+      pageId: reading._id,
+      sort: [{ field: "lastRead", direction: "desc" }, { field: "title", direction: "asc" }],
+    });
+
+    let page = (await me.query(api.pages.mangasForPage, { pageId: reading._id })).page;
+    expect(page.filters).toHaveLength(1);
+    expect(page.sort.map((r) => r.field)).toEqual(["lastRead", "title"]);
+
+    await me.mutation(api.pages.setFilters, { pageId: reading._id, filters: [] });
+    page = (await me.query(api.pages.mangasForPage, { pageId: reading._id })).page;
+    expect(page.filters).toEqual([]);
+  });
+
+  test("a filter can't use someone else's tag", async () => {
+    const { t, me } = await setup();
+    const other = t.withIdentity({ tokenIdentifier: "test|other", name: "Other" });
+    await other.mutation(api.users.createUser, {});
+    const theirTag = await other.mutation(api.tags.create, { name: "Theirs" });
+
+    const info = await me.query(api.users.me, {});
+    const reading = info!.pages.find((p) => p.systemKey === "reading")!;
+    await expect(
+      me.mutation(api.pages.setFilters, {
+        pageId: reading._id,
+        filters: [{ field: "tag", op: "has", tagId: theirTag }],
+      }),
+    ).rejects.toThrow();
   });
 });
 

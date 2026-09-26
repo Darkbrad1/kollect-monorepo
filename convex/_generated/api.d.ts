@@ -16,6 +16,7 @@ import type * as lib_filters from "../lib/filters.js";
 import type * as lib_library from "../lib/library.js";
 import type * as lib_pages from "../lib/pages.js";
 import type * as lib_settings from "../lib/settings.js";
+import type * as lib_sort from "../lib/sort.js";
 import type * as lib_tags from "../lib/tags.js";
 import type * as lib_trash from "../lib/trash.js";
 import type * as lib_validators from "../lib/validators.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   "lib/library": typeof lib_library;
   "lib/pages": typeof lib_pages;
   "lib/settings": typeof lib_settings;
+  "lib/sort": typeof lib_sort;
   "lib/tags": typeof lib_tags;
   "lib/trash": typeof lib_trash;
   "lib/validators": typeof lib_validators;

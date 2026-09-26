@@ -1,9 +1,10 @@
 import { v } from "convex/values";
-import type { Doc } from "./_generated/dataModel";
-import { query } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { mutation, query, type MutationCtx } from "./_generated/server";
 import { requireUser } from "./lib/auth";
 import { isProgressKey } from "./lib/constants";
-import { favouriteTag } from "./lib/tags";
+import { favouriteTag, requireOwnedTag } from "./lib/tags";
+import { filterRule, sortRule } from "./lib/validators";
 
 /* ═══════════════════════════════════════════════════════════════
    PAGE LOADERS
@@ -98,5 +99,46 @@ export const trashMangas = query({
     }
 
     return { items };
+  },
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SAVED FILTERS AND SORT
+
+   Each page remembers its own filters and sort. The filter and sort
+   popups save the whole list each time something changes; "Clear
+   All" saves an empty list.
+   ═══════════════════════════════════════════════════════════════ */
+
+async function requireOwnedPage(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  pageId: Id<"userPages">,
+): Promise<Doc<"userPages">> {
+  const page = await ctx.db.get(pageId);
+  if (page === null || page.userId !== userId) throw new Error("No such page.");
+  return page;
+}
+
+export const setFilters = mutation({
+  args: { pageId: v.id("userPages"), filters: v.array(filterRule) },
+  handler: async (ctx, { pageId, filters }) => {
+    const user = await requireUser(ctx);
+    await requireOwnedPage(ctx, user._id, pageId);
+
+    // A tag filter must point at one of this user's own tags.
+    for (const rule of filters) {
+      if (rule.field === "tag") await requireOwnedTag(ctx, user._id, rule.tagId);
+    }
+    await ctx.db.patch(pageId, { filters });
+  },
+});
+
+export const setSort = mutation({
+  args: { pageId: v.id("userPages"), sort: v.array(sortRule) },
+  handler: async (ctx, { pageId, sort }) => {
+    const user = await requireUser(ctx);
+    await requireOwnedPage(ctx, user._id, pageId);
+    await ctx.db.patch(pageId, { sort });
   },
 });

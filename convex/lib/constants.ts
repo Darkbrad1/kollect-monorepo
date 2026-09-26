@@ -76,6 +76,18 @@ export const SYSTEM_PAGES: ReadonlyArray<{
 // deleted, because that page depends on it.
 export const FAVOURITE_TAG_NAME = "Favourite";
 
+// New tags take the next colour from this list, going round in a
+// circle, so tags made in a row don't all look the same. The user can
+// change a tag's colour afterwards. Read off the chips in the design.
+export const TAG_COLORS = [
+  "#F7A1A1", // pink
+  "#B5F2A5", // green
+  "#5B8FD6", // blue
+  "#F4A6F2", // magenta
+  "#F5D38A", // yellow
+  "#9ED8E6", // teal
+] as const;
+
 /* ── hard-coded views ───────────────────────────────────────── */
 
 export const VIEW_ALL = "all";

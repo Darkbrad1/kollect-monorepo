@@ -346,6 +346,22 @@ describe("import — other cases", () => {
     expect((await stateOf(c, "test|bob", c.mangaIds[0]))!.tags).toEqual(["Favourite", "Murim"]);
   });
 
+  test("imported tags keep the file's colour; tags you already have keep yours", async () => {
+    const c = await setup();
+    await c.alice.mutation(api.tags.create, { name: "Murim", color: "#111111" });
+    await c.alice.mutation(api.tags.create, { name: "Isekai", color: "#222222" });
+    await c.bob.mutation(api.tags.create, { name: "Isekai", color: "#333333" });
+
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    await importFile(c.bob, file, "titlesAndPages");
+
+    const colours = Object.fromEntries(
+      (await c.bob.query(api.tags.list, {})).map((t) => [t.name, t.color]),
+    );
+    expect(colours.Murim).toBe("#111111");
+    expect(colours.Isekai).toBe("#333333");
+  });
+
   test("a file from another format version is rejected clearly", async () => {
     const c = await setup();
     const file = await c.alice.query(api.transfer.exportLibrary, {});
