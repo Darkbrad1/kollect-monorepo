@@ -88,7 +88,7 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 
 The details popup has two dropdowns:
 
-- **Site:** lists only the sites you've read that manga on, with the chapter you were last on at each (`library:sourcesFor`). Picking one switches you back to that site, at the chapter you read there most recently (`library:switchSource`). The chapter you're leaving is saved to your history first, so switching back returns you to it.
+- **Site:** lists only the sites you've read that manga on, with the furthest chapter you reached on each (`library:sourcesFor`). Picking one switches you back to that site, at the furthest chapter you reached there (`library:switchSource`). Re-reading an earlier chapter doesn't move that point back. The chapter you're leaving is saved to your history first, so switching back returns you to it.
 - **Chapter:** your reading history (`library:chapterHistory`). Picking a chapter makes it current again (`library:switchToHistoryChapter`), and the chapter you left is kept in history.
 
 ### Sorting and filtering

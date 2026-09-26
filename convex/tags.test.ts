@@ -318,6 +318,21 @@ describe("switching the reading source", () => {
     expect(after!.currentPercentage).toBe(100);
   });
 
+  test("re-reading an earlier chapter doesn't move you back", async () => {
+    const { t, me, row, flame } = await withSites();
+    // After reaching 40 on Flame, you went back and re-read chapter 10 there.
+    await t.run((ctx) =>
+      ctx.db.insert("readChapters", {
+        userMangaId: row, number: 10, label: "Ch. 10", siteId: flame,
+        url: "https://flamecomics.xyz/solo/10", percentage: 100, readAt: 250,
+      }),
+    );
+    await me.mutation(api.library.switchSource, { userMangaId: row, siteId: flame });
+
+    const after = await t.run((ctx) => ctx.db.get(row));
+    expect(after!.currentChapterNumber).toBe(40);
+  });
+
   test("switching back returns you to where you left off", async () => {
     const { t, me, row, asura, flame } = await withSites();
     await me.mutation(api.library.switchSource, { userMangaId: row, siteId: flame });

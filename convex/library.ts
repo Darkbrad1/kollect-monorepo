@@ -120,30 +120,31 @@ export const switchToHistoryChapter = mutation({
 
    The site dropdown in the card details popup. It lists only the
    sites you've read this manga on, and picking one switches back to
-   reading it there, at the chapter you were last on at that site.
+   reading it there, at the furthest chapter you reached on that site.
+   Re-reading an earlier chapter doesn't move that point back.
    ═══════════════════════════════════════════════════════════════ */
 
-/** The history entry you read most recently on one site, if any. */
-async function lastReadOnSite(
+/** The highest-numbered chapter you've read on one site, if any. */
+async function furthestOnSite(
   ctx: QueryCtx,
   userMangaId: Id<"userMangas">,
   siteId: Id<"sites">,
 ): Promise<Doc<"readChapters"> | null> {
-  const history = await ctx.db
+  // History is indexed by chapter number, so walking it from the top
+  // down, the first entry from this site is the furthest one.
+  const history = ctx.db
     .query("readChapters")
     .withIndex("by_userManga_number", (q) => q.eq("userMangaId", userMangaId))
-    .collect();
+    .order("desc");
 
-  let latest: Doc<"readChapters"> | null = null;
-  for (const entry of history) {
-    if (entry.siteId !== siteId) continue;
-    if (latest === null || entry.readAt > latest.readAt) latest = entry;
+  for await (const entry of history) {
+    if (entry.siteId === siteId) return entry;
   }
-  return latest;
+  return null;
 }
 
 /** The sites you've read a manga on, with the current one marked and
-    the chapter you were last on at each. */
+    the furthest chapter you reached on each. */
 export const sourcesFor = query({
   args: { userMangaId: v.id("userMangas") },
   handler: async (ctx, { userMangaId }) => {
@@ -158,7 +159,7 @@ export const sourcesFor = query({
       const site = await ctx.db.get(id);
       if (site === null) continue;
       const isCurrent = id === userManga.currentSiteId;
-      const last = isCurrent ? null : await lastReadOnSite(ctx, userMangaId, id);
+      const last = isCurrent ? null : await furthestOnSite(ctx, userMangaId, id);
       sites.push({
         siteId: site._id,
         title: site.title,
@@ -176,8 +177,8 @@ export const sourcesFor = query({
  *
  * The chapter you're leaving is saved to your history first, so
  * switching back returns you to it. Then your current chapter becomes
- * the one you read most recently on the chosen site: its number,
- * label, reading percentage and link.
+ * the furthest one you reached on the chosen site: its number, label,
+ * reading percentage and link.
  */
 export const switchSource = mutation({
   args: { userMangaId: v.id("userMangas"), siteId: v.id("sites") },
@@ -211,7 +212,7 @@ export const switchSource = mutation({
     const readSiteIds = [...(fresh.readSiteIds ?? [])];
     if (leaving !== undefined && !readSiteIds.includes(leaving)) readSiteIds.push(leaving);
 
-    const target = await lastReadOnSite(ctx, userMangaId, siteId);
+    const target = await furthestOnSite(ctx, userMangaId, siteId);
     if (target === null) {
       // A site in your list always has history behind it, but if it
       // doesn't, switch the site and leave the chapter alone.

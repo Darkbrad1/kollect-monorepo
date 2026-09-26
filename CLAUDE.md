@@ -66,7 +66,7 @@ These were settled with me, so don't reopen them without asking.
   - **Favourite is a built-in tag.** It can't be renamed or deleted. The "Favourite" item in the card menu adds or removes it. The Favourites page shows every manga with the Favourite tag, from all four progress pages.
 - **Card details:**
   - The site dropdown lists **only the sites you've read that manga on**, not every site that has it.
-  - Picking a site **switches back to reading it there, at the chapter you last read on that site** (the most recent one by time), along with that chapter's link and percentage.
+  - Picking a site **switches back to reading it there, at the furthest chapter you reached on that site**, along with that chapter's link and percentage. Going back to re-read an earlier chapter doesn't change this: read up to 40, re-read 10, and you land on 40.
   - The chapter you're leaving is saved to your history first, so switching back returns you to it. The site you left still counts as one you've read it on.
   - The chapter dropdown is the reading history; picking a chapter switches back to it.
   - The top bar has two layout styles in the design. They work the same way, so the backend treats them the same.
