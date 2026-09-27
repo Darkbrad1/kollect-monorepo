@@ -83,7 +83,7 @@ These were settled with me, so don't reopen them without asking.
   - The slider in card details only **shows** reading progress; it can't be dragged to change it.
   - The top bar has two layout styles in the design. They work the same way, so the backend treats them the same.
 - **Search** (top bar) searches the **whole library**, not just the page you're on, by title and alternative titles. Capitals and punctuation don't matter. Titles that start with what you typed come first. Manga in the trash aren't included.
-- **Secret keys never go in git.** `app/.env.local` and `app/.env.development` are ignored, so keys like `CLERK_SECRET_KEY` stay on your computer. The extension's `.env` files only hold public values (publishable key, public URLs), so they're tracked.
+- **Secret keys never go in git.** `app/.env.local` and `app/.env.development` are ignored, so keys like `CLERK_SECRET_KEY` stay on your computer. There's no example env file for the web app; the README lists the two values it needs. The extension's `.env` files only hold public values (publishable key, public URLs), so they're tracked.
 - **Automatic checks:** every push to `dev` or `master`, and every pull request, runs the typechecks, the web app's lint, and the backend tests on GitHub (`.github/workflows/checks.yml`). Keep them passing.
 - **Reading tracking** works whether or not the popup is open. The reading page (content script) asks the background worker, which holds the login and talks to Convex. Nothing goes through the popup.
 - **Tracking rules** (`convex/reading.ts`):

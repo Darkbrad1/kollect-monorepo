@@ -28,7 +28,12 @@ You'll need Node.js and [pnpm](https://pnpm.io). The project uses pnpm only, so 
 3. **Set up Convex.** In the Convex dashboard, go to Settings → Environment Variables and add `CLERK_JWT_ISSUER_DOMAIN`. Set it to your Clerk Frontend API address (for example `https://your-app.clerk.accounts.dev`).
 
 4. **Fill in the environment files.**
-   - `app/.env.local`: copy `app/.env.example` and fill in `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_CONVEX_URL`. (`app/.env.development` works too.) Git ignores both files, so secret keys like `CLERK_SECRET_KEY` never get uploaded to GitHub.
+   - `app/.env.local`: create this file with these two lines (`app/.env.development` works too):
+     ```bash
+     VITE_CLERK_PUBLISHABLE_KEY=pk_test_...   # Clerk dashboard → API Keys
+     VITE_CONVEX_URL=https://....convex.cloud  # Convex dashboard → Settings → URL & Deploy Key
+     ```
+     Git ignores both files, so secret keys like `CLERK_SECRET_KEY` never get uploaded to GitHub.
    - `extension/.env.development`: needs `PLASMO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `PLASMO_PUBLIC_CLERK_SYNC_HOST` (`http://localhost` in development), `PLASMO_PUBLIC_CONVEX_URL` and `PLASMO_PUBLIC_CONVEX_SITE_URL`.
 
    The Convex URLs **must point at the same deployment** that `pnpm dev:convex` pushes to. If they don't, the extension shows "Could not find public function".
