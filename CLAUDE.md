@@ -98,7 +98,7 @@ These were settled with me, so don't reopen them without asking.
   - **Settings** opens as a full screen with a Back button. Clear Trash Time moves 1 day at a time and is greyed out when Auto Clear Trash is off. Fonts: Manrope, Inter, Montserrat, Nunito. Clicking a tag chip opens an editor (name, colour, Save, Delete with confirmation).
   - **Import** shows a full "Importing *title*…" screen with a progress bar, then a report (Added, Merged, Already Had, Skipped).
   - **Reading-page button:** the progress bar uses the theme's secondary colour. The button stays solid while its menu is open. The page the manga is on is highlighted in the menu; picking another moves it.
-  - **Still to confirm:** the reading-page menu uses 12px text (the design shows about 8px) and a 32px button.
+  - **Reading-page menu size:** 12px text (the design shows about 8px, too small to read) and a 32px button, so it's easy to click.
 - **Default theme:** base `#1C1C1C`, primary `#D9D9D9`, secondary `#5FA8B0`, font Manrope.
 - **Brand:** the logo green is `#0DCF87` (`brand` in Tailwind). It's used for the logo and the signed-out screen, and doesn't change with the theme. The logo is traced as an SVG in `components/Logo.tsx`; the extension icon (`extension/assets/icon.png`) is made from it.
 - **Signed-out screen:** a picture of the app on the left; the logo, "Kollect and save your favourite manga's", **Sign In** and **Sign Up** on the right. Both buttons open the sign-in website (`/sign-in` and `/sign-up`).

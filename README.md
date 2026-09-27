@@ -216,7 +216,6 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 
 ## What's not built yet
 
-- **One design detail to confirm.** The reading-page menu's text size (12px, the design shows about 8px) and button size (32px).
 - **Reading tracking.** On hold until the design is final. Nothing watches reading sites yet, so chapters don't update on their own. When it's built, the reading page will talk to the backend directly, so it works even when the popup is closed.
 - **Tools on reading websites.** The Kollect button (faint until you hover), its menu and the progress bar are built but not yet shown on real sites. Still to come: putting them on reading pages, the right-click menu (Add puts a manga on Reading; Favourite adds it to Reading and favourites it), and the Alt+Shift+K shortcut to add a manga.
 - **Latest-chapter lookups.** The weekly job runs, but the part that actually looks up each series' newest chapter is a placeholder until reading websites are added.
