@@ -50,6 +50,15 @@ function pageSource(): PageSource {
   }
 }
 
+/** Explains in the page's console (right-click → Inspect → Console)
+    why the Kollect button isn't showing. Each message is logged once. */
+const logged = new Set<string>()
+function explain(message: string, ...details: unknown[]) {
+  if (logged.has(message)) return
+  logged.add(message)
+  console.info(`[Kollect] ${message}`, ...details)
+}
+
 function scrolledPercent(): number {
   const room = document.documentElement.scrollHeight - window.innerHeight
   return room > 0 ? Math.min(100, (window.scrollY / room) * 100) : 100
@@ -76,8 +85,16 @@ export default function Reader() {
 
   useEffect(() => {
     ask({ type: "sites" })
-      .then(setSites)
-      .catch(() => setSites([]))
+      .then((list) => {
+        if (list.length === 0) {
+          explain("No reading websites are set up yet. Run `pnpm --filter app exec convex run sites:seed`.")
+        }
+        setSites(list)
+      })
+      .catch((error: unknown) => {
+        explain("Couldn't load the list of reading websites.", error)
+        setSites([])
+      })
   }, [])
 
   // Many reading sites change pages without a full reload, so watch the address.
@@ -94,7 +111,21 @@ export default function Reader() {
     if (sites === null) return
     const timer = window.setTimeout(() => {
       const site = siteForUrl(sites, location.href)
-      setPage(site ? readPage(site, pageSource()) : null)
+      const info = site ? readPage(site, pageSource()) : null
+      if (sites.length > 0 && !site) {
+        explain(
+          `${location.hostname} isn't in the list of reading websites.`,
+          sites.map((s) => s.domain)
+        )
+      } else if (site && !info) {
+        explain(
+          `This page doesn't look like a series or chapter page on ${site.title} (expected addresses like ${site.slugPattern}).`,
+          location.pathname
+        )
+      } else if (info) {
+        explain("Read this page as:", info)
+      }
+      setPage(info)
       setPercent(scrolledPercent())
     }, 500)
     return () => window.clearTimeout(timer)
@@ -104,8 +135,14 @@ export default function Reader() {
     const current = pageRef.current
     if (current === null) return setState(undefined)
     try {
-      setState(await ask({ type: "state", page: current }))
-    } catch {
+      const next = await ask({ type: "state", page: current })
+      if (next === null) explain("You're signed out, so there's nothing to show. Open the Kollect popup and sign in.")
+      else if (!next.settings.showButton && !next.settings.showProgressBar) {
+        explain('The Kollect button and progress bar are both switched off ("Kollect Options" and "Percentage Bar" in Settings).')
+      }
+      setState(next)
+    } catch (error) {
+      explain("Couldn't ask Kollect about this page.", error)
       setState(null)
     }
   }, [])

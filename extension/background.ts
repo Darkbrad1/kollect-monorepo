@@ -25,7 +25,10 @@ async function signIn(): Promise<ConvexHttpClient> {
   const clerk = await createClerkClient({ publishableKey: PUBLISHABLE_KEY, syncHost: SYNC_HOST })
   const token = clerk.session ? await clerk.session.getToken({ template: "convex" }) : null
   if (token) convex.setAuth(token)
-  else convex.clearAuth()
+  else {
+    console.info("[Kollect] No login found in the background worker; reading pages will treat you as signed out.")
+    convex.clearAuth()
+  }
   return convex
 }
 
@@ -60,8 +63,10 @@ async function handle(request: Request): Promise<unknown> {
 chrome.runtime.onMessage.addListener((request: Request, _sender, sendResponse) => {
   handle(request).then(
     (value) => sendResponse({ ok: true, value } satisfies Reply<unknown>),
-    (error: unknown) =>
+    (error: unknown) => {
+      console.warn(`[Kollect] ${request.type} failed:`, error)
       sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) } satisfies Reply<unknown>)
+    }
   )
   return true // the answer comes later
 })
