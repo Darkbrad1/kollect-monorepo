@@ -25,6 +25,7 @@ Useful commands:
 - `pnpm dev:app`: runs the sign-in web app on port 3000
 - `pnpm dev:extension`: runs the extension in development
 - `pnpm --filter app exec convex <command>`: any other Convex command, for example `dashboard` or `run`
+- `pnpm --filter app exec convex run sites:seed`: copies the supported reading websites from `convex/lib/siteConfigs.ts` into the database. Run it once after setting up, and after changing that list.
 - `pnpm --filter extension icons`: rewrites `extension/lib/icons.tsx` with every Remix icon the extension uses. Run it after using a new icon.
 
 ## Extension code conventions
@@ -32,6 +33,7 @@ Useful commands:
 - Import icons from `~lib/icons`, never from `@remixicon/react` directly (the full package is 3 MB). Then run `pnpm --filter extension icons`.
 - Screens reach the backend through `useQ`, `useM` and `useOnce` from `~lib/data`, not Convex's hooks directly, so the preview page can swap in made-up data.
 - When a screen starts using a new backend function, add a fake version of it to `extension/lib/sample.ts` so the preview page keeps working.
+- **Adding or moving a reading website** means editing two lists: `SITE_CONFIGS` in `convex/lib/siteConfigs.ts` (how to read its pages) and the addresses in `extension/lib/sites.ts` plus `config.matches` in `extension/contents/reader.tsx` (where the extension may run). Then run `sites:seed`.
 - Colours come from the theme (`bg-surface`, `text-muted`, `bg-primary` and so on in Tailwind). Don't hard-code colours, or the user's theme won't apply. The one exception is `brand`, the logo green.
 
 ## Decisions already made
@@ -83,14 +85,22 @@ These were settled with me, so don't reopen them without asking.
 - **Search** (top bar) searches the **whole library**, not just the page you're on, by title and alternative titles. Capitals and punctuation don't matter. Titles that start with what you typed come first. Manga in the trash aren't included.
 - **Secret keys never go in git.** `app/.env.local` and `app/.env.development` are ignored, so keys like `CLERK_SECRET_KEY` stay on your computer. The extension's `.env` files only hold public values (publishable key, public URLs), so they're tracked.
 - **Automatic checks:** every push to `dev` or `master`, and every pull request, runs the typechecks, the web app's lint, and the backend tests on GitHub (`.github/workflows/checks.yml`). Keep them passing.
-- **Reading tracking** (for later): the reading page talks to the backend directly, whether or not the popup is open. Don't route it through the popup.
+- **Reading tracking** works whether or not the popup is open. The reading page (content script) asks the background worker, which holds the login and talks to Convex. Nothing goes through the popup.
+- **Tracking rules** (`convex/reading.ts`):
+  - Only manga in your library are tracked. Reading one you haven't added does nothing until you add it (Kollect button, right-click menu, or Alt+Shift+K).
+  - A chapter becomes your current chapter once you've scrolled past your Scroll Threshold, not when you open it.
+  - Going back to an earlier chapter saves it to your history but keeps your current (furthest) chapter. On your current chapter, the percentage goes up as you read and doesn't drop if you scroll back up.
+  - **Auto Complete On Finish** moves a manga to Completed when you finish the newest chapter *and* the site says the series has ended.
+  - **The latest chapter** is updated whenever you visit a series or chapter page, plus the weekly job as a backup.
+  - Adding from a page creates the manga in the shared manga list if it's new (unlike import, which never does).
+- **Settings on reading pages:** "Percentage Bar" in Settings and "Show Progress Bar" in the Kollect menu are the same switch. "Kollect Options" switched off hides only the Kollect button; tracking, the right-click menu and the shortcut keep working.
 - **On reading websites** (the Figma frame is called "on website"):
   - **Right-click menu:** a Kollect menu with "Add" and "Favourite". Add puts the manga on **Reading**. Favourite on a manga that isn't in the library yet adds it to Reading *and* favourites it, in one step.
   - **Keyboard shortcut** to add a manga: **Alt+Shift+K** by default. Users can change it in the browser's shortcut settings.
   - **The overlay** is a round Kollect button in the bottom-left corner. It sits at **40% opacity** and fades to full when the mouse is over it (and stays full while its menu is open). Its menu has Add To Reading / Planned / Paused / Completed (the page the manga is on is highlighted), Show Progress Bar, and Change Scroll Threshold.
   - **The progress bar** is a thin bar across the very top of the reading page showing how far down the chapter you are.
-  - The overlay and progress bar are built as screens (`components/Overlay.tsx`) but aren't put on real websites yet; that comes with reading tracking.
-- **On hold:** reading tracking and adding reading websites. Don't start them unless asked.
+  - After adding from the right-click menu or the shortcut, a short note ("Added to Reading", "Already on Planned") appears beside the Kollect button for 3 seconds.
+- **Reading websites:** start with one site, **Asura Scans** (`asuracomic.net`), get it fully working, then add others. Its reading rules are a first guess until they've been checked against the live site.
 - **The extension screens** are built on the `design` branch. These parts weren't in the Figma design and were confirmed afterwards:
   - **Cards:** clicking a cover opens the current chapter in a new tab. Details opens as a side panel next to the ⋯ menu. The menu says "Unfavourite" when the manga is already a favourite. Favourite is hidden from tag lists (Add Tags, Settings → Tags). Trash cards show "N Days Left" and their Details panel is look-only. A manga you haven't started shows "Not Started".
   - **Top bar:** the ⌄ button lists every page by name. Filter and Sort are greyed out in the trash and while searching. Search results show a badge saying which page each manga is on. Empty pages show a short message.
@@ -102,4 +112,4 @@ These were settled with me, so don't reopen them without asking.
 - **Default theme:** base `#1C1C1C`, primary `#D9D9D9`, secondary `#5FA8B0`, font Manrope.
 - **Brand:** the logo green is `#0DCF87` (`brand` in Tailwind). It's used for the logo and the signed-out screen, and doesn't change with the theme. The logo is traced as an SVG in `components/Logo.tsx`; the extension icon (`extension/assets/icon.png`) is made from it.
 - **Signed-out screen:** a picture of the app on the left; the logo, "Kollect and save your favourite manga's", **Sign In** and **Sign Up** on the right. Both buttons open the sign-in website (`/sign-in` and `/sign-up`).
-- **The latest chapter** for each manga is stored on the manga itself and refreshed by a weekly job.
+- **The latest chapter** for each manga is stored on the manga itself, refreshed by page visits and a weekly job.

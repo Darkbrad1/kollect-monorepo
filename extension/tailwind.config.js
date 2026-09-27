@@ -10,6 +10,7 @@ module.exports = {
   content: [
     "./popup.tsx",
     "./tabs/**/*.tsx",
+    "./contents/**/*.tsx",
     "./components/**/*.tsx",
     "./lib/**/*.{ts,tsx}"
   ],

@@ -39,7 +39,9 @@ export function Overlay({
   useEffect(() => {
     if (!open) return
     const close = (e: MouseEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false)
+      // composedPath, not target: on a reading website the button sits in
+      // its own shadow root, and there the target is just that root.
+      if (root.current && !e.composedPath().includes(root.current)) setOpen(false)
     }
     document.addEventListener("mousedown", close)
     return () => document.removeEventListener("mousedown", close)
@@ -110,6 +112,20 @@ export function ProgressBar({ percent }: { percent: number }) {
         className="h-full bg-secondary transition-[width] duration-150"
         style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
       />
+    </div>
+  )
+}
+
+/** A short note beside the Kollect button, like "Added to Reading". */
+export function Toast({ message, error }: { message: string; error?: boolean }) {
+  return (
+    <div
+      role="status"
+      className={cx(
+        "fixed bottom-3.5 left-[54px] z-[2147483647] flex h-8 max-w-[320px] items-center rounded-lg px-3 font-sans text-xs shadow-pop",
+        error ? "bg-danger text-white" : "bg-surface text-fg"
+      )}>
+      {message}
     </div>
   )
 }
