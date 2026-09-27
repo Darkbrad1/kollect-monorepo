@@ -118,6 +118,11 @@ export function Switch({
   )
 }
 
+/**
+ * − value +. The value is also a text box: click it, type an exact
+ * number and press Enter (or click away) to save it. Escape cancels.
+ * Numbers outside min–max are pulled back to the nearest end.
+ */
 export function Stepper({
   value,
   onChange,
@@ -140,7 +145,23 @@ export function Stepper({
   label: string
   disabled?: boolean
 }) {
-  const set = (next: number) => onChange(Math.min(max, Math.max(min, next)))
+  const set = (next: number) => onChange(Math.min(max, Math.max(min, Math.round(next))))
+  // While you're typing, the box holds your text; otherwise it shows the
+  // formatted value ("80%", "30 Days").
+  const [draft, setDraft] = useState<string | null>(null)
+  const cancelled = useRef(false)
+  const commit = () => {
+    if (draft === null) return
+    if (cancelled.current) {
+      cancelled.current = false
+      setDraft(null)
+      return
+    }
+    // Leaving the box empty keeps the old value.
+    const typed = Number.parseInt(draft, 10)
+    if (!Number.isNaN(typed) && typed !== value) set(typed)
+    setDraft(null)
+  }
   return (
     <div
       className={cx(
@@ -157,13 +178,28 @@ export function Stepper({
         className="grid h-5 w-5 place-items-center rounded text-fg hover:bg-raised disabled:opacity-30">
         −
       </button>
-      <span
+      <input
+        aria-label={label}
+        inputMode="numeric"
+        value={draft ?? format(value)}
+        // Clicking empties the box (the current number stays as a faint
+        // hint), so what you type replaces it instead of adding to it.
+        placeholder={String(value)}
+        onFocus={() => setDraft("")}
+        onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ""))}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur()
+          if (e.key === "Escape") {
+            cancelled.current = true
+            e.currentTarget.blur()
+          }
+        }}
         className={cx(
-          "text-center font-semibold tabular-nums",
-          compact ? "min-w-[34px] text-xs" : "min-w-[52px] text-[13px]"
-        )}>
-        {format(value)}
-      </span>
+          "rounded bg-transparent text-center font-semibold tabular-nums text-fg placeholder:text-muted hover:bg-raised focus:bg-raised focus:outline-none",
+          compact ? "w-[38px] text-xs" : "w-[60px] text-[13px]"
+        )}
+      />
       <button
         type="button"
         aria-label={`Increase ${label}`}

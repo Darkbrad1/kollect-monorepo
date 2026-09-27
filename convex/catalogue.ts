@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { internalAction, internalMutation } from "./_generated/server";
+import { refreshMangaLatest } from "./lib/catalogue";
 
 /* ═══════════════════════════════════════════════════════════════
    WEEKLY LATEST-CHAPTER REFRESH
@@ -90,28 +91,6 @@ export const applyLatestChapter = internalMutation({
 
     if (latestChapter === null) return;
 
-    // Recompute across the manga's sources rather than taking a running
-    // max: a site renumbering its chapters should be able to bring the
-    // denormalised figure back down.
-    const sources = await ctx.db
-      .query("mangaSources")
-      .withIndex("by_manga", (q) => q.eq("mangaId", source.mangaId))
-      .collect();
-
-    let highest: number | null = null;
-    for (const s of sources) {
-      if (s.latestChapter === undefined) continue;
-      if (highest === null || s.latestChapter > highest) highest = s.latestChapter;
-    }
-    if (highest === null) return;
-
-    const manga = await ctx.db.get(source.mangaId);
-    if (manga === null) return; // dangling reference; nothing to update
-    if (manga.latestChapter === highest) return;
-
-    await ctx.db.patch(source.mangaId, {
-      latestChapter: highest,
-      latestChapterAt: now,
-    });
+    await refreshMangaLatest(ctx, source.mangaId);
   },
 });

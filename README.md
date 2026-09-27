@@ -2,7 +2,7 @@
 
 A Chrome extension for keeping track of the manga, manhwa and manhua you're reading. It remembers which chapter you're on, sorts your series into pages (Reading, Planned, Paused, Completed and Favourites), lets you label them with your own tags, and syncs everything to your account.
 
-> **Status:** the backend (database and server functions) is in place and tested. The extension's screens are built on the `design` branch, following the Figma design. Reading tracking and reading websites aren't built yet. See [What's not built yet](#whats-not-built-yet).
+> **Status:** the backend (database and server functions) is in place and tested. The extension's screens are built on the `design` branch, following the Figma design. Reading tracking is built, with Asura Scans as the first site, but its page-reading rules haven't been checked against the live site yet. See [What's not built yet](#whats-not-built-yet).
 
 ## What's in this repo
 
@@ -28,7 +28,7 @@ You'll need Node.js and [pnpm](https://pnpm.io). The project uses pnpm only, so 
 3. **Set up Convex.** In the Convex dashboard, go to Settings → Environment Variables and add `CLERK_JWT_ISSUER_DOMAIN`. Set it to your Clerk Frontend API address (for example `https://your-app.clerk.accounts.dev`).
 
 4. **Fill in the environment files.**
-   - `app/.env.local`: copy `app/.env.example` and fill in `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_CONVEX_URL`.
+   - `app/.env.local`: copy `app/.env.example` and fill in `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_CONVEX_URL`. (`app/.env.development` works too.) Git ignores both files, so secret keys like `CLERK_SECRET_KEY` never get uploaded to GitHub.
    - `extension/.env.development`: needs `PLASMO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `PLASMO_PUBLIC_CLERK_SYNC_HOST` (`http://localhost` in development), `PLASMO_PUBLIC_CONVEX_URL` and `PLASMO_PUBLIC_CONVEX_SITE_URL`.
 
    The Convex URLs **must point at the same deployment** that `pnpm dev:convex` pushes to. If they don't, the extension shows "Could not find public function".
@@ -38,12 +38,17 @@ You'll need Node.js and [pnpm](https://pnpm.io). The project uses pnpm only, so 
    pnpm dev:convex
    ```
 
-6. **Run the sign-in app** (it has to be on port 3000, because the extension's sign-in button links there):
+6. **Add the supported reading websites** to the database (once; again whenever `convex/lib/siteConfigs.ts` changes):
+   ```bash
+   pnpm --filter app exec convex run sites:seed
+   ```
+
+7. **Run the sign-in app** (it has to be on port 3000, because the extension's sign-in button links there):
    ```bash
    pnpm dev:app
    ```
 
-7. **Run the extension:**
+8. **Run the extension:**
    ```bash
    pnpm dev:extension
    ```
@@ -73,14 +78,18 @@ The tests run the backend functions against a fake, in-memory database, so they 
 
 ## How the extension works
 
-The popup is 800 × 600 pixels. When you're signed out it shows a "Sign in on the web" button. When you're signed in it shows your library.
+The popup is 800 × 600 pixels. When you're signed out it shows the sign-in screen, with Sign In and Sign Up buttons. When you're signed in it shows your library.
 
 | File | What it is |
 |---|---|
 | `popup.tsx` | The starting point. Sets up Clerk (logins) and Convex (the backend), and creates your account the first time you sign in. |
 | `components/SignInScreen.tsx` | What you see when signed out: a picture of the app, the logo, and Sign In / Sign Up buttons that open the sign-in website. |
 | `components/Logo.tsx` | The Kollect pin and the "KOLLECT" wordmark, drawn as SVG so they stay sharp. |
-| `components/Overlay.tsx` | The Kollect button and menu for reading pages, and the progress bar across the top. Built, but not added to real websites yet. |
+| `components/Overlay.tsx` | The Kollect button and menu for reading pages, the progress bar across the top, and the short "Added to Reading" note. |
+| `contents/reader.tsx` | Runs on supported reading websites: works out which manga and chapter the page is, shows the Kollect button and progress bar, and reports how far you've read. |
+| `background.ts` | Works behind the scenes: holds your login, talks to Convex for reading pages, and owns the right-click menu and the Alt+Shift+K shortcut. |
+| `lib/messages.ts` | The messages reading pages and the background worker send each other. |
+| `lib/sites.ts` | The web addresses the extension may run on. |
 | `components/App.tsx` | Chooses between the library and the Settings screen, and remembers which page you were on. |
 | `components/ControlsBar.tsx` | The top bar: page tabs, the "all pages" dropdown, Search, Filter, Sort and the Settings button. |
 | `components/Library.tsx` | Loads the manga for the page (or the trash, or your search), filters and sorts them, and shows the grid. |
@@ -95,6 +104,8 @@ The popup is 800 × 600 pixels. When you're signed out it shows a "Sign in on th
 | `lib/theme.ts` | Turns your theme settings (three colours and a font) into the colours the screens use. |
 | `lib/data.tsx` | How screens talk to the backend. The preview page swaps it for made-up data. |
 | `tabs/preview.tsx` | The preview page described above. |
+
+**On reading websites.** When you open a page on a supported site, `contents/reader.tsx` reads it with the shared rules in `convex/lib/pageRead.ts` (which site, which series, which chapter, title and cover). It then asks the background worker whether that manga is in your library and what your settings are. As you scroll, it reports your progress, at most every couple of seconds and only when something changed. The server decides what counts; see [Reading tracking](#reading-tracking). The Kollect button and progress bar are on for a new account; they can be switched off in Settings ("Kollect Options" and "Percentage Bar").
 
 **Theme.** Your three colours set everything: *base* is the background (panels are slightly lighter or darker shades of it), *primary* is for selected things and main buttons, and *secondary* is for the progress bars. Text switches between light and dark on its own so it's always readable. The default theme is base `#1C1C1C`, primary `#D9D9D9`, secondary `#5FA8B0`, font Manrope. The fonts on offer are Manrope, Inter, Montserrat and Nunito.
 
@@ -131,9 +142,22 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 | `trash.ts` | Moving to the trash, restoring, permanent delete, and emptying the trash. |
 | `settings.ts` | Changing settings. |
 | `transfer.ts` | Export (always everything) and import (in three steps, see below). |
-| `sites.ts` | The list of supported reading websites. |
+| `sites.ts` | The list of supported reading websites, and `sites:seed`, which copies `lib/siteConfigs.ts` into the database. |
+| `reading.ts` | Everything a reading page asks for: what the page is in your library, adding from the page (Kollect button, right-click, shortcut), and recording your progress. |
 | `catalogue.ts` | Keeping each manga's latest chapter number up to date. |
 | `lib/` | Helpers shared by the files above. These aren't called directly. |
+
+### Reading tracking
+
+- **Only manga in your library are tracked.** Reading one you haven't added does nothing until you add it with the Kollect button, the right-click menu (Kollect → Add to Kollect / Favourite) or **Alt+Shift+K**. You can change the shortcut at `chrome://extensions/shortcuts`.
+- **A chapter counts once you scroll past your Scroll Threshold** (80% by default). Then it becomes your current chapter, and the one you left goes into your reading history.
+- **Re-reading an earlier chapter** saves it to your history, but your current chapter stays at the furthest one.
+- **On your current chapter**, the percentage goes up as you read and doesn't drop if you scroll back up.
+- **Auto Complete On Finish** moves a manga to Completed when you finish the newest chapter and the site says the series has ended.
+- **Every visit** updates the series' latest chapter, even for manga you haven't added.
+- **Adding from a page** creates the manga in the shared manga list if nobody has added it before. It's matched by its address on that site first, then by title.
+
+Each site's page-reading rules live in `convex/lib/siteConfigs.ts`: the shape of its chapter addresses (like `/series/:slug/chapter/:chapter`) and, if needed, where the title and chapter name are on the page. Without those, the title comes from the page's `og:title` tag and the chapter number from the address.
 
 ### Search
 
@@ -216,9 +240,8 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 
 ## What's not built yet
 
-- **Checking the screens with you.** The screens follow the Figma design, but some parts weren't in it and were guessed. They're waiting for your review.
-- **Reading tracking.** On hold until the design is final. Nothing watches reading sites yet, so chapters don't update on their own. When it's built, the reading page will talk to the backend directly, so it works even when the popup is closed.
-- **Tools on reading websites.** The Kollect button (faint until you hover), its menu and the progress bar are built but not yet shown on real sites. Still to come: putting them on reading pages, the right-click menu (Add puts a manga on Reading; Favourite adds it to Reading and favourites it), and the Alt+Shift+K shortcut to add a manga.
-- **Latest-chapter lookups.** The weekly job runs, but the part that actually looks up each series' newest chapter is a placeholder until reading websites are added.
+- **Checking Asura Scans against the real site.** Its rules in `convex/lib/siteConfigs.ts` are a first guess (the address shape, then `og:title` for the title). They need checking on the live site, and it may need selectors for the title, chapter, newest chapter and whether the series has ended.
+- **More reading websites.** Only Asura Scans so far.
+- **The weekly latest-chapter job's lookup.** Page visits keep the latest chapter up to date, but the weekly job's own lookup is still a placeholder.
 - **Removing the preview page before release.** `tabs/preview.html` is handy while designing, but it ships inside the extension, so it should be taken out (or hidden) before the extension is published.
 - **Production builds.** `plasmo build` only reads `extension/.env.chrome`, which doesn't have the Clerk or Convex settings yet, so a production build won't work until they're added there.

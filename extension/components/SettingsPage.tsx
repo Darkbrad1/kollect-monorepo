@@ -101,7 +101,7 @@ export function SettingsPage({
             <Stepper
               label="Scroll Threshold"
               value={settings.scrollThreshold}
-              step={5}
+              step={1}
               min={0}
               max={100}
               format={(v) => `${v}%`}

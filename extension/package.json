@@ -81,6 +81,14 @@
           "optional": []
         }
       }
+    },
+    "commands": {
+      "add-manga": {
+        "suggested_key": {
+          "default": "Alt+Shift+K"
+        },
+        "description": "Add the manga on this page to Kollect"
+      }
     }
   }
 }
