@@ -7,4 +7,4 @@
  * contents/reader.tsx repeats this list, because Plasmo needs it
  * written out in that file.
  */
-export const SITE_MATCHES = ["https://asuracomic.net/*", "https://*.asuracomic.net/*"]
+export const SITE_MATCHES = ["https://asurascans.com/*", "https://*.asurascans.com/*"]

@@ -1,27 +1,26 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import { api, internal } from "./_generated/api";
+import { api } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
 
-const SITE = "asuracomic.net";
+const SITE = "asurascans.com";
 
 async function setup() {
   const t = convexTest(schema, modules);
-  await t.mutation(internal.sites.seed, {});
   const me = t.withIdentity({ tokenIdentifier: "test|me", name: "Me" });
   await me.mutation(api.users.createUser, {});
 
   /** A chapter page of Solo Leveling on the test site. */
   const chapterPage = (number: number, extra: Record<string, unknown> = {}) => ({
     domain: SITE,
-    url: `https://${SITE}/series/solo-leveling/chapter/${number}`,
+    url: `https://${SITE}/comics/solo-leveling/chapter/${number}`,
     slug: "solo-leveling",
     title: "Solo Leveling",
     image: "cover.png",
-    seriesUrl: `https://${SITE}/series/solo-leveling`,
+    seriesUrl: `https://${SITE}/comics/solo-leveling`,
     chapter: { number, label: `Chapter ${number}` },
     ...extra,
   });
@@ -55,7 +54,7 @@ describe("adding from a reading page", () => {
 
     const sources = await t.run(async (ctx) => await ctx.db.query("mangaSources").collect());
     expect(sources).toHaveLength(1);
-    expect(sources[0]).toMatchObject({ slug: "solo-leveling", url: `https://${SITE}/series/solo-leveling` });
+    expect(sources[0]).toMatchObject({ slug: "solo-leveling", url: `https://${SITE}/comics/solo-leveling` });
   });
 
   test("picking a page moves a manga that's already added", async () => {
@@ -198,6 +197,26 @@ describe("Auto Complete On Finish", () => {
 
   test("not when the setting is off", async () => {
     expect(await finish({ setting: false, status: "completed" })).toBe("reading");
+  });
+});
+
+describe("site list", () => {
+  test("is set up automatically when the popup opens", async () => {
+    const t = convexTest(schema, modules);
+    await t.withIdentity({ tokenIdentifier: "test|new", name: "New" }).mutation(api.users.createUser, {});
+    const sites = await t.run(async (ctx) => await ctx.db.query("sites").collect());
+    expect(sites.map((s) => s.domain)).toContain("asurascans.com");
+  });
+
+  test("a site whose rules got a newer version is updated; others are left alone", async () => {
+    const { t, me } = await setup();
+    await t.run(async (ctx) => {
+      const site = (await ctx.db.query("sites").collect()).find((s) => s.domain === SITE)!;
+      await ctx.db.patch(site._id, { configVersion: 0, slugPattern: "/old/:slug" });
+    });
+    await me.mutation(api.users.createUser, {});
+    const site = await t.run(async (ctx) => (await ctx.db.query("sites").collect()).find((s) => s.domain === SITE)!);
+    expect(site.slugPattern).toBe("/comics/:slug/chapter/:chapter");
   });
 });
 

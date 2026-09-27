@@ -3,7 +3,7 @@
    the server. */
 
 /** True when a page's hostname belongs to a site's domain, including
-    subdomains: "www.asuracomic.net" belongs to "asuracomic.net". */
+    subdomains: "www.asurascans.com" belongs to "asurascans.com". */
 export function hostMatches(domain: string, hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/\.$/, "");
   const site = domain.toLowerCase();

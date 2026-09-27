@@ -3,12 +3,12 @@ import { hostMatches, matchPath, parseChapterNumber } from "./pageMatch";
 
 describe("hostMatches", () => {
   test("the domain itself and its subdomains", () => {
-    expect(hostMatches("asuracomic.net", "asuracomic.net")).toBe(true);
-    expect(hostMatches("asuracomic.net", "www.AsuraComic.net")).toBe(true);
+    expect(hostMatches("asurascans.com", "asurascans.com")).toBe(true);
+    expect(hostMatches("asurascans.com", "www.AsuraScans.com")).toBe(true);
   });
   test("not a different site that merely ends the same way", () => {
-    expect(hostMatches("asuracomic.net", "notasuracomic.net")).toBe(false);
-    expect(hostMatches("asuracomic.net", "asuracomic.net.evil.com")).toBe(false);
+    expect(hostMatches("asurascans.com", "notasurascans.com")).toBe(false);
+    expect(hostMatches("asurascans.com", "asurascans.com.evil.com")).toBe(false);
   });
 });
 

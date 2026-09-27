@@ -38,17 +38,12 @@ You'll need Node.js and [pnpm](https://pnpm.io). The project uses pnpm only, so 
    pnpm dev:convex
    ```
 
-6. **Add the supported reading websites** to the database (once; again whenever `convex/lib/siteConfigs.ts` changes):
-   ```bash
-   pnpm --filter app exec convex run sites:seed
-   ```
-
-7. **Run the sign-in app** (it has to be on port 3000, because the extension's sign-in button links there):
+6. **Run the sign-in app** (it has to be on port 3000, because the extension's sign-in button links there):
    ```bash
    pnpm dev:app
    ```
 
-8. **Run the extension:**
+7. **Run the extension:**
    ```bash
    pnpm dev:extension
    ```
@@ -142,7 +137,7 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 | `trash.ts` | Moving to the trash, restoring, permanent delete, and emptying the trash. |
 | `settings.ts` | Changing settings. |
 | `transfer.ts` | Export (always everything) and import (in three steps, see below). |
-| `sites.ts` | The list of supported reading websites, and `sites:seed`, which copies `lib/siteConfigs.ts` into the database. |
+| `sites.ts` | The list of supported reading websites. The list in `lib/siteConfigs.ts` is copied into the database automatically each time the popup opens (new sites are added; a site whose `configVersion` went up is updated). `sites:seed` does the same on demand. |
 | `reading.ts` | Everything a reading page asks for: what the page is in your library, adding from the page (Kollect button, right-click, shortcut), and recording your progress. |
 | `catalogue.ts` | Keeping each manga's latest chapter number up to date. |
 | `lib/` | Helpers shared by the files above. These aren't called directly. |
@@ -157,7 +152,7 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 - **Every visit** updates the series' latest chapter, even for manga you haven't added.
 - **Adding from a page** creates the manga in the shared manga list if nobody has added it before. It's matched by its address on that site first, then by title.
 
-Each site's page-reading rules live in `convex/lib/siteConfigs.ts`: the shape of its chapter addresses (like `/series/:slug/chapter/:chapter`) and, if needed, where the title and chapter name are on the page. Without those, the title comes from the page's `og:title` tag and the chapter number from the address.
+Each site's page-reading rules live in `convex/lib/siteConfigs.ts`: the shape of its chapter addresses (for Asura Scans, `/comics/:slug/chapter/:chapter`) and, if needed, where the title and chapter name are on the page. Without those, the title comes from the page's `og:title` tag and the chapter number from the address.
 
 ### Search
 
@@ -240,7 +235,7 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 
 ## What's not built yet
 
-- **Checking Asura Scans against the real site.** Its rules in `convex/lib/siteConfigs.ts` are a first guess (the address shape, then `og:title` for the title). They need checking on the live site, and it may need selectors for the title, chapter, newest chapter and whether the series has ended.
+- **Checking Asura Scans against the real site.** Its address (`asurascans.com/comics/<series>/chapter/<n>`) is checked, but the title still comes from the page's `og:title` tag, which hasn't been checked. It may also need selectors for the newest chapter and whether the series has ended.
 - **More reading websites.** Only Asura Scans so far.
 - **The weekly latest-chapter job's lookup.** Page visits keep the latest chapter up to date, but the weekly job's own lookup is still a placeholder.
 - **Removing the preview page before release.** `tabs/preview.html` is handy while designing, but it ships inside the extension, so it should be taken out (or hidden) before the extension is published.

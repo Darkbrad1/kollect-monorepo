@@ -25,7 +25,7 @@ Useful commands:
 - `pnpm dev:app`: runs the sign-in web app on port 3000
 - `pnpm dev:extension`: runs the extension in development
 - `pnpm --filter app exec convex <command>`: any other Convex command, for example `dashboard` or `run`
-- `pnpm --filter app exec convex run sites:seed`: copies the supported reading websites from `convex/lib/siteConfigs.ts` into the database. Run it once after setting up, and after changing that list.
+- `pnpm --filter app exec convex run sites:seed`: copies the supported reading websites into the database right away. Normally not needed: it happens automatically each time the popup opens.
 - `pnpm --filter extension icons`: rewrites `extension/lib/icons.tsx` with every Remix icon the extension uses. Run it after using a new icon.
 
 ## Extension code conventions
@@ -33,7 +33,7 @@ Useful commands:
 - Import icons from `~lib/icons`, never from `@remixicon/react` directly (the full package is 3 MB). Then run `pnpm --filter extension icons`.
 - Screens reach the backend through `useQ`, `useM` and `useOnce` from `~lib/data`, not Convex's hooks directly, so the preview page can swap in made-up data.
 - When a screen starts using a new backend function, add a fake version of it to `extension/lib/sample.ts` so the preview page keeps working.
-- **Adding or moving a reading website** means editing two lists: `SITE_CONFIGS` in `convex/lib/siteConfigs.ts` (how to read its pages) and the addresses in `extension/lib/sites.ts` plus `config.matches` in `extension/contents/reader.tsx` (where the extension may run). Then run `sites:seed`.
+- **Adding or moving a reading website** means editing two lists: `SITE_CONFIGS` in `convex/lib/siteConfigs.ts` (how to read its pages) and the addresses in `extension/lib/sites.ts` plus `config.matches` in `extension/contents/reader.tsx` (where the extension may run). When changing an existing site's rules, bump its `configVersion` so the database copy gets updated.
 - Colours come from the theme (`bg-surface`, `text-muted`, `bg-primary` and so on in Tailwind). Don't hard-code colours, or the user's theme won't apply. The one exception is `brand`, the logo green.
 
 ## Decisions already made
@@ -101,7 +101,7 @@ These were settled with me, so don't reopen them without asking.
   - **The overlay** is a round Kollect button in the bottom-left corner. It sits at **40% opacity** and fades to full when the mouse is over it (and stays full while its menu is open). Its menu has Add To Reading / Planned / Paused / Completed (the page the manga is on is highlighted), Show Progress Bar, and Change Scroll Threshold.
   - **The progress bar** is a thin bar across the very top of the reading page showing how far down the chapter you are.
   - After adding from the right-click menu or the shortcut, a short note ("Added to Reading", "Already on Planned") appears beside the Kollect button for 3 seconds.
-- **Reading websites:** start with one site, **Asura Scans** (`asuracomic.net`), get it fully working, then add others. Its reading rules are a first guess until they've been checked against the live site.
+- **Reading websites:** start with one site, **Asura Scans** (`asurascans.com`, chapter addresses like `/comics/<series>/chapter/<n>`), get it fully working, then add others. The address is checked; the title (from `og:title`) isn't yet.
 - **The extension screens** are built on the `design` branch. These parts weren't in the Figma design and were confirmed afterwards:
   - **Cards:** clicking a cover opens the current chapter in a new tab. Details opens as a side panel next to the ⋯ menu. The menu says "Unfavourite" when the manga is already a favourite. Favourite is hidden from tag lists (Add Tags, Settings → Tags). Trash cards show "N Days Left" and their Details panel is look-only. A manga you haven't started shows "Not Started".
   - **Top bar:** the ⌄ button lists every page by name. Filter and Sort are greyed out in the trash and while searching. Search results show a badge saying which page each manga is on. Empty pages show a short message.

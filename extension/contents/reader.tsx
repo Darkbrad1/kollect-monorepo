@@ -16,7 +16,7 @@ import { FALLBACK_THEME, themeStyle } from "~lib/theme"
 
 // Keep in step with SITE_MATCHES in lib/sites.ts.
 export const config: PlasmoCSConfig = {
-  matches: ["https://asuracomic.net/*", "https://*.asuracomic.net/*"],
+  matches: ["https://asurascans.com/*", "https://*.asurascans.com/*"],
   run_at: "document_idle"
 }
 

@@ -2,9 +2,9 @@ import { describe, expect, test } from "vitest";
 import { cleanTitle, readPage, siteForUrl, type PageSource, type SiteRules } from "./pageRead";
 
 const site: SiteRules = {
-  domain: "asuracomic.net",
+  domain: "asurascans.com",
   title: "Asura Scans",
-  slugPattern: "/series/:slug/chapter/:chapter",
+  slugPattern: "/comics/:slug/chapter/:chapter",
   caseSensitive: false,
 };
 
@@ -24,37 +24,52 @@ describe("readPage", () => {
   test("a chapter page", () => {
     const info = readPage(
       site,
-      page("https://asuracomic.net/series/solo-leveling/chapter/12?ref=home", {
-        meta: { "og:title": "Solo Leveling Chapter 12 - Asura Scans", "og:image": "https://asuracomic.net/cover.webp" },
+      page("https://asurascans.com/comics/solo-leveling/chapter/12?ref=home", {
+        meta: { "og:title": "Solo Leveling Chapter 12 - Asura Scans", "og:image": "https://asurascans.com/cover.webp" },
       }),
     );
     expect(info).toEqual({
-      domain: "asuracomic.net",
-      url: "https://asuracomic.net/series/solo-leveling/chapter/12",
+      domain: "asurascans.com",
+      url: "https://asurascans.com/comics/solo-leveling/chapter/12",
       slug: "solo-leveling",
       title: "Solo Leveling",
-      image: "https://asuracomic.net/cover.webp",
-      seriesUrl: "https://asuracomic.net/series/solo-leveling",
+      image: "https://asurascans.com/cover.webp",
+      seriesUrl: "https://asurascans.com/comics/solo-leveling",
       chapter: { number: 12, label: "Chapter 12" },
     });
   });
 
+  test("a real Asura address, with the code on the end of the series name", () => {
+    const info = readPage(
+      site,
+      page("https://asurascans.com/comics/the-hero-cannot-rest-05c7df14/chapter/1", {
+        meta: { "og:title": "The Hero Cannot Rest Chapter 1 - Asura Scans" },
+      }),
+    );
+    expect(info).toMatchObject({
+      slug: "the-hero-cannot-rest-05c7df14",
+      title: "The Hero Cannot Rest",
+      seriesUrl: "https://asurascans.com/comics/the-hero-cannot-rest-05c7df14",
+      chapter: { number: 1, label: "Chapter 1" },
+    });
+  });
+
   test("a series page has no chapter", () => {
-    const info = readPage(site, page("https://www.asuracomic.net/series/solo-leveling/", { title: "Solo Leveling | Asura Scans" }));
-    expect(info).toMatchObject({ title: "Solo Leveling", slug: "solo-leveling", seriesUrl: "https://www.asuracomic.net/series/solo-leveling" });
+    const info = readPage(site, page("https://www.asurascans.com/comics/solo-leveling/", { title: "Solo Leveling | Asura Scans" }));
+    expect(info).toMatchObject({ title: "Solo Leveling", slug: "solo-leveling", seriesUrl: "https://www.asurascans.com/comics/solo-leveling" });
     expect(info!.chapter).toBeUndefined();
   });
 
   test("other pages aren't manga pages", () => {
-    expect(readPage(site, page("https://asuracomic.net/", { title: "Asura Scans" }))).toBeNull();
-    expect(readPage(site, page("https://example.com/series/x/chapter/1", { title: "X" }))).toBeNull();
+    expect(readPage(site, page("https://asurascans.com/", { title: "Asura Scans" }))).toBeNull();
+    expect(readPage(site, page("https://example.com/comics/x/chapter/1", { title: "X" }))).toBeNull();
   });
 
   test("selectors and embedded data win over og:title", () => {
     const rules = { ...site, titleSelector: "h1", chapterPath: "props.chapter.name" };
     const info = readPage(
       rules,
-      page("https://asuracomic.net/series/sl/chapter/5", {
+      page("https://asurascans.com/comics/sl/chapter/5", {
         meta: { "og:title": "Wrong" },
         text: { h1: "Solo Leveling" },
         data: { props: { chapter: { name: "Chapter 5.5 - Extra" } } },
@@ -64,7 +79,7 @@ describe("readPage", () => {
   });
 
   test("a chapter with no number isn't tracked", () => {
-    const info = readPage(site, page("https://asuracomic.net/series/sl/chapter/prologue", { title: "Solo Leveling" }));
+    const info = readPage(site, page("https://asurascans.com/comics/sl/chapter/prologue", { title: "Solo Leveling" }));
     expect(info!.chapter).toBeUndefined();
   });
 });
@@ -82,6 +97,6 @@ describe("cleanTitle", () => {
 });
 
 test("siteForUrl finds the site by address", () => {
-  expect(siteForUrl([site], "https://www.asuracomic.net/x")?.domain).toBe("asuracomic.net");
+  expect(siteForUrl([site], "https://www.asurascans.com/x")?.domain).toBe("asurascans.com");
   expect(siteForUrl([site], "https://example.com/")).toBeUndefined();
 });
