@@ -5,7 +5,7 @@ A browser extension for keeping track of the manga, manhwa and manhua you're rea
 ## How to work with me
 
 - **Explain things at a beginner level.** Write it the way you'd explain it to a first-year student: plain words, short sentences, everyday comparisons. Avoid jargon, and when you have to use a technical term, say what it means.
-- **Ask me before making product decisions.** If a choice changes how the app behaves for the user (how a feature works, what happens in an edge case, what something is called), lay out the options, say which one you'd pick and why, and let me choose. Don't decide quietly.`
+- **Ask me before making product decisions.** If a choice changes how the app behaves for the user (how a feature works, what happens in an edge case, what something is called), lay out the options, say which one you'd pick and why, and let me choose. Don't decide quietly.
 - **Technical choices are yours.** If a choice doesn't change what the user sees or experiences, go ahead and decide it. Just tell me what you picked.
 - **I use pnpm, not npm.** I don't have npm installed, so `npm` and `npx` commands won't work for me. Always give pnpm commands: `pnpm <script>`, `pnpm exec <tool>` for a tool installed in the project, or `pnpm dlx <tool>` for one that isn't.
 - **Keep the docs up to date as you go.** Whenever a change affects how something works, how to set it up, or a decision we made, update both files in the same commit:
