@@ -53,7 +53,7 @@ export function Overlay({
         open ? "opacity-100" : "opacity-40 hover:opacity-100"
       )}>
       {open && (
-        <div className="w-[236px] rounded-lg bg-surface p-1 shadow-pop">
+        <div className="w-[240px] rounded-lg bg-surface p-1 shadow-pop">
           {PROGRESS_PAGES.map(({ key, label }) => {
             const Icon = PAGE_ICONS[key]
             const here = progressKey === key
@@ -82,7 +82,7 @@ export function Overlay({
               label="Scroll Threshold"
               value={scrollThreshold}
               onChange={onScrollThreshold}
-              step={5}
+              step={1}
               min={0}
               max={100}
               format={(v) => `${v}%`}

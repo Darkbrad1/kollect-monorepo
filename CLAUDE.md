@@ -44,7 +44,8 @@ These were settled with me, so don't reopen them without asking.
 - **Sorting and filtering happen in the extension, not in Convex.** Convex only stores each page's filter and sort settings and returns every manga on the page. The extension shows about 10 on screen and loads 10 ahead and 10 behind as you scroll.
 - **Deleting:** deleting moves a manga to the trash. Deleting from the trash page removes it permanently, after the user confirms.
 - **Trash settings:** "Auto Clear Trash" is its own on/off switch, separate from "Clear Trash Time", so switching it off doesn't lose the number of days.
-- **Scroll threshold:** a value from 0 to 100.
+- **Scroll threshold:** a whole number from 0 to 100. The +/− buttons move it by 1, and you can also click the number and type an exact value (like 16 or 17).
+- **Number boxes** (Scroll Threshold, Clear Trash Time): click the number to type a value; Enter or clicking away saves it, Escape cancels, and values outside the allowed range snap to the nearest end.
 - **Export:** always exports everything: every manga with its page, tags and reading progress, the page list, the tag list, and the settings.
 - **Import:** the user picks one of three options from a dropdown:
   - **Title only:** just the manga. New ones land on the default page. Manga already in the library aren't changed.
@@ -89,7 +90,14 @@ These were settled with me, so don't reopen them without asking.
   - **The progress bar** is a thin bar across the very top of the reading page showing how far down the chapter you are.
   - The overlay and progress bar are built as screens (`components/Overlay.tsx`) but aren't put on real websites yet; that comes with reading tracking.
 - **On hold:** reading tracking and adding reading websites. Don't start them unless asked.
-- **The extension screens** are built on the `design` branch. Some parts weren't in the Figma design and were guessed; they're listed for the user to review, so don't treat them as settled yet.
+- **The extension screens** are built on the `design` branch. These parts weren't in the Figma design and were confirmed afterwards:
+  - **Cards:** clicking a cover opens the current chapter in a new tab. Details opens as a side panel next to the ⋯ menu. The menu says "Unfavourite" when the manga is already a favourite. Favourite is hidden from tag lists (Add Tags, Settings → Tags). Trash cards show "N Days Left" and their Details panel is look-only. A manga you haven't started shows "Not Started".
+  - **Top bar:** the ⌄ button lists every page by name. Filter and Sort are greyed out in the trash and while searching. Search results show a badge saying which page each manga is on. Empty pages show a short message.
+  - **Filter and Sort** save on their own a moment after you stop clicking. A new sort row starts as Dec, and each sort option can only be used once.
+  - **Settings** opens as a full screen with a Back button. Clear Trash Time moves 1 day at a time and is greyed out when Auto Clear Trash is off. Fonts: Manrope, Inter, Montserrat, Nunito. Clicking a tag chip opens an editor (name, colour, Save, Delete with confirmation).
+  - **Import** shows a full "Importing *title*…" screen with a progress bar, then a report (Added, Merged, Already Had, Skipped).
+  - **Reading-page button:** the progress bar uses the theme's secondary colour. The button stays solid while its menu is open. The page the manga is on is highlighted in the menu; picking another moves it.
+  - **Still to confirm:** the reading-page menu uses 12px text (the design shows about 8px) and a 32px button.
 - **Default theme:** base `#1C1C1C`, primary `#D9D9D9`, secondary `#5FA8B0`, font Manrope.
 - **Brand:** the logo green is `#0DCF87` (`brand` in Tailwind). It's used for the logo and the signed-out screen, and doesn't change with the theme. The logo is traced as an SVG in `components/Logo.tsx`; the extension icon (`extension/assets/icon.png`) is made from it.
 - **Signed-out screen:** a picture of the app on the left; the logo, "Kollect and save your favourite manga's", **Sign In** and **Sign Up** on the right. Both buttons open the sign-in website (`/sign-in` and `/sign-up`).
