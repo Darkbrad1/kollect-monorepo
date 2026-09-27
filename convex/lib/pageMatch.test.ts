@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { hostMatches, matchPath, parseChapterNumber } from "./pageMatch";
+import { hostMatches, learnPattern, matchPath, parseChapterNumber } from "./pageMatch";
 
 describe("hostMatches", () => {
   test("the domain itself and its subdomains", () => {
@@ -56,4 +56,32 @@ describe("parseChapterNumber", () => {
   test("no number means undefined", () => {
     expect(parseChapterNumber("Prologue")).toBeUndefined();
   });
+});
+
+describe("learnPattern", () => {
+  test.each([
+    ["/comics/the-hero-cannot-rest-05c7df14/chapter/1", "/comics/:slug/chapter/:chapter", "the-hero-cannot-rest-05c7df14", "1"],
+    ["/manga/Solo-Leveling/chapter-12", "/manga/:slug/:chapter", "solo-leveling", "chapter-12"],
+    ["/read/solo-leveling/12.5", "/read/:slug/:chapter", "solo-leveling", "12.5"],
+    ["/solo-leveling/ep/7/", "/:slug/ep/:chapter", "solo-leveling", "7"],
+    ["/manga/sl/chapter/3/page/2", "/manga/:slug/chapter/:chapter", "sl", "3"],
+  ])("%s → %s", (path, pattern, slug, chapter) => {
+    expect(learnPattern(path)).toEqual({ pattern, slug, chapter });
+  });
+
+  test("the pattern it learns reads the same address back", () => {
+    const learned = learnPattern("/comics/the-hero-05c7df14/chapter/1")!;
+    expect(matchPath(learned.pattern, "/comics/other-series-11aa22bb/chapter/40")).toEqual({
+      slug: "other-series-11aa22bb",
+      chapter: "40",
+    });
+    expect(matchPath(learned.pattern, "/comics/other-series-11aa22bb")).toEqual({ slug: "other-series-11aa22bb" });
+  });
+
+  test.each(["/", "/series/solo-leveling", "/solo-leveling-chapter-12", "/12", "/watch"])(
+    "%s isn't a chapter address it can learn from",
+    (path) => {
+      expect(learnPattern(path)).toBeNull();
+    },
+  );
 });

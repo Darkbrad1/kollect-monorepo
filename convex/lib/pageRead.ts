@@ -1,5 +1,5 @@
 import type { Doc } from "../_generated/dataModel";
-import { hostMatches, matchPath, parseChapterNumber } from "./pageMatch";
+import { hostMatches, learnPattern, matchPath, parseChapterNumber } from "./pageMatch";
 
 /* Reads a reading-website page into what Kollect needs: which series,
    which chapter, the title and cover. Plain code with no browser or
@@ -73,16 +73,18 @@ export function readPage(site: SiteRules, source: PageSource): PageInfo | null {
   if (title === "") return null;
 
   let chapter: PageInfo["chapter"];
-  const chapterText =
+  const chapterOnPage =
     fromPath(source.data(), site.chapterPath) ??
-    (site.chapterSelector ? source.text(site.chapterSelector) : undefined) ??
-    match.chapter;
-  if (match.chapter !== undefined && chapterText !== undefined) {
-    const number = parseChapterNumber(chapterText) ?? parseChapterNumber(match.chapter);
+    (site.chapterSelector ? source.text(site.chapterSelector) : undefined);
+  if (match.chapter !== undefined) {
+    const number =
+      (chapterOnPage !== undefined ? parseChapterNumber(chapterOnPage) : undefined) ??
+      parseChapterNumber(match.chapter);
     if (number !== undefined) {
-      const text = chapterText.trim();
-      // A bare number from the address reads better as "Chapter 12".
-      chapter = { number, label: /^[\d.\-_]+$/.test(text) ? `Chapter ${number}` : text };
+      // The page's own wording when there is some ("Chapter 5.5 - Extra");
+      // a number from the address reads better as "Chapter 12".
+      const text = chapterOnPage?.trim();
+      chapter = { number, label: text && !/^[\d.\-_]+$/.test(text) ? text : `Chapter ${number}` };
     }
   }
 
@@ -136,4 +138,41 @@ export function cleanTitle(raw: string, siteTitle: string): string {
   title = title.replace(new RegExp(`^${site}\\s*[-|–—:]\\s*`, "i"), "");
   title = title.replace(/\s*[-|–—:,]?\s*\b(?:chapter|ch\.?|episode|ep\.?)\s*\d.*$/i, "");
   return title.trim();
+}
+
+/** Kollect's best guess about a chapter page on a website it doesn't know. */
+export type Guess = {
+  page: PageInfo;
+  /** The address shape learned from this page, e.g. "/comics/:slug/chapter/:chapter". */
+  slugPattern: string;
+  siteName: string;
+  icon?: string;
+};
+
+/**
+ * Guesses what a page on an unknown website is, so the user can check it
+ * and add the site. Only works on a chapter page, since that's where the
+ * site's chapter addresses can be learned. Returns null elsewhere.
+ */
+export function guessPage(source: PageSource): Guess | null {
+  const url = new URL(source.url);
+  const learned = learnPattern(url.pathname);
+  if (learned === null || parseChapterNumber(learned.chapter) === undefined) return null;
+
+  const domain = url.hostname.toLowerCase().replace(/^www\./, "");
+  const siteName = source.meta("og:site_name")?.trim() || prettyDomain(domain);
+  const rules: SiteRules = { domain, title: siteName, slugPattern: learned.pattern, caseSensitive: false };
+  const page = readPage(rules, source) ?? {
+    // No title found on the page: the user types it in.
+    ...readPage(rules, { ...source, meta: () => undefined, documentTitle: "?" })!,
+    title: "",
+  };
+  const icon = source.link('link[rel~="icon"]');
+  return { page, slugPattern: learned.pattern, siteName, icon };
+}
+
+/** "asurascans.com" → "Asurascans". */
+function prettyDomain(domain: string): string {
+  const name = domain.split(".")[0] ?? domain;
+  return name.charAt(0).toUpperCase() + name.slice(1);
 }

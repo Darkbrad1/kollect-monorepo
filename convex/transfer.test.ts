@@ -198,6 +198,25 @@ describe("full backup import — chapters", () => {
     const s = await stateOf(c, "test|bob", c.mangaIds[0]);
     expect(s!.row.currentSiteId).toBe(c.siteId);
   });
+
+  test("a site someone else added for themselves isn't used", async () => {
+    const c = await setup();
+    const privateSite = await c.t.run(async (ctx) => {
+      const alice = (await ctx.db.query("users").collect()).find((u) => u.token === "test|alice")!;
+      return await ctx.db.insert("sites", {
+        domain: "flamecomics.xyz", icon: "", title: "Flame", link: "https://flamecomics.xyz",
+        slugPattern: "/series/:slug/:chapter", chapterInUrl: true, caseSensitive: false,
+        configVersion: 1, addedBy: alice._id,
+      });
+    });
+    await libraryWith(c, c.alice, c.mangaIds[0], { chapter: 80, siteId: privateSite });
+
+    const file = await c.alice.query(api.transfer.exportLibrary, {});
+    await importFile(c.bob, file, "titlesAndPages");
+
+    const s = await stateOf(c, "test|bob", c.mangaIds[0]);
+    expect(s!.row.currentSiteId).toBeUndefined();
+  });
 });
 
 describe("full backup import — pages", () => {

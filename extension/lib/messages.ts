@@ -20,8 +20,15 @@ export type SettingsPatch = {
 /** Reading page → background. */
 export type Request =
   | { type: "sites" }
-  | { type: "state"; page: PageInfo }
-  | { type: "add"; page: PageInfo; progressKey?: ProgressKey; favourite?: boolean }
+  | { type: "state"; page?: PageInfo }
+  | {
+      type: "add"
+      page: PageInfo
+      progressKey?: ProgressKey
+      favourite?: boolean
+      /** For a website Kollect doesn't know yet (see convex/reading.ts). */
+      newSite?: { title: string; slugPattern: string; icon?: string }
+    }
   | { type: "progress"; page: PageInfo; percentage: number }
   | { type: "settings"; patch: SettingsPatch }
 
@@ -33,11 +40,9 @@ export type Response<R extends Request> = R extends { type: "sites" }
       ? AddResult
       : void
 
-/** Background → reading page. */
-export type TabMessage =
-  | { type: "getPage" }
-  | { type: "added"; message: string }
-  | { type: "error"; message: string }
+/** Background → reading page: the right-click menu or the shortcut was
+    used, so add the manga on this page. */
+export type TabMessage = { type: "add"; favourite?: boolean }
 
 /** A reply that may carry an error, since exceptions don't cross between the two. */
 export type Reply<T> = { ok: true; value: T } | { ok: false; error: string }

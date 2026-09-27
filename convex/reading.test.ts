@@ -80,11 +80,11 @@ describe("adding from a reading page", () => {
     expect(await state()).toMatchObject({ inLibrary: true, progressKey: "planned" });
   });
 
-  test("an unsupported site is refused", async () => {
+  test("an unknown site is refused unless it's being added", async () => {
     const { me, chapterPage } = await setup();
     await expect(
       me.mutation(api.reading.addFromPage, { page: chapterPage(5, { domain: "example.com" }) }),
-    ).rejects.toThrow(/doesn't support/);
+    ).rejects.toThrow(/doesn't know this website/);
   });
 
   test("a manga found by title picks up the site's new address for it", async () => {
@@ -197,6 +197,74 @@ describe("Auto Complete On Finish", () => {
 
   test("not when the setting is off", async () => {
     expect(await finish({ setting: false, status: "completed" })).toBe("reading");
+  });
+});
+
+describe("sites you add yourself", () => {
+  const flamePage = (number: number) => ({
+    domain: "flamecomics.xyz",
+    url: `https://flamecomics.xyz/series/omniscient-reader/chapter-${number}`,
+    slug: "omniscient-reader",
+    title: "Omniscient Reader",
+    seriesUrl: "https://flamecomics.xyz/series/omniscient-reader",
+    chapter: { number, label: `Chapter ${number}` },
+  });
+  const newSite = { title: "Flame Comics", slugPattern: "/series/:slug/:chapter" };
+
+  test("adding a manga on a new site adds the site, just for you, and tracking works", async () => {
+    const { t, me, entry } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: flamePage(200), newSite });
+
+    const mine = await me.query(api.sites.list, {});
+    expect(mine.find((s) => s.domain === "flamecomics.xyz")).toMatchObject({
+      title: "Flame Comics",
+      slugPattern: "/series/:slug/:chapter",
+      link: "https://flamecomics.xyz",
+    });
+
+    await me.mutation(api.reading.recordProgress, { page: flamePage(201), percentage: 90 });
+    expect((await entry())!.currentChapterNumber).toBe(201);
+
+    const other = t.withIdentity({ tokenIdentifier: "test|other", name: "Other" });
+    await other.mutation(api.users.createUser, {});
+    expect((await other.query(api.sites.list, {})).map((s) => s.domain)).not.toContain("flamecomics.xyz");
+    expect((await t.query(api.sites.list, {})).map((s) => s.domain)).not.toContain("flamecomics.xyz");
+    await expect(other.mutation(api.reading.addFromPage, { page: flamePage(200) })).rejects.toThrow(
+      /doesn't know this website/,
+    );
+  });
+
+  test("a second manga on the same site reuses it", async () => {
+    const { t, me } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: flamePage(200), newSite });
+    await me.mutation(api.reading.addFromPage, {
+      page: { ...flamePage(3), slug: "tower", title: "Tower of God", url: "https://flamecomics.xyz/series/tower/chapter-3" },
+      newSite,
+    });
+    const flame = await t.run(async (ctx) =>
+      (await ctx.db.query("sites").collect()).filter((s) => s.domain === "flamecomics.xyz"),
+    );
+    expect(flame).toHaveLength(1);
+  });
+
+  test("a built-in site is used instead of making a private copy", async () => {
+    const { t, me, chapterPage } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5), newSite: { title: "My Asura", slugPattern: "/x/:slug/:chapter" } });
+    const asura = await t.run(async (ctx) =>
+      (await ctx.db.query("sites").collect()).filter((s) => s.domain === SITE),
+    );
+    expect(asura).toHaveLength(1);
+    expect(asura[0].addedBy).toBeUndefined();
+  });
+
+  test("a site needs a name and a pattern with the series and chapter in it", async () => {
+    const { me } = await setup();
+    await expect(
+      me.mutation(api.reading.addFromPage, { page: flamePage(1), newSite: { title: " ", slugPattern: newSite.slugPattern } }),
+    ).rejects.toThrow(/name/);
+    await expect(
+      me.mutation(api.reading.addFromPage, { page: flamePage(1), newSite: { title: "Flame", slugPattern: "/series/:slug" } }),
+    ).rejects.toThrow(/chapter addresses/);
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { cleanTitle, readPage, siteForUrl, type PageSource, type SiteRules } from "./pageRead";
+import { cleanTitle, guessPage, readPage, siteForUrl, type PageSource, type SiteRules } from "./pageRead";
 
 const site: SiteRules = {
   domain: "asurascans.com",
@@ -9,13 +9,13 @@ const site: SiteRules = {
 };
 
 /** A made-up page. */
-function page(url: string, opts: Partial<{ title: string; meta: Record<string, string>; text: Record<string, string>; data: unknown }> = {}): PageSource {
+function page(url: string, opts: Partial<{ title: string; meta: Record<string, string>; text: Record<string, string>; links: Record<string, string>; data: unknown }> = {}): PageSource {
   return {
     url,
     documentTitle: opts.title ?? "",
     meta: (name) => opts.meta?.[name],
     text: (selector) => opts.text?.[selector],
-    link: () => undefined,
+    link: (selector) => opts.links?.[selector],
     data: () => opts.data,
   };
 }
@@ -99,4 +99,42 @@ describe("cleanTitle", () => {
 test("siteForUrl finds the site by address", () => {
   expect(siteForUrl([site], "https://www.asurascans.com/x")?.domain).toBe("asurascans.com");
   expect(siteForUrl([site], "https://example.com/")).toBeUndefined();
+});
+
+describe("guessPage (a website Kollect doesn't know)", () => {
+  test("learns the address shape and reads the page", () => {
+    const guess = guessPage(
+      page("https://www.flamecomics.xyz/series/omniscient-reader/chapter-201", {
+        meta: { "og:site_name": "Flame Comics", "og:title": "Omniscient Reader Chapter 201 | Flame Comics" },
+        links: { 'link[rel~="icon"]': "https://flamecomics.xyz/icon.png" },
+      }),
+    );
+    expect(guess).toEqual({
+      slugPattern: "/series/:slug/:chapter",
+      siteName: "Flame Comics",
+      icon: "https://flamecomics.xyz/icon.png",
+      page: {
+        domain: "flamecomics.xyz",
+        url: "https://www.flamecomics.xyz/series/omniscient-reader/chapter-201",
+        slug: "omniscient-reader",
+        title: "Omniscient Reader",
+        seriesUrl: "https://www.flamecomics.xyz/series/omniscient-reader",
+        chapter: { number: 201, label: "Chapter 201" },
+      },
+    });
+  });
+
+  test("names the site after its address when the page doesn't say", () => {
+    const guess = guessPage(page("https://reaperscans.com/read/tower/3", { title: "Tower of God" }));
+    expect(guess).toMatchObject({ siteName: "Reaperscans", page: { title: "Tower of God", chapter: { number: 3 } } });
+  });
+
+  test("leaves the title empty for the user when the page has none", () => {
+    expect(guessPage(page("https://x.com/read/tower/3"))!.page.title).toBe("");
+  });
+
+  test("not on pages that aren't chapters", () => {
+    expect(guessPage(page("https://www.google.com/search"))).toBeNull();
+    expect(guessPage(page("https://flamecomics.xyz/series/omniscient-reader"))).toBeNull();
+  });
 });

@@ -74,3 +74,51 @@ export function parseChapterNumber(text: string): number | undefined {
   const number = Number(match[1].replace(/[-_]/, "."));
   return Number.isFinite(number) ? number : undefined;
 }
+
+const CHAPTER_WORD = /^(?:chapter|chap|ch|c|episode|ep|e)$/i;
+const CHAPTER_SEGMENT = /^(?:(?:chapter|chap|ch|episode|ep)[\s.\-_]*)?\d+(?:[.\-_]\d+)?$/i;
+
+/**
+ * Works out a website's address pattern from one chapter address, for a
+ * site Kollect doesn't know yet:
+ *
+ *   /comics/the-hero-05c7df14/chapter/1  →  /comics/:slug/chapter/:chapter
+ *   /manga/solo-leveling/chapter-12      →  /manga/:slug/:chapter
+ *   /read/solo-leveling/12               →  /read/:slug/:chapter
+ *
+ * The chapter is the last part marked as one ("chapter/12", "chapter-12"),
+ * or failing that the last number; the series is the part before it
+ * (skipping a lone "chapter"). Returns
+ * null when the address doesn't look like a chapter page, or when the
+ * series and chapter share one part ("/solo-leveling-chapter-12").
+ */
+export function learnPattern(pathname: string): { pattern: string; slug: string; chapter: string } | null {
+  const parts = pathname.split("/").filter(Boolean).map(safeDecode);
+
+  // Prefer a number marked as a chapter ("chapter/3", "chapter-3"), so a
+  // page number after it ("/chapter/3/page/2") isn't mistaken for it;
+  // otherwise take the last bare number.
+  const isNumber = (i: number) => CHAPTER_SEGMENT.test(parts[i]);
+  const isMarked = (i: number) =>
+    isNumber(i) && (/^[a-z]/i.test(parts[i]) || (i > 0 && CHAPTER_WORD.test(parts[i - 1])));
+  let chapterAt = -1;
+  for (let i = parts.length - 1; i >= 0 && chapterAt === -1; i--) if (isMarked(i)) chapterAt = i;
+  for (let i = parts.length - 1; i >= 0 && chapterAt === -1; i--) if (isNumber(i)) chapterAt = i;
+  if (chapterAt === -1) return null;
+
+  const hasWord = chapterAt > 0 && CHAPTER_WORD.test(parts[chapterAt - 1]);
+  const slugAt = hasWord ? chapterAt - 2 : chapterAt - 1;
+  if (slugAt < 0) return null;
+
+  const pattern = [
+    ...parts.slice(0, slugAt),
+    ":slug",
+    ...(hasWord ? [parts[chapterAt - 1]] : []),
+    ":chapter",
+  ];
+  return {
+    pattern: `/${pattern.join("/")}`,
+    slug: parts[slugAt].toLowerCase(),
+    chapter: parts[chapterAt],
+  };
+}

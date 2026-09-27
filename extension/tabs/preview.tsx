@@ -3,7 +3,7 @@ import "../styles.css"
 import { useEffect, useMemo, useState } from "react"
 
 import { App } from "~components/App"
-import { Overlay, ProgressBar } from "~components/Overlay"
+import { AddSiteBox, Overlay, ProgressBar, Toast } from "~components/Overlay"
 import { SignInScreen } from "~components/SignInScreen"
 import { SampleDataProvider } from "~lib/data"
 import type { ProgressKey } from "~lib/pages"
@@ -43,9 +43,16 @@ function PopupPreview() {
   )
 }
 
-/** A pretend chapter page with the overlay and progress bar on top. */
+/**
+ * A pretend chapter page with the overlay and progress bar on top. It
+ * acts like a website Kollect doesn't know yet: the first Add opens the
+ * "add this website" box.
+ */
 function ReadingPagePreview() {
   const [progressKey, setProgressKey] = useState<ProgressKey | undefined>(undefined)
+  const [known, setKnown] = useState(false)
+  const [adding, setAdding] = useState<ProgressKey | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
   const [showBar, setShowBar] = useState(true)
   const [threshold, setThreshold] = useState(80)
   const [percent, setPercent] = useState(0)
@@ -81,12 +88,31 @@ function ReadingPagePreview() {
       {showBar && <ProgressBar percent={percent} />}
       <Overlay
         progressKey={progressKey}
-        onPick={setProgressKey}
+        canAdd
+        onPick={(key) => (known ? setProgressKey(key) : setAdding(key))}
+        panel={
+          adding && (
+            <AddSiteBox
+              heading={`Add to ${adding[0].toUpperCase()}${adding.slice(1)}`}
+              draft={{ siteName: "Flame Comics", title: "Omniscient Reader", chapter: 201 }}
+              pattern="/series/:slug/:chapter"
+              onConfirm={() => {
+                setKnown(true)
+                setProgressKey(adding)
+                setAdding(null)
+                setToast(`Added to ${adding[0].toUpperCase()}${adding.slice(1)}`)
+                window.setTimeout(() => setToast(null), 3000)
+              }}
+              onCancel={() => setAdding(null)}
+            />
+          )
+        }
         showProgressBar={showBar}
         onShowProgressBar={setShowBar}
         scrollThreshold={threshold}
         onScrollThreshold={setThreshold}
       />
+      {toast && <Toast message={toast} />}
     </div>
   )
 }

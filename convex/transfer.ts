@@ -6,6 +6,7 @@ import { higherPriority } from "./lib/constants";
 import { addToLibrary, recordHistory } from "./lib/library";
 import { setProgressPage } from "./lib/pages";
 import { applySettingsPatch } from "./lib/settings";
+import { canUseSite, siteForDomain } from "./lib/sites";
 import { favouriteTag, findOrCreateTag, findTagByName, tagColor } from "./lib/tags";
 import {
   filterRule,
@@ -291,18 +292,19 @@ async function resolveManga(
 
 async function resolveSite(
   ctx: MutationCtx,
+  userId: Id<"users">,
   idHint: string | undefined,
   domain: string | null | undefined,
 ): Promise<Id<"sites"> | null> {
+  // Only sites this user can see: built-in ones and their own. A site
+  // someone else added isn't used, even if the file names it.
   if (idHint !== undefined) {
     const id = ctx.db.normalizeId("sites", idHint);
-    if (id !== null && (await ctx.db.get(id)) !== null) return id;
+    const site = id === null ? null : await ctx.db.get(id);
+    if (site !== null && canUseSite(site, userId)) return site._id;
   }
   if (domain) {
-    const site = await ctx.db
-      .query("sites")
-      .withIndex("by_domain", (q) => q.eq("domain", domain))
-      .first();
+    const site = await siteForDomain(ctx, domain, userId);
     if (site !== null) return site._id;
   }
   return null;
@@ -463,7 +465,7 @@ export const importMangas = mutation({
 
       /* ── Title Page ───────────────────────────────────── */
 
-      const siteId = await resolveSite(ctx, entry.currentSiteId, entry.currentSiteDomain);
+      const siteId = await resolveSite(ctx, user._id, entry.currentSiteId, entry.currentSiteDomain);
       const fileSide: ChapterSide = {
         number: entry.currentChapterNumber,
         label: entry.currentChapterLabel,

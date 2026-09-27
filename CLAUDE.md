@@ -33,7 +33,7 @@ Useful commands:
 - Import icons from `~lib/icons`, never from `@remixicon/react` directly (the full package is 3 MB). Then run `pnpm --filter extension icons`.
 - Screens reach the backend through `useQ`, `useM` and `useOnce` from `~lib/data`, not Convex's hooks directly, so the preview page can swap in made-up data.
 - When a screen starts using a new backend function, add a fake version of it to `extension/lib/sample.ts` so the preview page keeps working.
-- **Adding or moving a reading website** means editing two lists: `SITE_CONFIGS` in `convex/lib/siteConfigs.ts` (how to read its pages) and the addresses in `extension/lib/sites.ts` plus `config.matches` in `extension/contents/reader.tsx` (where the extension may run). When changing an existing site's rules, bump its `configVersion` so the database copy gets updated.
+- **Built-in reading websites** (the ones everyone gets) live in `SITE_CONFIGS` in `convex/lib/siteConfigs.ts`. When changing an existing site's rules, bump its `configVersion` so the database copy gets updated. The extension runs on every website, so there's no address list to keep in step.
 - Colours come from the theme (`bg-surface`, `text-muted`, `bg-primary` and so on in Tailwind). Don't hard-code colours, or the user's theme won't apply. The one exception is `brand`, the logo green.
 
 ## Decisions already made
@@ -93,10 +93,14 @@ These were settled with me, so don't reopen them without asking.
   - **Auto Complete On Finish** moves a manga to Completed when you finish the newest chapter *and* the site says the series has ended.
   - **The latest chapter** is updated whenever you visit a series or chapter page, plus the weekly job as a backup.
   - Adding from a page creates the manga in the shared manga list if it's new (unlike import, which never does).
+- **The Kollect button shows on every website**, so the extension asks for access to all websites (Chrome warns "Read and change all your data on all websites" when installing). Off a manga's chapter page, the Add options are greyed out with "Open a chapter page to add a manga."; the progress bar switch and threshold still work.
+- **Adding on a website Kollect doesn't know:**
+  - Only from a **chapter page**. A box shows what Kollect found (the website's name, the manga's title, the chapter number) to correct, and the chapter-address shape it learned (like `/comics/‹series›/chapter/‹chapter›`). Clicking Add adds the manga and the website, and that website is tracked from then on.
+  - **A website you add is only yours** (`sites.addedBy`). Built-in sites (no `addedBy`) are everyone's, and win when both exist for the same address. Good user-added sites can later be moved into the built-in list. Import never links you to a site someone else added.
 - **The Kollect button and progress bar are on by default** for new accounts. Existing accounts keep whatever they had.
 - **Settings on reading pages:** "Percentage Bar" in Settings and "Show Progress Bar" in the Kollect menu are the same switch. "Kollect Options" switched off hides only the Kollect button; tracking, the right-click menu and the shortcut keep working.
 - **On reading websites** (the Figma frame is called "on website"):
-  - **Right-click menu:** a Kollect menu with "Add" and "Favourite". Add puts the manga on **Reading**. Favourite on a manga that isn't in the library yet adds it to Reading *and* favourites it, in one step.
+  - **Right-click menu** (on every website): a Kollect menu with "Add" and "Favourite". Add puts the manga on **Reading**. Favourite on a manga that isn't in the library yet adds it to Reading *and* favourites it, in one step.
   - **Keyboard shortcut** to add a manga: **Alt+Shift+K** by default. Users can change it in the browser's shortcut settings.
   - **The overlay** is a round Kollect button in the bottom-left corner. It sits at **40% opacity** and fades to full when the mouse is over it (and stays full while its menu is open). Its menu has Add To Reading / Planned / Paused / Completed (the page the manga is on is highlighted), Show Progress Bar, and Change Scroll Threshold.
   - **The progress bar** is a thin bar across the very top of the reading page showing how far down the chapter you are.

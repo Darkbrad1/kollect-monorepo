@@ -3,20 +3,27 @@ import type { PlasmoCSConfig } from "plasmo"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import type { Doc } from "../../convex/_generated/dataModel"
-import { readPage, siteForUrl, type PageInfo, type PageSource } from "../../convex/lib/pageRead"
-import { Overlay, ProgressBar, Toast } from "~components/Overlay"
+import {
+  guessPage,
+  readPage,
+  siteForUrl,
+  type Guess,
+  type PageInfo,
+  type PageSource
+} from "../../convex/lib/pageRead"
+import { AddSiteBox, Overlay, ProgressBar, Toast, type NewSiteDraft } from "~components/Overlay"
 import { addedMessage, ask, type PageState, type SettingsPatch, type TabMessage } from "~lib/messages"
-import type { ProgressKey } from "~lib/pages"
+import { PROGRESS_PAGES, type ProgressKey } from "~lib/pages"
 import { FALLBACK_THEME, themeStyle } from "~lib/theme"
 
-/* Runs on supported reading websites. It works out which manga and
-   chapter the page is, shows the Kollect button and progress bar (if
-   they're switched on), and reports how far you've read. It talks to
+/* Runs on every website. On a site Kollect knows, it works out which
+   manga and chapter the page is and reports how far you've read. On a
+   site it doesn't know, the Kollect button can add the manga, and the
+   website with it, after you check what Kollect found. It talks to
    Convex through the background worker, which holds your login. */
 
-// Keep in step with SITE_MATCHES in lib/sites.ts.
 export const config: PlasmoCSConfig = {
-  matches: ["https://asurascans.com/*", "https://*.asurascans.com/*"],
+  matches: ["<all_urls>"],
   run_at: "document_idle"
 }
 
@@ -38,7 +45,8 @@ function pageSource(): PageSource {
       document.querySelector(`meta[property="${name}"], meta[name="${name}"]`)?.getAttribute("content") ??
       undefined,
     text: (selector) => document.querySelector(selector)?.textContent?.trim() || undefined,
-    link: (selector) => document.querySelector<HTMLAnchorElement>(selector)?.href || undefined,
+    link: (selector) =>
+      document.querySelector<HTMLAnchorElement | HTMLLinkElement>(selector)?.href || undefined,
     data: () => {
       const script = document.getElementById("__NEXT_DATA__")
       try {
@@ -51,7 +59,7 @@ function pageSource(): PageSource {
 }
 
 /** Explains in the page's console (right-click → Inspect → Console)
-    why the Kollect button isn't showing. Each message is logged once. */
+    what Kollect made of the page. Each message is logged once. */
 const logged = new Set<string>()
 function explain(message: string, ...details: unknown[]) {
   if (logged.has(message)) return
@@ -64,38 +72,67 @@ function scrolledPercent(): number {
   return room > 0 ? Math.min(100, (window.scrollY / room) * 100) : 100
 }
 
+/** What this page is to Kollect. */
+type Reading =
+  | { kind: "known"; page: PageInfo } // a manga page on a site Kollect knows
+  | { kind: "new"; guess: Guess } // a chapter page on a site it doesn't
+  | { kind: "none" } // anything else
+
+function readThisPage(sites: Doc<"sites">[]): Reading {
+  const site = siteForUrl(sites, location.href)
+  if (site) {
+    const page = readPage(site, pageSource())
+    if (page) {
+      explain("Read this page as:", page)
+      return { kind: "known", page }
+    }
+    explain(`Not a series or chapter page on ${site.title} (addresses look like ${site.slugPattern}).`)
+    return { kind: "none" }
+  }
+  const guess = guessPage(pageSource())
+  if (guess) {
+    explain("Kollect doesn't know this website; this looks like a chapter page:", guess)
+    return { kind: "new", guess }
+  }
+  return { kind: "none" }
+}
+
+type Adding = { progressKey: ProgressKey; favourite?: boolean; guess: Guess }
+
 export default function Reader() {
   const [sites, setSites] = useState<Doc<"sites">[] | null>(null)
   const [href, setHref] = useState(location.href)
-  const [page, setPage] = useState<PageInfo | null>(null)
+  const [reading, setReading] = useState<Reading>({ kind: "none" })
   const [state, setState] = useState<PageState | undefined>(undefined)
   const [percent, setPercent] = useState(scrolledPercent)
+  const [adding, setAdding] = useState<Adding | null>(null)
   const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null)
 
   // The newest values, for listeners set up once.
-  const pageRef = useRef(page)
-  pageRef.current = page
+  const readingRef = useRef(reading)
+  readingRef.current = reading
   const stateRef = useRef(state)
   stateRef.current = state
+  const page = reading.kind === "known" ? reading.page : null
 
   const say = useCallback((message: string, error = false) => {
     setToast({ message, error })
     window.setTimeout(() => setToast((t) => (t?.message === message ? null : t)), 3000)
   }, [])
+  const sayError = useCallback((error: unknown) => say(error instanceof Error ? error.message : String(error), true), [say])
+
+  const loadSites = useCallback(async () => {
+    try {
+      setSites(await ask({ type: "sites" }))
+    } catch (error) {
+      explain("Couldn't load the list of reading websites.", error)
+      setSites([])
+    }
+  }, [])
 
   useEffect(() => {
-    ask({ type: "sites" })
-      .then((list) => {
-        if (list.length === 0) {
-          explain("No reading websites are set up yet. Run `pnpm --filter app exec convex run sites:seed`.")
-        }
-        setSites(list)
-      })
-      .catch((error: unknown) => {
-        explain("Couldn't load the list of reading websites.", error)
-        setSites([])
-      })
-  }, [])
+    void loadSites()
+  }, [loadSites])
 
   // Many reading sites change pages without a full reload, so watch the address.
   useEffect(() => {
@@ -110,36 +147,18 @@ export default function Reader() {
   useEffect(() => {
     if (sites === null) return
     const timer = window.setTimeout(() => {
-      const site = siteForUrl(sites, location.href)
-      const info = site ? readPage(site, pageSource()) : null
-      if (sites.length > 0 && !site) {
-        explain(
-          `${location.hostname} isn't in the list of reading websites.`,
-          sites.map((s) => s.domain)
-        )
-      } else if (site && !info) {
-        explain(
-          `This page doesn't look like a series or chapter page on ${site.title} (expected addresses like ${site.slugPattern}).`,
-          location.pathname
-        )
-      } else if (info) {
-        explain("Read this page as:", info)
-      }
-      setPage(info)
+      setReading(readThisPage(sites))
+      setAdding(null)
       setPercent(scrolledPercent())
     }, 500)
     return () => window.clearTimeout(timer)
   }, [sites, href])
 
   const refresh = useCallback(async () => {
-    const current = pageRef.current
-    if (current === null) return setState(undefined)
+    const current = readingRef.current
     try {
-      const next = await ask({ type: "state", page: current })
+      const next = await ask({ type: "state", page: current.kind === "known" ? current.page : undefined })
       if (next === null) explain("You're signed out, so there's nothing to show. Open the Kollect popup and sign in.")
-      else if (!next.settings.showButton && !next.settings.showProgressBar) {
-        explain('The Kollect button and progress bar are both switched off ("Kollect Options" and "Percentage Bar" in Settings).')
-      }
       setState(next)
     } catch (error) {
       explain("Couldn't ask Kollect about this page.", error)
@@ -148,19 +167,19 @@ export default function Reader() {
   }, [])
 
   useEffect(() => {
-    void refresh()
-  }, [page, refresh])
+    if (sites !== null) void refresh()
+  }, [reading, sites, refresh])
 
-  /* ── progress ── */
+  /* ── progress (only on sites Kollect knows) ── */
 
   const lastSent = useRef<{ url: string; percent: number } | null>(null)
 
   const send = useCallback((force = false) => {
-    const current = pageRef.current
+    const current = readingRef.current
     const info = stateRef.current
-    if (!current?.chapter || !info?.supported) return
+    if (current.kind !== "known" || !current.page.chapter || !info?.supported) return
     const now = scrolledPercent()
-    const last = lastSent.current?.url === current.url ? lastSent.current.percent : null
+    const last = lastSent.current?.url === current.page.url ? lastSent.current.percent : null
     // The first report on each chapter goes out whatever it says, so the
     // series' latest chapter gets noted. After that, only while it's in
     // your library, and only when something changed enough to matter.
@@ -169,8 +188,8 @@ export default function Reader() {
       const crossed = last < info.settings.scrollThreshold && now >= info.settings.scrollThreshold
       if (!crossed && now < last + 5 && !(now === 100 && last < 100)) return
     }
-    lastSent.current = { url: current.url, percent: now }
-    void ask({ type: "progress", page: current, percentage: now }).catch(() => {})
+    lastSent.current = { url: current.page.url, percent: now }
+    void ask({ type: "progress", page: current.page, percentage: now }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -191,34 +210,67 @@ export default function Reader() {
     if (state?.supported) send()
   }, [state, send])
 
+  /* ── adding ── */
+
+  /** Add To <page> in the menu, the right-click menu, or the shortcut. */
+  const add = useCallback(
+    async (opts: { progressKey?: ProgressKey; favourite?: boolean }) => {
+      const current = readingRef.current
+      if (current.kind === "new") {
+        // A website Kollect doesn't know: check what it found first.
+        setAdding({ progressKey: opts.progressKey ?? "reading", favourite: opts.favourite, guess: current.guess })
+        return
+      }
+      if (current.kind === "none") {
+        say("Open a chapter page to add a manga.", true)
+        return
+      }
+      try {
+        const { action } = await ask({ type: "add", page: current.page, ...opts })
+        await refresh()
+        const where = stateRef.current?.progressKey ?? opts.progressKey ?? null
+        const moved = action === "noop" && opts.progressKey !== undefined
+        say(moved ? `Moved to ${label(opts.progressKey!)}` : addedMessage(action, where, opts.favourite))
+        send(true)
+      } catch (error) {
+        sayError(error)
+      }
+    },
+    [refresh, say, sayError, send]
+  )
+
+  /** "Add" in the box for a new website. */
+  const addNewSite = async (draft: NewSiteDraft) => {
+    if (!adding) return
+    const { guess, progressKey, favourite } = adding
+    try {
+      const { action } = await ask({
+        type: "add",
+        page: { ...guess.page, title: draft.title, chapter: { number: draft.chapter, label: `Chapter ${draft.chapter}` } },
+        progressKey,
+        favourite,
+        newSite: { title: draft.siteName, slugPattern: guess.slugPattern, icon: guess.icon }
+      })
+      setAdding(null)
+      say(addedMessage(action, progressKey, favourite))
+      // The website is known now: reload the list so this page is tracked.
+      await loadSites()
+    } catch (error) {
+      sayError(error)
+    }
+  }
+
   /* ── messages from the background (right-click menu, shortcut) ── */
 
   useEffect(() => {
-    const onMessage = (message: TabMessage, _sender: unknown, reply: (value: unknown) => void) => {
-      if (message.type === "getPage") reply(pageRef.current)
-      if (message.type === "added") {
-        say(message.message)
-        void refresh().then(() => send(true))
-      }
-      if (message.type === "error") say(message.message, true)
+    const onMessage = (message: TabMessage) => {
+      if (message.type === "add") void add({ favourite: message.favourite })
     }
     chrome.runtime.onMessage.addListener(onMessage)
     return () => chrome.runtime.onMessage.removeListener(onMessage)
-  }, [refresh, say, send])
+  }, [add])
 
-  /* ── the Kollect button ── */
-
-  const pick = async (key: ProgressKey) => {
-    if (!page) return
-    try {
-      const { action } = await ask({ type: "add", page, progressKey: key })
-      say(action === "noop" ? addedMessage("noop", key).replace("Already on", "Moved to") : addedMessage(action, key))
-      await refresh()
-      send(true)
-    } catch (error) {
-      say(error instanceof Error ? error.message : String(error), true)
-    }
-  }
+  /* ── settings from the Kollect menu ── */
 
   const saveTimer = useRef<number>()
   const pending = useRef<SettingsPatch>({})
@@ -241,29 +293,43 @@ export default function Reader() {
     saveTimer.current = window.setTimeout(() => {
       const all = pending.current
       pending.current = {}
-      ask({ type: "settings", patch: all }).catch((error: unknown) =>
-        say(error instanceof Error ? error.message : String(error), true)
-      )
+      ask({ type: "settings", patch: all }).catch(sayError)
     }, 400)
   }
 
-  // Nothing to show off manga pages, when signed out, or on unknown sites.
-  if (!page || !state?.supported) return toast ? <Toast {...toast} /> : null
+  // Signed out, or still loading: nothing to show.
+  if (!state) return toast ? <Toast {...toast} /> : null
+
+  const addBox = adding && (
+    <AddSiteBox
+      heading={`Add to ${label(adding.progressKey)}${adding.favourite ? " and favourite" : ""}`}
+      draft={{ siteName: adding.guess.siteName, title: adding.guess.page.title, chapter: adding.guess.page.chapter!.number }}
+      pattern={adding.guess.slugPattern}
+      onConfirm={(draft) => void addNewSite(draft)}
+      onCancel={() => setAdding(null)}
+    />
+  )
 
   return (
     <div style={themeStyle(state.settings.theme ?? FALLBACK_THEME)}>
-      {state.settings.showProgressBar && page.chapter && <ProgressBar percent={percent} />}
-      {state.settings.showButton && (
+      {state.settings.showProgressBar && page?.chapter && <ProgressBar percent={percent} />}
+      {state.settings.showButton || adding ? (
         <Overlay
           progressKey={state.progressKey ?? undefined}
-          onPick={(key) => void pick(key)}
+          canAdd={reading.kind !== "none"}
+          onPick={(key) => void add({ progressKey: key })}
+          panel={addBox}
           showProgressBar={state.settings.showProgressBar}
           onShowProgressBar={(on) => changeSettings({ hasPercentageBar: on })}
           scrollThreshold={state.settings.scrollThreshold}
           onScrollThreshold={(value) => changeSettings({ scrollThreshold: value })}
         />
-      )}
+      ) : null}
       {toast && <Toast {...toast} />}
     </div>
   )
+}
+
+function label(key: ProgressKey): string {
+  return PROGRESS_PAGES.find((p) => p.key === key)?.label ?? key
 }

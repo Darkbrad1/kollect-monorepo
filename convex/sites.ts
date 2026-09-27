@@ -1,5 +1,6 @@
 import { internalMutation, query } from "./_generated/server";
-import { syncSites } from "./lib/sites";
+import { getCurrentUser } from "./lib/auth";
+import { canUseSite, syncSites } from "./lib/sites";
 
 /**
  * All known sites. Card tiles show the source favicon next to the
@@ -13,7 +14,10 @@ import { syncSites } from "./lib/sites";
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("sites").collect();
+    // The built-in sites, plus any the signed-in user added themselves.
+    const user = await getCurrentUser(ctx);
+    const all = await ctx.db.query("sites").collect();
+    return all.filter((site) => canUseSite(site, user?._id ?? null));
   },
 });
 

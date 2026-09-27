@@ -2,14 +2,12 @@ import { createClerkClient } from "@clerk/chrome-extension/background"
 import { ConvexHttpClient } from "convex/browser"
 
 import { api } from "../convex/_generated/api"
-import type { PageInfo } from "../convex/lib/pageRead"
-import { addedMessage, type AddResult, type PageState, type Reply, type Request, type TabMessage } from "~lib/messages"
-import { SITE_MATCHES } from "~lib/sites"
+import type { Reply, Request, TabMessage } from "~lib/messages"
 
 /* The background worker: the one part of the extension that talks to
-   Convex while you're on a reading website. Reading pages send it
-   messages (see lib/messages.ts); it also owns the right-click menu and
-   the Add keyboard shortcut. */
+   Convex while you're on a website. Pages send it messages (see
+   lib/messages.ts); it also owns the right-click menu and the Add
+   keyboard shortcut, which it hands to the page to carry out. */
 
 const PUBLISHABLE_KEY = process.env.PLASMO_PUBLIC_CLERK_PUBLISHABLE_KEY
 const SYNC_HOST = process.env.PLASMO_PUBLIC_CLERK_SYNC_HOST
@@ -26,27 +24,26 @@ async function signIn(): Promise<ConvexHttpClient> {
   const token = clerk.session ? await clerk.session.getToken({ template: "convex" }) : null
   if (token) convex.setAuth(token)
   else {
-    console.info("[Kollect] No login found in the background worker; reading pages will treat you as signed out.")
+    console.info("[Kollect] No login found in the background worker; pages will treat you as signed out.")
     convex.clearAuth()
   }
   return convex
 }
 
 async function handle(request: Request): Promise<unknown> {
-  // The site list needs no login.
-  if (request.type === "sites") {
-    if (!convex) return []
-    return await convex.query(api.sites.list, {})
-  }
   const client = await signIn()
   switch (request.type) {
+    case "sites":
+      // Built-in sites, plus the ones you added (when signed in).
+      return await client.query(api.sites.list, {})
     case "state":
       return await client.query(api.reading.pageState, { page: request.page })
     case "add":
       return await client.mutation(api.reading.addFromPage, {
         page: request.page,
         progressKey: request.progressKey,
-        favourite: request.favourite
+        favourite: request.favourite,
+        newSite: request.newSite
       })
     case "progress":
       await client.mutation(api.reading.recordProgress, {
@@ -77,39 +74,30 @@ const MENU = { parent: "kollect", add: "kollect-add", favourite: "kollect-favour
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
-    // Only shown on supported reading websites.
-    const shared = { contexts: ["all"] as chrome.contextMenus.ContextType[], documentUrlPatterns: SITE_MATCHES }
+    const shared = {
+      contexts: ["all"] as chrome.contextMenus.ContextType[],
+      documentUrlPatterns: ["http://*/*", "https://*/*"]
+    }
     chrome.contextMenus.create({ id: MENU.parent, title: "Kollect", ...shared })
     chrome.contextMenus.create({ id: MENU.add, parentId: MENU.parent, title: "Add to Kollect", ...shared })
     chrome.contextMenus.create({ id: MENU.favourite, parentId: MENU.parent, title: "Favourite", ...shared })
   })
 })
 
+/** The page does the adding, since it may need to ask you about a new website first. */
+function tellTab(tabId: number, message: TabMessage) {
+  // Fails quietly on pages Kollect can't run on, such as chrome:// pages.
+  chrome.tabs.sendMessage(tabId, message).catch(() => {})
+}
+
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (tab?.id === undefined) return
-  if (info.menuItemId === MENU.add) void addFromTab(tab.id, {})
-  if (info.menuItemId === MENU.favourite) void addFromTab(tab.id, { favourite: true })
+  if (info.menuItemId === MENU.add) tellTab(tab.id, { type: "add" })
+  if (info.menuItemId === MENU.favourite) tellTab(tab.id, { type: "add", favourite: true })
 })
 
 chrome.commands.onCommand.addListener(async (command, tab) => {
   if (command !== "add-manga") return
   const tabId = tab?.id ?? (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id
-  if (tabId !== undefined) await addFromTab(tabId, {})
+  if (tabId !== undefined) tellTab(tabId, { type: "add" })
 })
-
-/** Asks the reading page what it is, adds it, and tells the page how it went. */
-async function addFromTab(tabId: number, opts: { favourite?: boolean }) {
-  const tell = (message: TabMessage) => chrome.tabs.sendMessage(tabId, message).catch(() => {})
-  try {
-    const page: PageInfo | null = await chrome.tabs.sendMessage(tabId, { type: "getPage" } satisfies TabMessage)
-    if (!page) {
-      await tell({ type: "error", message: "This page isn't a manga Kollect can read." })
-      return
-    }
-    const { action } = (await handle({ type: "add", page, favourite: opts.favourite })) as AddResult
-    const state = (await handle({ type: "state", page })) as PageState
-    await tell({ type: "added", message: addedMessage(action, state?.progressKey ?? null, opts.favourite) })
-  } catch (error) {
-    await tell({ type: "error", message: error instanceof Error ? error.message : String(error) })
-  }
-}

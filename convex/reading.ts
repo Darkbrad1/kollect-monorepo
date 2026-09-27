@@ -5,6 +5,7 @@ import { getCurrentUser, requireSettings, requireUser } from "./lib/auth";
 import { refreshMangaLatest } from "./lib/catalogue";
 import { addToLibrary, recordHistory } from "./lib/library";
 import { setProgressPage } from "./lib/pages";
+import { siteForDomain } from "./lib/sites";
 import { favouriteTag, addTagTo } from "./lib/tags";
 import { normalizeTitle } from "./lib/titles";
 import { mangaStatus, progressKey } from "./lib/validators";
@@ -46,13 +47,6 @@ const pageInfo = v.object({
 });
 
 type PageInfo = typeof pageInfo.type;
-
-async function siteForDomain(ctx: QueryCtx, domain: string): Promise<Doc<"sites"> | null> {
-  return await ctx.db
-    .query("sites")
-    .withIndex("by_domain", (q) => q.eq("domain", domain.toLowerCase()))
-    .unique();
-}
 
 /** Finds the catalogue manga a page is about: by its address on this
     site first, then by title. */
@@ -160,29 +154,31 @@ async function libraryEntry(
 
 /**
  * What the Kollect button needs to know about the page you're on:
- * whether the site is supported, whether this manga is in your library
- * (and on which page), and your reading settings. Null when you're
- * signed out.
+ * whether the site is one you can track on, whether this manga is in
+ * your library (and on which page), and your reading settings. `page`
+ * is left out on pages that aren't a manga, where only the settings
+ * matter. Null when you're signed out.
  */
 export const pageState = query({
-  args: { page: pageInfo },
+  args: { page: v.optional(pageInfo) },
   handler: async (ctx, { page }) => {
     const user = await getCurrentUser(ctx);
     if (user === null) return null;
     const settings = await requireSettings(ctx, user._id);
 
-    const site = await siteForDomain(ctx, page.domain);
-    const found = site === null ? null : await findManga(ctx, site, page);
+    const site = page === undefined ? null : await siteForDomain(ctx, page.domain, user._id);
+    const found = site === null || page === undefined ? null : await findManga(ctx, site, page);
     const entry = found === null ? null : await libraryEntry(ctx, user._id, found.manga._id);
+    const live = entry !== null && !entry.isDeleted ? entry : null;
     const favourite = await favouriteTag(ctx, user._id);
 
     return {
       supported: site !== null,
       // Only live entries count; one in the trash reads as "not added".
-      inLibrary: entry !== null && !entry.isDeleted,
-      progressKey: entry !== null && !entry.isDeleted ? entry.progressKey : null,
-      isFavourite: entry !== null && !entry.isDeleted && entry.tagIds.includes(favourite._id),
-      currentChapter: entry?.isDeleted === false ? (entry.currentChapterNumber ?? null) : null,
+      inLibrary: live !== null,
+      progressKey: live?.progressKey ?? null,
+      isFavourite: live !== null && live.tagIds.includes(favourite._id),
+      currentChapter: live?.currentChapterNumber ?? null,
       settings: {
         scrollThreshold: settings.scrollThreshold,
         showProgressBar: settings.hasPercentageBar,
@@ -208,11 +204,18 @@ export const addFromPage = mutation({
     page: pageInfo,
     progressKey: v.optional(progressKey),
     favourite: v.optional(v.boolean()),
+    // For a website Kollect doesn't know yet: its name, and the shape of
+    // its chapter addresses learned from this page (lib/pageMatch.ts).
+    // The site is added for this user only.
+    newSite: v.optional(
+      v.object({ title: v.string(), slugPattern: v.string(), icon: v.optional(v.string()) }),
+    ),
   },
-  handler: async (ctx, { page, progressKey: target, favourite }) => {
+  handler: async (ctx, { page, progressKey: target, favourite, newSite }) => {
     const user = await requireUser(ctx);
-    const site = await siteForDomain(ctx, page.domain);
-    if (site === null) throw new Error("Kollect doesn't support this website yet.");
+    let site = await siteForDomain(ctx, page.domain, user._id);
+    if (site === null && newSite !== undefined) site = await addSite(ctx, user._id, page, newSite);
+    if (site === null) throw new Error("Kollect doesn't know this website yet.");
     if (normalizeTitle(page.title) === "") throw new Error("Couldn't find this manga's title on the page.");
 
     const manga = (await ensureManga(ctx, site, page, true))!;
@@ -240,7 +243,7 @@ export const recordProgress = mutation({
   handler: async (ctx, { page, percentage }) => {
     const user = await requireUser(ctx);
     const settings = await requireSettings(ctx, user._id);
-    const site = await siteForDomain(ctx, page.domain);
+    const site = await siteForDomain(ctx, page.domain, user._id);
     if (site === null || page.chapter === undefined) return { tracked: false };
 
     // Known manga get their latest chapter updated even when they
@@ -316,6 +319,34 @@ export const recordProgress = mutation({
     return { tracked: true, counted: true };
   },
 });
+
+/** Adds a website the user found themselves; only they will see it. */
+async function addSite(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  page: PageInfo,
+  newSite: { title: string; slugPattern: string; icon?: string },
+): Promise<Doc<"sites">> {
+  const title = newSite.title.trim();
+  if (title === "") throw new Error("Give the website a name.");
+  if (!newSite.slugPattern.includes(":slug") || !newSite.slugPattern.includes(":chapter")) {
+    throw new Error("Kollect couldn't work out this website's chapter addresses.");
+  }
+  const domain = page.domain.toLowerCase();
+  const origin = new URL(page.url).origin;
+  const siteId = await ctx.db.insert("sites", {
+    domain,
+    title,
+    link: origin,
+    icon: newSite.icon ?? `${origin}/favicon.ico`,
+    slugPattern: newSite.slugPattern,
+    chapterInUrl: true,
+    caseSensitive: false,
+    configVersion: 1,
+    addedBy: userId,
+  });
+  return (await ctx.db.get(siteId))!;
+}
 
 /** Auto Complete On Finish: past the threshold on the newest chapter of
     a series the site says has ended. */

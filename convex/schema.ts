@@ -258,7 +258,14 @@ export default defineSchema({
 
     // bump when config changes so clients know to refetch
     configVersion: v.number(),
-  }).index("by_domain", ["domain"]),
+
+    // Who added it. Missing for the built-in sites everyone gets
+    // (lib/siteConfigs.ts); set for a site a user added from a reading
+    // page, which only that user sees.
+    addedBy: v.optional(v.id("users")),
+  })
+    .index("by_domain", ["domain"])
+    .index("by_domain_addedBy", ["domain", "addedBy"]),
 
   /* ─── EXTERNAL METADATA ───────────────────────────────────── */
 
