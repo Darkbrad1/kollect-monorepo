@@ -28,6 +28,8 @@ if (!PUBLISHABLE_KEY || !SYNC_HOST) {
   )
 }
 
+const POPUP_URL = chrome.runtime.getURL("popup.html")
+
 /** A centred message on the default theme, for the moments before the
     library has loaded. */
 function Screen({ children }: { children: ReactNode }) {
@@ -84,7 +86,12 @@ function SignedInApp() {
 
 function IndexPopup() {
   return (
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY} syncHost={SYNC_HOST}>
+    <ClerkProvider
+      publishableKey={PUBLISHABLE_KEY}
+      syncHost={SYNC_HOST}
+      // Without this, signing out sends the popup to the extension's "/",
+      // which doesn't exist, and Chrome shows ERR_FILE_NOT_FOUND.
+      afterSignOutUrl={POPUP_URL}>
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <SignedOut>
           <SignInScreen
