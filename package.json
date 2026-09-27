@@ -7,7 +7,9 @@
     "dev:convex": "pnpm --filter app exec convex dev",
     "dev:app": "pnpm --filter app dev",
     "dev:extension": "pnpm --filter extension dev",
-    "test": "vitest run"
+    "dev:firefox": "pnpm --filter extension dev:firefox",
+    "test": "vitest run",
+    "users": "pnpm --filter app exec convex run admin:listUsers"
   },
   "keywords": [],
   "author": "",

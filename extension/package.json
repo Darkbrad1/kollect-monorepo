@@ -6,6 +6,8 @@
   "author": "bradley andrews",
   "scripts": {
     "dev": "plasmo dev",
+    "dev:firefox": "plasmo dev --target=firefox-mv3",
+    "build:firefox": "plasmo build --target=firefox-mv3",
     "build": "plasmo build",
     "package": "plasmo package",
     "icons": "node scripts/build-icons.mjs"

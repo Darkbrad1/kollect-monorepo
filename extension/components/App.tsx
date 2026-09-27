@@ -2,8 +2,10 @@ import { useMemo, useState } from "react"
 
 import { api } from "../../convex/_generated/api"
 import { useM, useQ } from "~lib/data"
+import type { ProgressKey } from "~lib/pages"
 import { FALLBACK_THEME, themeStyle } from "~lib/theme"
 
+import { AddMangaPopup } from "./AddManga"
 import { GridSkeleton } from "./CardGrid"
 import { ControlsBar, type View } from "./ControlsBar"
 import { Library } from "./Library"
@@ -23,7 +25,7 @@ export function App({ account }: { account: Account }) {
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [search, setSearch] = useState("")
-  const [popup, setPopup] = useState<{ kind: "filter" | "sort"; anchor: DOMRect } | null>(null)
+  const [popup, setPopup] = useState<{ kind: "filter" | "sort" | "add"; anchor: DOMRect } | null>(null)
   // The tab you just clicked, shown straight away while the choice saves.
   const [picked, setPicked] = useState<View | null>(null)
 
@@ -78,6 +80,7 @@ export function App({ account }: { account: Account }) {
             sortCount={page?.sort.length ?? 0}
             onFilter={(anchor) => setPopup({ kind: "filter", anchor })}
             onSort={(anchor) => setPopup({ kind: "sort", anchor })}
+            onAddManga={(anchor) => setPopup({ kind: "add", anchor })}
             onSettings={() => setSettingsOpen(true)}
           />
           {me && view ? (
@@ -88,7 +91,12 @@ export function App({ account }: { account: Account }) {
         </>
       )}
 
-      {popup && page && !settingsOpen && (
+      {popup?.kind === "add" && !settingsOpen && (
+        <Floating anchor={popup.anchor} placement="bottom-end" onClose={() => setPopup(null)}>
+          <AddMangaPopup target={isProgressKey(page?.systemKey) ? page.systemKey : "reading"} />
+        </Floating>
+      )}
+      {popup && popup.kind !== "add" && page && !settingsOpen && (
         <Floating anchor={popup.anchor} placement="bottom-end" onClose={() => setPopup(null)}>
           {popup.kind === "filter" ? (
             <FilterPopup key={page._id} page={page} />
@@ -99,4 +107,8 @@ export function App({ account }: { account: Account }) {
       )}
     </div>
   )
+}
+
+function isProgressKey(key: string | undefined): key is ProgressKey {
+  return key === "reading" || key === "planned" || key === "paused" || key === "completed"
 }

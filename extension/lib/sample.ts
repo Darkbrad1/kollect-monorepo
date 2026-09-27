@@ -236,6 +236,27 @@ export function createSampleStore(): SampleStore {
     })
   }
 
+  // Manga other people have added, for the Add Manga search.
+  for (const [title, hue, latest] of [
+    ["Solo Leveling: Ragnarok", 260, 45],
+    ["The Hero Cannot Rest", 300, 12],
+    ["Surviving the Game as a Barbarian", 20, 88],
+    ["Magic Emperor", 120, 640]
+  ] as const) {
+    mangas.push({
+      ...base,
+      _id: id<"mangas">("manga"),
+      title,
+      normalizedTitle: normalizeTitle(title),
+      altTitles: [],
+      image: cover(title, hue),
+      type: "manhwa",
+      authors: [],
+      tags: [],
+      latestChapter: latest
+    })
+  }
+
   const readingPage = pages.find((p) => p.systemKey === "reading")!
 
   return {
@@ -319,6 +340,17 @@ function query(s: SampleStore, name: string, a: Args): unknown {
           }
         })
     }
+    case "catalogue:search": {
+      const needle = normalizeTitle(a.text)
+      if (needle === "") return []
+      return s.mangas
+        .filter((m) => m.normalizedTitle.includes(needle))
+        .slice(0, 20)
+        .map((manga) => {
+          const entry = s.library.find((r) => r.mangaId === manga._id)
+          return { manga, status: entry === undefined ? "new" : entry.isDeleted ? "trash" : entry.progressKey }
+        })
+    }
     case "library:chapterHistory":
       return s.history
         .filter((h) => h.userMangaId === a.userMangaId)
@@ -343,6 +375,23 @@ function mutate(s: SampleStore, name: string, a: Args): { store: SampleStore; re
       return { store: { ...s, settings: { ...s.settings, ...a } } }
     case "users:renameUser":
       return { store: { ...s, user: { ...s.user, name: a.name } } }
+    case "library:addManga": {
+      const existing = s.library.find((r) => r.mangaId === a.mangaId)
+      if (existing) {
+        return { store: { ...s, library: s.library.map((r) => (r === existing ? { ...r, isDeleted: false, deletedAt: undefined, purgeAt: undefined } : r)) } }
+      }
+      const row: Doc<"userMangas"> = {
+        _creationTime: NOW,
+        _id: id<"userMangas">("um"),
+        userId: s.user._id,
+        mangaId: a.mangaId,
+        addedAt: Date.now(),
+        progressKey: a.progressKey ?? s.settings.defaultProgressKey,
+        tagIds: [],
+        isDeleted: false
+      }
+      return { store: { ...s, library: [...s.library, row] } }
+    }
     case "library:moveToProgressPage":
       return patchRow(a.userMangaId, { progressKey: a.systemKey })
     case "tags:setFavourite":

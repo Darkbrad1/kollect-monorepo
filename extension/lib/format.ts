@@ -18,6 +18,6 @@ export function daysLeft(until: number | undefined, now = Date.now()): string {
 /** "Ch. 98/259" on a card: the chapter you're on, and the newest one
     out when it's known. */
 export function chapterProgress(current: number | undefined, latest: number | undefined): string {
-  if (current === undefined) return latest === undefined ? "Not Started" : `Ch. 0/${latest}`
+  if (current === undefined) return "Not Started"
   return latest === undefined ? `Ch. ${current}` : `Ch. ${current}/${latest}`
 }

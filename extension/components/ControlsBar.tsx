@@ -1,4 +1,5 @@
 import {
+  RiAddLine,
   RiArrowDownSLine,
   RiCloseLine,
   RiFilter3Line,
@@ -17,7 +18,7 @@ export type View = { kind: "page"; page: Doc<"userPages"> } | { kind: "trash" }
 
 /**
  * The bar across the top: page tabs, a dropdown listing every page by
- * name, the library search, Filter, Sort and Settings.
+ * name, the library search, Filter, Sort, Add Manga (+) and Settings.
  */
 export function ControlsBar({
   pages,
@@ -29,6 +30,7 @@ export function ControlsBar({
   sortCount,
   onFilter,
   onSort,
+  onAddManga,
   onSettings
 }: {
   pages: Doc<"userPages">[]
@@ -40,6 +42,7 @@ export function ControlsBar({
   sortCount: number
   onFilter: (anchor: DOMRect) => void
   onSort: (anchor: DOMRect) => void
+  onAddManga: (anchor: DOMRect) => void
   onSettings: () => void
 }) {
   const [listAnchor, setListAnchor] = useState<DOMRect | null>(null)
@@ -102,6 +105,14 @@ export function ControlsBar({
         disabled={!tools}
         onClick={(anchor) => onSort(anchor)}
       />
+      <button
+        type="button"
+        aria-label="Add manga"
+        title="Add manga"
+        onClick={(e) => onAddManga(e.currentTarget.getBoundingClientRect())}
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-surface text-muted hover:text-fg">
+        <RiAddLine size={16} />
+      </button>
       <button
         type="button"
         aria-label="Settings"

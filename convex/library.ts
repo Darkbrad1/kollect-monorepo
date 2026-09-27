@@ -7,13 +7,15 @@ import { setProgressPage } from "./lib/pages";
 import { progressKey } from "./lib/validators";
 
 /** Adds a manga to the caller's library, or brings one back from the
-    trash. See addToLibrary for the three cases. */
+    trash. See addToLibrary for the three cases. Used by the popup's
+    Add Manga button. */
 export const addManga = mutation({
-  args: { mangaId: v.id("mangas") },
-  handler: async (ctx, { mangaId }) => {
+  // progressKey: the page a new manga lands on; your default page if left out.
+  args: { mangaId: v.id("mangas"), progressKey: v.optional(progressKey) },
+  handler: async (ctx, { mangaId, progressKey: landOn }) => {
     const user = await requireUser(ctx);
     const settings = await requireSettings(ctx, user._id);
-    return await addToLibrary(ctx, user._id, mangaId, settings.defaultProgressKey);
+    return await addToLibrary(ctx, user._id, mangaId, landOn ?? settings.defaultProgressKey);
   },
 });
 

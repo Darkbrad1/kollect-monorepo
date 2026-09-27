@@ -305,3 +305,28 @@ describe("page state", () => {
     expect((await state()).settings).toMatchObject({ scrollThreshold: 17, showProgressBar: false, showButton: true });
   });
 });
+
+describe("Add Manga in the popup", () => {
+  test("searches the shared list and says where each one is", async () => {
+    const { t, me, chapterPage } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5), progressKey: "paused" });
+    await t.run(async (ctx) => {
+      await ctx.db.insert("mangas", {
+        title: "Solo Max-Level Newbie", normalizedTitle: "solo max level newbie", altTitles: [],
+        image: "", type: "manhwa", authors: [], tags: [],
+      });
+    });
+
+    const results = await me.query(api.catalogue.search, { text: "solo" });
+    expect(results.map((r) => [r.manga.title, r.status]).sort()).toEqual([
+      ["Solo Leveling", "paused"],
+      ["Solo Max-Level Newbie", "new"],
+    ]);
+    expect(await me.query(api.catalogue.search, { text: "  " })).toEqual([]);
+
+    const newbie = results.find((r) => r.status === "new")!.manga._id;
+    await me.mutation(api.library.addManga, { mangaId: newbie, progressKey: "planned" });
+    const after = await me.query(api.catalogue.search, { text: "newbie" });
+    expect(after[0].status).toBe("planned");
+  });
+});

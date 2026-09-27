@@ -1,7 +1,9 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { internalAction, internalMutation } from "./_generated/server";
+import { internalAction, internalMutation, query } from "./_generated/server";
+import { requireUser } from "./lib/auth";
+import { normalizeTitle } from "./lib/titles";
 import { refreshMangaLatest } from "./lib/catalogue";
 
 /* ═══════════════════════════════════════════════════════════════
@@ -92,5 +94,39 @@ export const applyLatestChapter = internalMutation({
     if (latestChapter === null) return;
 
     await refreshMangaLatest(ctx, source.mangaId);
+  },
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   ADD MANGA (the + button in the popup)
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * Searches the shared manga list: every manga anyone has added to
+ * Kollect. Each result says where it is in your library, if anywhere:
+ * "new" (not added), "trash", or the page it's on.
+ */
+export const search = query({
+  args: { text: v.string() },
+  handler: async (ctx, { text }) => {
+    const user = await requireUser(ctx);
+    const needle = normalizeTitle(text);
+    if (needle === "") return [];
+
+    const found = await ctx.db
+      .query("mangas")
+      .withSearchIndex("search_title", (q) => q.search("normalizedTitle", needle))
+      .take(20);
+
+    return await Promise.all(
+      found.map(async (manga) => {
+        const entry = await ctx.db
+          .query("userMangas")
+          .withIndex("by_user_manga", (q) => q.eq("userId", user._id).eq("mangaId", manga._id))
+          .unique();
+        const status = entry === null ? ("new" as const) : entry.isDeleted ? ("trash" as const) : entry.progressKey;
+        return { manga, status };
+      }),
+    );
   },
 });

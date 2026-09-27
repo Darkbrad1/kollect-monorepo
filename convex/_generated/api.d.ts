@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as catalogue from "../catalogue.js";
 import type * as crons from "../crons.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -43,6 +44,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   catalogue: typeof catalogue;
   crons: typeof crons;
   "lib/auth": typeof lib_auth;

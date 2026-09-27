@@ -23,7 +23,10 @@ Useful commands:
 - `pnpm test`: runs the backend tests (`convex/*.test.ts`)
 - `pnpm dev:convex`: pushes the schema and functions to Convex, typechecks them, and regenerates `convex/_generated`. It runs inside `app/`, where the Convex project settings live.
 - `pnpm dev:app`: runs the sign-in web app on port 3000
-- `pnpm dev:extension`: runs the extension in development
+- `pnpm dev:extension`: runs the extension in development (Chrome)
+- `pnpm dev:firefox`: the same for Firefox, built into `extension/build/firefox-mv3-dev`. `pnpm --filter extension build:firefox` makes a release build.
+- `pnpm users`: lists everyone with an account (id, name, how many manga, websites they added)
+- `pnpm --filter app exec convex run admin:deleteUser '{"userId": "<id>"}'`: removes a user and everything of theirs (library, history, pages, tags, settings, websites they added). Shared manga stay. It doesn't delete their Clerk login. Both commands can also be run from the Convex dashboard's Functions page.
 - `pnpm --filter app exec convex <command>`: any other Convex command, for example `dashboard` or `run`
 - `pnpm --filter app exec convex run sites:seed`: copies the supported reading websites into the database right away. Normally not needed: it happens automatically each time the popup opens.
 - `pnpm --filter extension icons`: rewrites `extension/lib/icons.tsx` with every Remix icon the extension uses. Run it after using a new icon.
@@ -35,6 +38,14 @@ Useful commands:
 - When a screen starts using a new backend function, add a fake version of it to `extension/lib/sample.ts` so the preview page keeps working.
 - **Built-in reading websites** (the ones everyone gets) live in `SITE_CONFIGS` in `convex/lib/siteConfigs.ts`. When changing an existing site's rules, bump its `configVersion` so the database copy gets updated. The extension runs on every website, so there's no address list to keep in step.
 - Colours come from the theme (`bg-surface`, `text-muted`, `bg-primary` and so on in Tailwind). Don't hard-code colours, or the user's theme won't apply. The one exception is `brand`, the logo green.
+
+## For the future (not now)
+
+Ideas to come back to. Don't start them unless asked.
+
+- **A public page on the web app.** Visitors who aren't signed in see a list of every website users have added, with no duplicates.
+- **Your catalogue on the web app.** Signed in, you can see your whole library there too.
+- **A proper way to remove users**, friendlier than the `admin:deleteUser` command, for example also removing their Clerk login.
 
 ## Decisions already made
 
@@ -114,6 +125,8 @@ These were settled with me, so don't reopen them without asking.
   - **Import** shows a full "Importing *title*…" screen with a progress bar, then a report (Added, Merged, Already Had, Skipped).
   - **Reading-page button:** the progress bar uses the theme's secondary colour. The button stays solid while its menu is open. The page the manga is on is highlighted in the menu; picking another moves it.
   - **Reading-page menu size:** 12px text (the design shows about 8px, too small to read) and a 32px button, so it's easy to click.
+- **Add Manga (+ in the top bar):** searches every manga anyone has added to Kollect. New ones go on the page you're looking at (Reading, Planned, Paused or Completed), or Reading from Favourites, the trash or a search. Ones you already have show "On <page>"; ones in your trash show Restore. If nothing matches, it says to add it from its website with the Kollect button.
+- **A manga you haven't started** shows "Not Started" on its card, even when the latest chapter is known.
 - **Default theme:** base `#1C1C1C`, primary `#D9D9D9`, secondary `#5FA8B0`, font Manrope.
 - **Brand:** the logo green is `#0DCF87` (`brand` in Tailwind). It's used for the logo and the signed-out screen, and doesn't change with the theme. The logo is traced as an SVG in `components/Logo.tsx`; the extension icon (`extension/assets/icon.png`) is made from it.
 - **Signed-out screen:** a picture of the app on the left; the logo, "Kollect and save your favourite manga's", **Sign In** and **Sign Up** on the right. Both buttons open the sign-in website (`/sign-in` and `/sign-up`).

@@ -66,6 +66,23 @@ Add `#sign-in` to the end of that address to see the signed-out screen, or `#rea
 
 The made-up data lives in `extension/lib/sample.ts`.
 
+## Trying it in Firefox
+
+1. Run `pnpm dev:firefox` (instead of, or alongside, `pnpm dev:extension`).
+2. In Firefox, open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…**, and choose `extension/build/firefox-mv3-dev/manifest.json`. It stays loaded until Firefox restarts.
+3. Firefox asks before letting an extension onto websites. Open `about:addons` → Kollect → **Permissions** and turn on access to all websites (and `localhost`). Without this, the Kollect button won't appear and the login from the sign-in website won't reach the extension.
+
+The login part (Clerk's extension package) is made with Chrome in mind, so it's the most likely thing to need changes on Firefox.
+
+## Removing a user
+
+```bash
+pnpm users                                                           # find their id
+pnpm --filter app exec convex run admin:deleteUser '{"userId": "<id>"}'
+```
+
+This removes their library, reading history, pages, tags, settings and any websites they added. Manga in the shared list stay. Their Clerk login isn't touched: if they sign in again they get a fresh, empty account, so delete them in the Clerk dashboard too if needed. You can also run both from the Convex dashboard (Functions → `admin`).
+
 ## Running the tests
 
 ```bash
@@ -90,7 +107,8 @@ The popup is 800 × 600 pixels. When you're signed out it shows the sign-in scre
 | `background.ts` | Works behind the scenes: holds your login, talks to Convex for reading pages, and owns the right-click menu and the Alt+Shift+K shortcut. |
 | `lib/messages.ts` | The messages reading pages and the background worker send each other. |
 | `components/App.tsx` | Chooses between the library and the Settings screen, and remembers which page you were on. |
-| `components/ControlsBar.tsx` | The top bar: page tabs, the "all pages" dropdown, Search, Filter, Sort and the Settings button. |
+| `components/ControlsBar.tsx` | The top bar: page tabs, the "all pages" dropdown, Search, Filter, Sort, Add Manga (+) and the Settings button. |
+| `components/AddManga.tsx` | The Add Manga panel: search every manga people have added to Kollect and add one to the page you're on. |
 | `components/Library.tsx` | Loads the manga for the page (or the trash, or your search), filters and sorts them, and shows the grid. |
 | `components/CardGrid.tsx` | The grid itself. It only draws the rows you can see, plus 10 manga above and 10 below, so big libraries stay fast. |
 | `components/MangaCard.tsx` | One card: cover, title, site icon, chapter and how long ago you read it. |
@@ -143,7 +161,8 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 | `transfer.ts` | Export (always everything) and import (in three steps, see below). |
 | `sites.ts` | The list of supported reading websites. The list in `lib/siteConfigs.ts` is copied into the database automatically each time the popup opens (new sites are added; a site whose `configVersion` went up is updated). `sites:seed` does the same on demand. |
 | `reading.ts` | Everything a reading page asks for: what the page is in your library, adding from the page (Kollect button, right-click, shortcut), and recording your progress. |
-| `catalogue.ts` | Keeping each manga's latest chapter number up to date. |
+| `catalogue.ts` | Keeping each manga's latest chapter number up to date, and the search behind Add Manga. |
+| `admin.ts` | Commands for the app's owner: listing users and removing one. Not callable from the extension or website. |
 | `lib/` | Helpers shared by the files above. These aren't called directly. |
 
 ### Reading tracking
@@ -239,6 +258,8 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 | Every day, 05:00 UTC | Permanently delete trash that has passed its "Clear Trash Time". Skipped for anyone who has Auto Clear Trash turned off. |
 
 ## What's not built yet
+
+Ideas saved for later are listed in CLAUDE.md under "For the future".
 
 - **Checking Asura Scans against the real site.** Its address (`asurascans.com/comics/<series>/chapter/<n>`) is checked, but the title still comes from the page's `og:title` tag, which hasn't been checked. It may also need selectors for the newest chapter and whether the series has ended.
 - **More built-in reading websites.** Only Asura Scans so far; others can be added by users for themselves. There's no screen yet to see, rename or remove the websites you've added.
