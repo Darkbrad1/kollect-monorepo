@@ -15,7 +15,7 @@ import type { ReactNode } from "react"
 
 import { api } from "../convex/_generated/api"
 import { App } from "./components/App"
-import { Button } from "./components/ui"
+import { SignInScreen } from "./components/SignInScreen"
 import { convex } from "./convex-client"
 import { themeStyle, FALLBACK_THEME } from "./lib/theme"
 
@@ -87,17 +87,10 @@ function IndexPopup() {
     <ClerkProvider publishableKey={PUBLISHABLE_KEY} syncHost={SYNC_HOST}>
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <SignedOut>
-          <Screen>
-            <h1 className="text-lg font-extrabold">Kollect</h1>
-            <p className="text-[13px] text-muted">
-              Sign in to keep track of the manga, manhwa and manhua you're reading.
-            </p>
-            <Button
-              variant="primary"
-              onClick={() => chrome.tabs.create({ url: `${SYNC_HOST}:3000/sign-in` })}>
-              Sign in on the web
-            </Button>
-          </Screen>
+          <SignInScreen
+            onSignIn={() => chrome.tabs.create({ url: `${SYNC_HOST}:3000/sign-in` })}
+            onSignUp={() => chrome.tabs.create({ url: `${SYNC_HOST}:3000/sign-up` })}
+          />
         </SignedOut>
         <SignedIn>
           <EnsureUser>

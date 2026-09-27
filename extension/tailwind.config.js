@@ -27,7 +27,10 @@ module.exports = {
         "on-primary": color("on-primary"),
         secondary: color("secondary"),
         "on-secondary": color("on-secondary"),
-        danger: "#F04438"
+        danger: "#F04438",
+        // Kollect's own green, from the logo. It doesn't change with the theme.
+        brand: "#0DCF87",
+        "on-brand": "#0B0B0B"
       },
       fontFamily: {
         sans: "var(--k-font)"

@@ -126,10 +126,13 @@ export function Stepper({
   max,
   format,
   label,
-  disabled
+  disabled,
+  compact
 }: {
   value: number
   onChange: (next: number) => void
+  /** Smaller text and less space, for tight spots like the reading-page menu. */
+  compact?: boolean
   step: number
   min: number
   max: number
@@ -140,7 +143,11 @@ export function Stepper({
   const set = (next: number) => onChange(Math.min(max, Math.max(min, next)))
   return (
     <div
-      className={cx("flex items-center gap-1.5", disabled && "pointer-events-none opacity-40")}
+      className={cx(
+        "flex items-center",
+        compact ? "gap-0.5" : "gap-1.5",
+        disabled && "pointer-events-none opacity-40"
+      )}
       aria-label={label}>
       <button
         type="button"
@@ -150,7 +157,11 @@ export function Stepper({
         className="grid h-5 w-5 place-items-center rounded text-fg hover:bg-raised disabled:opacity-30">
         −
       </button>
-      <span className="min-w-[52px] text-center text-[13px] font-semibold tabular-nums">
+      <span
+        className={cx(
+          "text-center font-semibold tabular-nums",
+          compact ? "min-w-[34px] text-xs" : "min-w-[52px] text-[13px]"
+        )}>
         {format(value)}
       </span>
       <button

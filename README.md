@@ -9,7 +9,7 @@ A Chrome extension for keeping track of the manga, manhwa and manhua you're read
 | Folder | What it is |
 |---|---|
 | `extension/` | The main product: a Chrome extension built with [Plasmo](https://docs.plasmo.com/). |
-| `app/` | A small web app. Right now it's only the sign-in page; the extension borrows its login from here. |
+| `app/` | A small web app. Right now it's only the sign-in and sign-up pages (`/sign-in`, `/sign-up`); the extension borrows its login from here. |
 | `convex/` | The backend, running on [Convex](https://convex.dev): the database layout (`schema.ts`) and the server functions. |
 
 Logins are handled by [Clerk](https://clerk.com).
@@ -57,6 +57,8 @@ The extension has a **preview page** that shows every screen filled with made-up
 2. On `chrome://extensions`, copy the Kollect extension's ID.
 3. Open `chrome-extension://<the ID>/tabs/preview.html`.
 
+Add `#sign-in` to the end of that address to see the signed-out screen, or `#reading-page` to see the Kollect button and progress bar on a pretend chapter.
+
 The made-up data lives in `extension/lib/sample.ts`.
 
 ## Running the tests
@@ -76,6 +78,9 @@ The popup is 800 × 600 pixels. When you're signed out it shows a "Sign in on th
 | File | What it is |
 |---|---|
 | `popup.tsx` | The starting point. Sets up Clerk (logins) and Convex (the backend), and creates your account the first time you sign in. |
+| `components/SignInScreen.tsx` | What you see when signed out: a picture of the app, the logo, and Sign In / Sign Up buttons that open the sign-in website. |
+| `components/Logo.tsx` | The Kollect pin and the "KOLLECT" wordmark, drawn as SVG so they stay sharp. |
+| `components/Overlay.tsx` | The Kollect button and menu for reading pages, and the progress bar across the top. Built, but not added to real websites yet. |
 | `components/App.tsx` | Chooses between the library and the Settings screen, and remembers which page you were on. |
 | `components/ControlsBar.tsx` | The top bar: page tabs, the "all pages" dropdown, Search, Filter, Sort and the Settings button. |
 | `components/Library.tsx` | Loads the manga for the page (or the trash, or your search), filters and sorts them, and shows the grid. |
@@ -92,6 +97,8 @@ The popup is 800 × 600 pixels. When you're signed out it shows a "Sign in on th
 | `tabs/preview.tsx` | The preview page described above. |
 
 **Theme.** Your three colours set everything: *base* is the background (panels are slightly lighter or darker shades of it), *primary* is for selected things and main buttons, and *secondary* is for the progress bars. Text switches between light and dark on its own so it's always readable. The default theme is base `#1C1C1C`, primary `#D9D9D9`, secondary `#5FA8B0`, font Manrope. The fonts on offer are Manrope, Inter, Montserrat and Nunito.
+
+**Brand.** The logo green, `#0DCF87`, is the one colour that doesn't follow your theme. The extension's toolbar icon is `extension/assets/icon.png` (512 × 512); Plasmo makes the smaller sizes from it. The picture on the signed-out screen is `extension/assets/sign-in-hero.webp`.
 
 **Icons.** The icons come from Remix Icon, but only the ones actually used are copied into `extension/lib/icons.tsx` (the full set is 3 MB). After using a new icon, import it from `~lib/icons` and run:
 
@@ -211,7 +218,7 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 
 - **Checking the screens with you.** The screens follow the Figma design, but some parts weren't in it and were guessed. They're waiting for your review.
 - **Reading tracking.** On hold until the design is final. Nothing watches reading sites yet, so chapters don't update on their own. When it's built, the reading page will talk to the backend directly, so it works even when the popup is closed.
-- **Tools on reading websites.** Planned: a Kollect right-click menu (add the manga, favourite it), a keyboard shortcut to add a manga (changeable in the browser's shortcut settings), and an overlay that stays faint until you hover over it.
+- **Tools on reading websites.** The Kollect button (faint until you hover), its menu and the progress bar are built but not yet shown on real sites. Still to come: putting them on reading pages, the right-click menu (Add puts a manga on Reading; Favourite adds it to Reading and favourites it), and the Alt+Shift+K shortcut to add a manga.
 - **Latest-chapter lookups.** The weekly job runs, but the part that actually looks up each series' newest chapter is a placeholder until reading websites are added.
 - **Removing the preview page before release.** `tabs/preview.html` is handy while designing, but it ships inside the extension, so it should be taken out (or hidden) before the extension is published.
 - **Production builds.** `plasmo build` only reads `extension/.env.chrome`, which doesn't have the Clerk or Convex settings yet, so a production build won't work until they're added there.

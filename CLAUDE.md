@@ -32,7 +32,7 @@ Useful commands:
 - Import icons from `~lib/icons`, never from `@remixicon/react` directly (the full package is 3 MB). Then run `pnpm --filter extension icons`.
 - Screens reach the backend through `useQ`, `useM` and `useOnce` from `~lib/data`, not Convex's hooks directly, so the preview page can swap in made-up data.
 - When a screen starts using a new backend function, add a fake version of it to `extension/lib/sample.ts` so the preview page keeps working.
-- Colours come from the theme (`bg-surface`, `text-muted`, `bg-primary` and so on in Tailwind). Don't hard-code colours, or the user's theme won't apply.
+- Colours come from the theme (`bg-surface`, `text-muted`, `bg-primary` and so on in Tailwind). Don't hard-code colours, or the user's theme won't apply. The one exception is `brand`, the logo green.
 
 ## Decisions already made
 
@@ -82,11 +82,15 @@ These were settled with me, so don't reopen them without asking.
 - **Search** (top bar) searches the **whole library**, not just the page you're on, by title and alternative titles. Capitals and punctuation don't matter. Titles that start with what you typed come first. Manga in the trash aren't included.
 - **Automatic checks:** every push to `dev` or `master`, and every pull request, runs the typechecks, the web app's lint, and the backend tests on GitHub (`.github/workflows/checks.yml`). Keep them passing.
 - **Reading tracking** (for later): the reading page talks to the backend directly, whether or not the popup is open. Don't route it through the popup.
-- **On reading websites** (for later; the Figma frame is called "on website"):
-  - **Right-click menu:** right-clicking on a page shows a Kollect menu with options to add the manga and to favourite it.
-  - **Keyboard shortcut:** a manga can also be added with a keyboard shortcut. The user can change it in the browser's shortcut settings.
-  - **The overlay** is see-through (low opacity) while the mouse isn't over it, and goes back to full opacity when the mouse is over it.
+- **On reading websites** (the Figma frame is called "on website"):
+  - **Right-click menu:** a Kollect menu with "Add" and "Favourite". Add puts the manga on **Reading**. Favourite on a manga that isn't in the library yet adds it to Reading *and* favourites it, in one step.
+  - **Keyboard shortcut** to add a manga: **Alt+Shift+K** by default. Users can change it in the browser's shortcut settings.
+  - **The overlay** is a round Kollect button in the bottom-left corner. It sits at **40% opacity** and fades to full when the mouse is over it (and stays full while its menu is open). Its menu has Add To Reading / Planned / Paused / Completed (the page the manga is on is highlighted), Show Progress Bar, and Change Scroll Threshold.
+  - **The progress bar** is a thin bar across the very top of the reading page showing how far down the chapter you are.
+  - The overlay and progress bar are built as screens (`components/Overlay.tsx`) but aren't put on real websites yet; that comes with reading tracking.
 - **On hold:** reading tracking and adding reading websites. Don't start them unless asked.
 - **The extension screens** are built on the `design` branch. Some parts weren't in the Figma design and were guessed; they're listed for the user to review, so don't treat them as settled yet.
 - **Default theme:** base `#1C1C1C`, primary `#D9D9D9`, secondary `#5FA8B0`, font Manrope.
+- **Brand:** the logo green is `#0DCF87` (`brand` in Tailwind). It's used for the logo and the signed-out screen, and doesn't change with the theme. The logo is traced as an SVG in `components/Logo.tsx`; the extension icon (`extension/assets/icon.png`) is made from it.
+- **Signed-out screen:** a picture of the app on the left; the logo, "Kollect and save your favourite manga's", **Sign In** and **Sign Up** on the right. Both buttons open the sign-in website (`/sign-in` and `/sign-up`).
 - **The latest chapter** for each manga is stored on the manga itself and refreshed by a weekly job.
