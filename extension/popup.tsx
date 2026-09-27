@@ -15,6 +15,7 @@ import type { ReactNode } from "react"
 
 import { api } from "../convex/_generated/api"
 import { App } from "./components/App"
+import { ErrorBoundary } from "./components/ErrorBoundary"
 import { SignInScreen } from "./components/SignInScreen"
 import { convex } from "./convex-client"
 import { themeStyle, FALLBACK_THEME } from "./lib/theme"
@@ -81,7 +82,11 @@ function EnsureUser({ children }: { children: ReactNode }) {
 function SignedInApp() {
   const { user } = useUser()
   const { signOut } = useClerk()
-  return <App account={{ imageUrl: user?.imageUrl, signOut: () => void signOut() }} />
+  return (
+    <ErrorBoundary>
+      <App account={{ imageUrl: user?.imageUrl, signOut: () => void signOut() }} />
+    </ErrorBoundary>
+  )
 }
 
 function IndexPopup() {

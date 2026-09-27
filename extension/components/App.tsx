@@ -8,6 +8,7 @@ import { FALLBACK_THEME, themeStyle } from "~lib/theme"
 import { AddMangaPopup } from "./AddManga"
 import { GridSkeleton } from "./CardGrid"
 import { ControlsBar, type View } from "./ControlsBar"
+import { ErrorBoundary } from "./ErrorBoundary"
 import { Library } from "./Library"
 import { FilterPopup, SortPopup } from "./PagePopups"
 import { SettingsPage, type Account } from "./SettingsPage"
@@ -84,7 +85,9 @@ export function App({ account }: { account: Account }) {
             onSettings={() => setSettingsOpen(true)}
           />
           {me && view ? (
-            <Library view={view} search={search} settings={me.settings} favouriteId={favouriteId} />
+            <ErrorBoundary resetKey={view}>
+              <Library view={view} search={search} settings={me.settings} favouriteId={favouriteId} />
+            </ErrorBoundary>
           ) : (
             <GridSkeleton />
           )}
@@ -93,16 +96,20 @@ export function App({ account }: { account: Account }) {
 
       {popup?.kind === "add" && !settingsOpen && (
         <Floating anchor={popup.anchor} placement="bottom-end" onClose={() => setPopup(null)}>
-          <AddMangaPopup target={isProgressKey(page?.systemKey) ? page.systemKey : "reading"} />
+          <ErrorBoundary compact resetKey={popup}>
+            <AddMangaPopup target={isProgressKey(page?.systemKey) ? page.systemKey : "reading"} />
+          </ErrorBoundary>
         </Floating>
       )}
       {popup && popup.kind !== "add" && page && !settingsOpen && (
         <Floating anchor={popup.anchor} placement="bottom-end" onClose={() => setPopup(null)}>
-          {popup.kind === "filter" ? (
-            <FilterPopup key={page._id} page={page} />
-          ) : (
-            <SortPopup key={page._id} page={page} />
-          )}
+          <ErrorBoundary compact resetKey={popup}>
+            {popup.kind === "filter" ? (
+              <FilterPopup key={page._id} page={page} />
+            ) : (
+              <SortPopup key={page._id} page={page} />
+            )}
+          </ErrorBoundary>
         </Floating>
       )}
     </div>
