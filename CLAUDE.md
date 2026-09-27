@@ -82,6 +82,10 @@ These were settled with me, so don't reopen them without asking.
 - **Search** (top bar) searches the **whole library**, not just the page you're on, by title and alternative titles. Capitals and punctuation don't matter. Titles that start with what you typed come first. Manga in the trash aren't included.
 - **Automatic checks:** every push to `dev` or `master`, and every pull request, runs the typechecks, the web app's lint, and the backend tests on GitHub (`.github/workflows/checks.yml`). Keep them passing.
 - **Reading tracking** (for later): the reading page talks to the backend directly, whether or not the popup is open. Don't route it through the popup.
+- **On reading websites** (for later; the Figma frame is called "on website"):
+  - **Right-click menu:** right-clicking on a page shows a Kollect menu with options to add the manga and to favourite it.
+  - **Keyboard shortcut:** a manga can also be added with a keyboard shortcut. The user can change it in the browser's shortcut settings.
+  - **The overlay** is see-through (low opacity) while the mouse isn't over it, and goes back to full opacity when the mouse is over it.
 - **On hold:** reading tracking and adding reading websites. Don't start them unless asked.
 - **The extension screens** are built on the `design` branch. Some parts weren't in the Figma design and were guessed; they're listed for the user to review, so don't treat them as settled yet.
 - **Default theme:** base `#1C1C1C`, primary `#D9D9D9`, secondary `#5FA8B0`, font Manrope.

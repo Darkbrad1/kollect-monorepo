@@ -211,6 +211,7 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 
 - **Checking the screens with you.** The screens follow the Figma design, but some parts weren't in it and were guessed. They're waiting for your review.
 - **Reading tracking.** On hold until the design is final. Nothing watches reading sites yet, so chapters don't update on their own. When it's built, the reading page will talk to the backend directly, so it works even when the popup is closed.
+- **Tools on reading websites.** Planned: a Kollect right-click menu (add the manga, favourite it), a keyboard shortcut to add a manga (changeable in the browser's shortcut settings), and an overlay that stays faint until you hover over it.
 - **Latest-chapter lookups.** The weekly job runs, but the part that actually looks up each series' newest chapter is a placeholder until reading websites are added.
 - **Removing the preview page before release.** `tabs/preview.html` is handy while designing, but it ships inside the extension, so it should be taken out (or hidden) before the extension is published.
 - **Production builds.** `plasmo build` only reads `extension/.env.chrome`, which doesn't have the Clerk or Convex settings yet, so a production build won't work until they're added there.
