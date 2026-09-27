@@ -1,9 +1,11 @@
 import { v } from "convex/values";
-import type { Doc } from "./_generated/dataModel";
-import { query } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { mutation, query, type MutationCtx } from "./_generated/server";
 import { requireUser } from "./lib/auth";
 import { isProgressKey } from "./lib/constants";
-import { favouriteTag } from "./lib/tags";
+import { favouriteTag, requireOwnedTag } from "./lib/tags";
+import { normalizeTitle } from "./lib/titles";
+import { filterRule, sortRule } from "./lib/validators";
 
 /* ═══════════════════════════════════════════════════════════════
    PAGE LOADERS
@@ -98,5 +100,92 @@ export const trashMangas = query({
     }
 
     return { items };
+  },
+});
+
+/**
+ * The Search box in the top bar. Searches your whole library, not just
+ * the page you're on, by title and alternative titles. Capitals and
+ * punctuation don't matter. Titles that start with what you typed come
+ * first, then the rest, each A to Z. Manga in the trash aren't
+ * included. Each result's userManga.progressKey says which page it's on.
+ */
+export const searchLibrary = query({
+  args: { text: v.string() },
+  handler: async (ctx, { text }) => {
+    const user = await requireUser(ctx);
+    const needle = normalizeTitle(text);
+    if (needle === "") return { items: [] as GridItem[] };
+
+    const rows = await ctx.db
+      .query("userMangas")
+      .withIndex("by_user_live_added", (q) =>
+        q.eq("userId", user._id).eq("isDeleted", false),
+      )
+      .collect();
+
+    const hits: (GridItem & { startsWith: boolean; sortTitle: string })[] = [];
+    for (const userManga of rows) {
+      const manga = await ctx.db.get(userManga.mangaId);
+      if (manga === null) continue;
+
+      const title = normalizeTitle(manga.title);
+      const names = [title, ...manga.altTitles.map(normalizeTitle)];
+      if (!names.some((name) => name.includes(needle))) continue;
+
+      hits.push({
+        userManga,
+        manga,
+        startsWith: names.some((name) => name.startsWith(needle)),
+        sortTitle: title,
+      });
+    }
+
+    hits.sort((a, b) => {
+      if (a.startsWith !== b.startsWith) return a.startsWith ? -1 : 1;
+      return a.sortTitle.localeCompare(b.sortTitle);
+    });
+    return { items: hits.map(({ userManga, manga }) => ({ userManga, manga })) };
+  },
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SAVED FILTERS AND SORT
+
+   Each page remembers its own filters and sort. The filter and sort
+   popups save the whole list each time something changes; "Clear
+   All" saves an empty list.
+   ═══════════════════════════════════════════════════════════════ */
+
+async function requireOwnedPage(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  pageId: Id<"userPages">,
+): Promise<Doc<"userPages">> {
+  const page = await ctx.db.get(pageId);
+  if (page === null || page.userId !== userId) throw new Error("No such page.");
+  return page;
+}
+
+export const setFilters = mutation({
+  args: { pageId: v.id("userPages"), filters: v.array(filterRule) },
+  handler: async (ctx, { pageId, filters }) => {
+    const user = await requireUser(ctx);
+    await requireOwnedPage(ctx, user._id, pageId);
+
+    // A tag filter must point at one of this user's own tags.
+    for (const rule of filters) {
+      if (rule.field === "tag") await requireOwnedTag(ctx, user._id, rule.tagId);
+    }
+    await ctx.db.patch(pageId, { filters });
+  },
+});
+
+export const setSort = mutation({
+  args: { pageId: v.id("userPages"), sort: v.array(sortRule) },
+  handler: async (ctx, { pageId, sort }) => {
+    const user = await requireUser(ctx);
+    await requireOwnedPage(ctx, user._id, pageId);
+    await ctx.db.patch(pageId, { sort });
   },
 });

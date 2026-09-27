@@ -73,12 +73,20 @@ export const filterRule = v.union(
   }),
 );
 
+/* ── sorts ──────────────────────────────────────────────────────
+   A page can have several sort rows; the first decides the order and
+   later ones break ties. Sorting happens in the extension — see
+   lib/sort.ts. The names match the sort menu.
+   ─────────────────────────────────────────────────────────────── */
+
 export const sortRule = v.object({
   field: v.union(
-    v.literal("title"),
-    v.literal("lastReadAt"),
-    v.literal("addedAt"),
-    v.literal("progress"),
+    v.literal("lastRead"), // "Last Read": when you last read it
+    v.literal("dateAdded"), // "Date Added"
+    v.literal("lastReadChapter"), // "Read Chapters": the chapter you're on
+    v.literal("latestChapter"), // "Latest Chapter": the newest chapter out
+    v.literal("source"), // "Sources": the site you're reading it on, A to Z
+    v.literal("title"), // "Title"
   ),
   direction: v.union(v.literal("asc"), v.literal("desc")),
 });

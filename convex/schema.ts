@@ -101,6 +101,10 @@ export default defineSchema({
     // "favourite" for the built-in Favourite tag, which can't be
     // renamed or deleted. null for the user's own tags.
     builtIn: v.union(v.literal("favourite"), v.null()),
+    // The chip colour, as "#rrggbb". Optional so tags made before
+    // colours existed stay valid; read it through tagColor() in
+    // lib/tags.ts, which fills in a default.
+    color: v.optional(v.string()),
   })
     .index("by_user_name", ["userId", "normalizedName"])
     .index("by_user_builtIn", ["userId", "builtIn"]),

@@ -6,7 +6,7 @@ import { higherPriority } from "./lib/constants";
 import { addToLibrary, recordHistory } from "./lib/library";
 import { setProgressPage } from "./lib/pages";
 import { applySettingsPatch } from "./lib/settings";
-import { favouriteTag, findOrCreateTag, findTagByName } from "./lib/tags";
+import { favouriteTag, findOrCreateTag, findTagByName, tagColor } from "./lib/tags";
 import {
   filterRule,
   mangaStatus,
@@ -27,17 +27,17 @@ import {
    Import lets the user choose how much of that to bring in, from the
    dropdown in the settings screen:
 
-     Titles Only     — just the manga. New ones land on the default
+     Title only     — just the manga. New ones land on the default
                        page; nothing about existing ones changes.
-     Title And Page  — the manga, which page they're on, their tags
+     Title Page  — the manga, which page they're on, their tags
                        (Favourite included) and reading progress,
                        merged by the import rules below.
-     All Settings    — everything in Title And Page, plus settings.
+     All Settings    — everything in Title Page, plus settings.
 
    Import runs in steps so the extension can show "Importing <title>…"
    while it works. For the chosen option, the extension calls:
 
-     1. importTags      (Title And Page, All Settings) — once
+     1. importTags      (Title Page, All Settings) — once
      2. importMangas    — repeatedly, a small batch of manga at a time
      3. importSettings  (All Settings) — once
 
@@ -73,7 +73,7 @@ const pageEntry = v.object({
 });
 
 // The user's own tags. Favourite isn't listed: every account has it.
-const tagEntry = v.object({ name: v.string() });
+const tagEntry = v.object({ name: v.string(), color: v.optional(v.string()) });
 
 /** One manga in the file: what it is, plus where it sits and how far
     along it is in the exporting library. */
@@ -235,7 +235,7 @@ export const exportLibrary = query({
       })),
       tags: tags
         .filter((tag) => tag.builtIn === null)
-        .map((tag) => ({ name: tag.name })),
+        .map((tag) => ({ name: tag.name, color: tagColor(tag) })),
       mangas,
     };
   },
@@ -383,7 +383,7 @@ async function mergeChapters(
   }
 }
 
-/** Step 1 (Title And Page, All Settings): creates the file's tags
+/** Step 1 (Title Page, All Settings): creates the file's tags
     that this account doesn't have yet, matched by name. */
 export const importTags = mutation({
   args: { kollect: v.number(), tags: v.array(tagEntry) },
@@ -392,10 +392,11 @@ export const importTags = mutation({
     const user = await requireUser(ctx);
 
     let created = 0;
-    for (const { name } of tags) {
+    for (const { name, color } of tags) {
       if (name.trim() === "") continue;
+      // A tag you already have keeps its own colour.
       if ((await findTagByName(ctx, user._id, name)) !== null) continue;
-      await findOrCreateTag(ctx, user._id, name);
+      await findOrCreateTag(ctx, user._id, name, color);
       created++;
     }
 
@@ -409,8 +410,8 @@ export const importTags = mutation({
 export const importMangas = mutation({
   args: {
     kollect: v.number(),
-    // "titles" for Titles Only; "titlesAndPages" for Title And Page
-    // and All Settings. Titles Only ignores the file's pages and tags.
+    // "titles" for Title only; "titlesAndPages" for Title Page
+    // and All Settings. Title only ignores the file's pages and tags.
     mode: v.union(v.literal("titles"), v.literal("titlesAndPages")),
     mangas: v.array(mangaEntry),
   },
@@ -448,7 +449,7 @@ export const importMangas = mutation({
         continue;
       }
 
-      /* ── Titles Only ──────────────────────────────────────── */
+      /* ── Title only ──────────────────────────────────────── */
 
       if (mode === "titles") {
         if (existing !== null) {
@@ -460,7 +461,7 @@ export const importMangas = mutation({
         continue;
       }
 
-      /* ── Title And Page ───────────────────────────────────── */
+      /* ── Title Page ───────────────────────────────────── */
 
       const siteId = await resolveSite(ctx, entry.currentSiteId, entry.currentSiteDomain);
       const fileSide: ChapterSide = {

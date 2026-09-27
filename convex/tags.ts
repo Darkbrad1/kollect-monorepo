@@ -4,11 +4,14 @@ import { mutation, query, type MutationCtx } from "./_generated/server";
 import { requireOwnedManga, requireUser } from "./lib/auth";
 import {
   addTagTo,
+  cleanTagColor,
   cleanTagName,
   favouriteTag,
+  findOrCreateTag,
   findTagByName,
   normalizeTagName,
   requireOwnedTag,
+  tagColor,
 } from "./lib/tags";
 
 /* ═══════════════════════════════════════════════════════════════
@@ -17,6 +20,9 @@ import {
    Each user's own labels. Tags replace custom pages: instead of
    putting a manga on a "Murim" page, you give it a "Murim" tag and
    filter by it. A manga can have any number of tags.
+
+   Each tag has a colour, shown on its chip. New tags take the next
+   colour from TAG_COLORS unless one is picked.
 
    Favourite is a built-in tag. It can't be renamed or deleted,
    because the Favourites page shows the manga that carry it.
@@ -32,51 +38,57 @@ export const list = query({
       .withIndex("by_user_name", (q) => q.eq("userId", user._id))
       .collect();
 
-    return tags.sort((a, b) => {
-      if (a.builtIn !== b.builtIn) return a.builtIn === "favourite" ? -1 : 1;
-      return a.normalizedName.localeCompare(b.normalizedName);
-    });
+    return tags
+      .sort((a, b) => {
+        if (a.builtIn !== b.builtIn) return a.builtIn === "favourite" ? -1 : 1;
+        return a.normalizedName.localeCompare(b.normalizedName);
+      })
+      .map((tag) => ({ ...tag, color: tagColor(tag) }));
   },
 });
 
+/** The Add Tag button in Settings. Colour is optional. */
 export const create = mutation({
-  args: { name: v.string() },
-  handler: async (ctx, { name }) => {
+  args: { name: v.string(), color: v.optional(v.string()) },
+  handler: async (ctx, { name, color }) => {
     const user = await requireUser(ctx);
     const cleaned = cleanTagName(name);
 
     if ((await findTagByName(ctx, user._id, cleaned)) !== null) {
       throw new Error(`You already have a tag called "${cleaned}".`);
     }
-
-    return await ctx.db.insert("userTags", {
-      userId: user._id,
-      name: cleaned,
-      normalizedName: normalizeTagName(cleaned),
-      builtIn: null,
-    });
+    return await findOrCreateTag(ctx, user._id, cleaned, color);
   },
 });
 
-export const rename = mutation({
-  args: { tagId: v.id("userTags"), name: v.string() },
-  handler: async (ctx, { tagId, name }) => {
+/** Renames a tag, changes its colour, or both. */
+export const update = mutation({
+  args: {
+    tagId: v.id("userTags"),
+    name: v.optional(v.string()),
+    color: v.optional(v.string()),
+  },
+  handler: async (ctx, { tagId, name, color }) => {
     const user = await requireUser(ctx);
     const tag = await requireOwnedTag(ctx, user._id, tagId);
-    if (tag.builtIn !== null) throw new Error("The Favourite tag can't be renamed.");
 
-    const cleaned = cleanTagName(name);
-    const clash = await findTagByName(ctx, user._id, cleaned);
-    if (clash !== null && clash._id !== tagId) {
-      throw new Error(`You already have a tag called "${clash.name}".`);
+    const patch: { name?: string; normalizedName?: string; color?: string } = {};
+
+    if (name !== undefined) {
+      if (tag.builtIn !== null) throw new Error("The Favourite tag can't be renamed.");
+      const cleaned = cleanTagName(name);
+      const clash = await findTagByName(ctx, user._id, cleaned);
+      if (clash !== null && clash._id !== tagId) {
+        throw new Error(`You already have a tag called "${clash.name}".`);
+      }
+      // Manga and filters point at the tag by id, so renaming it here
+      // renames it everywhere.
+      patch.name = cleaned;
+      patch.normalizedName = normalizeTagName(cleaned);
     }
+    if (color !== undefined) patch.color = cleanTagColor(color);
 
-    // Manga and filters point at the tag by id, so renaming it here
-    // renames it everywhere.
-    await ctx.db.patch(tagId, {
-      name: cleaned,
-      normalizedName: normalizeTagName(cleaned),
-    });
+    if (Object.keys(patch).length > 0) await ctx.db.patch(tagId, patch);
   },
 });
 
@@ -153,6 +165,25 @@ export const removeTag = mutation({
     await ctx.db.patch(userMangaId, {
       tagIds: userManga.tagIds.filter((id) => id !== tagId),
     });
+  },
+});
+
+/**
+ * The Search/Create Tags box in the card's Add Tags menu: adds the tag
+ * with this name, creating it first if it's new.
+ */
+export const addTagByName = mutation({
+  args: { userMangaId: v.id("userMangas"), name: v.string() },
+  handler: async (ctx, { userMangaId, name }) => {
+    const user = await requireUser(ctx);
+    const userManga = await liveOwnedManga(ctx, user._id, userMangaId);
+    const tagId = await findOrCreateTag(ctx, user._id, name);
+    const tag = await ctx.db.get(tagId);
+    if (tag?.builtIn !== null) {
+      throw new Error("Use the Favourite item to favourite a manga.");
+    }
+    await addTagTo(ctx, userManga, tagId);
+    return tagId;
   },
 });
 

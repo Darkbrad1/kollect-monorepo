@@ -55,6 +55,8 @@ You'll need Node.js and [pnpm](https://pnpm.io). The project uses pnpm only, so 
 pnpm test
 ```
 
+GitHub also runs the checks automatically on every push to `dev` or `master` and on every pull request: typechecks for all three parts, the web app's lint, and these tests. A red cross next to a commit on GitHub means one of them failed; click it to see which.
+
 The tests run the backend functions against a fake, in-memory database, so they don't touch your real data. They live next to the code as `convex/*.test.ts`. Convex never deploys them, because its bundler skips any file name with more than one dot.
 
 ## How the backend works
@@ -63,7 +65,7 @@ The tests run the backend functions against a fake, in-memory database, so they 
 
 Every manga is on exactly one of the four progress pages: Reading, Planned, Paused or Completed. That page *is* its status. It stays on that page even in the trash, so restoring puts it back where it was.
 
-**Tags** are your own labels, like "Murim" or "Isekai". A manga can have as many as you like, and filters can pick manga out by tag. There are no custom pages; tags do that job instead, so nothing can clash with the built-in pages.
+**Tags** are your own labels, like "Murim" or "Isekai". Each has a colour, shown on its chip; new tags take the next colour from a set list unless you pick one. A manga can have as many as you like, and filters can pick manga out by tag. There are no custom pages; tags do that job instead, so nothing can clash with the built-in pages.
 
 - You manage a list of tags. Renaming or deleting a tag changes it everywhere, and names must be unique (capitals and extra spaces are ignored).
 - Deleting a tag also takes it off every manga and removes any filters that used it.
@@ -74,15 +76,26 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 | File | What it handles |
 |---|---|
 | `users.ts` | Creating your account on first sign-in (with your settings, the five pages and the Favourite tag), and loading your account info. |
-| `library.ts` | Adding manga, moving them between progress pages, and reading history (listing past chapters and switching back to one). |
-| `pages.ts` | Loading every manga on a page, and loading the trash. |
-| `tags.ts` | Your tag list (create, rename, delete), tagging manga, and favouriting. |
+| `library.ts` | Adding manga, moving them between progress pages, reading history (listing past chapters and switching back to one), and switching which site you read a manga on. |
+| `pages.ts` | Loading every manga on a page, loading the trash, searching your whole library, and saving a page's filters and sort. |
+| `tags.ts` | Your tag list (create, rename, recolour, delete), tagging manga (including creating a tag by typing its name), and favouriting. |
 | `trash.ts` | Moving to the trash, restoring, permanent delete, and emptying the trash. |
 | `settings.ts` | Changing settings. |
 | `transfer.ts` | Export (always everything) and import (in three steps, see below). |
 | `sites.ts` | The list of supported reading websites. |
 | `catalogue.ts` | Keeping each manga's latest chapter number up to date. |
 | `lib/` | Helpers shared by the files above. These aren't called directly. |
+
+### Search
+
+The Search box in the top bar searches your **whole library** (`pages:searchLibrary`), not just the page you're on. It matches titles and alternative titles, ignoring capitals and punctuation. Titles that start with what you typed come first, then the rest, each A to Z. Each result says which page it's on. Manga in the trash aren't included.
+
+### Card details
+
+The details popup has two dropdowns:
+
+- **Site:** lists only the sites you've read that manga on, with the furthest chapter you reached on each (`library:sourcesFor`). Picking one switches you back to that site, at the furthest chapter you reached there (`library:switchSource`). Re-reading an earlier chapter doesn't move that point back. The chapter you're leaving is saved to your history first, so switching back returns you to it.
+- **Chapter:** your reading history (`library:chapterHistory`). Picking a chapter makes it current again (`library:switchToHistoryChapter`), and the chapter you left is kept in history.
 
 ### Sorting and filtering
 
@@ -98,7 +111,22 @@ The filter matching lives in `convex/lib/filters.ts`. It's plain code with no da
 | Source | equal (the site you're reading it on now), contains (any site you've read it on, from your reading history) |
 | Tag | has, doesn't have |
 
+A page's filters and sort are saved on the page with `pages:setFilters` and `pages:setSort`. "Clear All" saves an empty list.
+
 A manga has to pass *every* filter on the page. "Between" includes both ends. A manga with no value for a field (for example, one you haven't started) doesn't match filters on that field.
+
+The sorting rules live in `convex/lib/sort.ts`, also plain code the extension can use. Call `sortMangas` with the page's items, its sort rows, and a map of site names (from `sites:list`) for the Sources option.
+
+| Sort | Orders by |
+|---|---|
+| Last Read | when you last read it |
+| Date Added | when you added it |
+| Read Chapters | the chapter you're on |
+| Latest Chapter | the newest chapter out |
+| Sources | the name of the site you're reading it on, A to Z |
+| Title | the title, ignoring capitals |
+
+The first sort row decides the order, and each later row only breaks ties. Manga with no value for a field (for example, never read) go to the end, whichever direction you pick.
 
 ### Export and import
 
@@ -108,13 +136,13 @@ Import has three options:
 
 | Option | What it brings in |
 |---|---|
-| Titles Only | Just the manga. New ones go on your default page. Manga you already have aren't changed. |
-| Title And Page | The manga, which page they're on, their tags (Favourite included), and your reading progress. |
-| All Settings | Everything in Title And Page, plus your settings. |
+| Title only | Just the manga. New ones go on your default page. Manga you already have aren't changed. |
+| Title Page | The manga, which page they're on, their tags (Favourite included), and your reading progress. |
+| All Settings | Everything in Title Page, plus your settings. |
 
 Import happens in steps, so the extension can show "Importing *[title]*…" as it goes:
 
-1. `transfer:importTags`: creates any tags you don't have yet (Title And Page and All Settings only).
+1. `transfer:importTags`: creates any tags you don't have yet (Title Page and All Settings only).
 2. `transfer:importMangas`: called over and over, a small batch of manga at a time.
 3. `transfer:importSettings`: applies the settings (All Settings only).
 
@@ -140,10 +168,6 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 ## What's not built yet
 
 - **The extension's screens.** On hold until the design is final. The popup is still a placeholder.
-- **Backend pieces the screens will need:**
-  - Saving a page's filters and sort. The filter rules exist, but nothing saves them to a page yet.
-  - The final list of sort options.
 - **Reading tracking.** On hold until the design is final. Nothing watches reading sites yet, so chapters don't update on their own. When it's built, the reading page will talk to the backend directly, so it works even when the popup is closed.
 - **Latest-chapter lookups.** The weekly job runs, but the part that actually looks up each series' newest chapter is a placeholder until reading websites are added.
 - **Production builds.** `plasmo build` only reads `extension/.env.chrome`, which doesn't have the Clerk or Convex settings yet, so a production build won't work until they're added there.
-- **Automatic checks on GitHub.** Tests only run when someone runs `pnpm test`. Nothing runs them automatically on a pull request yet.
