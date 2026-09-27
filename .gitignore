@@ -1,3 +1,6 @@
 
 .env.local
 node_modules
+
+# Holds the Clerk secret key; never commit it.
+app/.env.development
