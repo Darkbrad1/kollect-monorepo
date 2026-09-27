@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getCurrentUser, requireSettings, requireUser } from "./lib/auth";
+import { syncSites } from "./lib/sites";
 import { ensureFavouriteTag } from "./lib/tags";
 import {
   DEFAULT_SETTINGS,
@@ -41,6 +42,9 @@ export const createUser = mutation({
       .query("users")
       .withIndex("by_token", (q) => q.eq("token", identity.tokenIdentifier))
       .unique();
+    // Keep the list of reading websites current (see lib/sites.ts).
+    await syncSites(ctx);
+
     if (existing !== null) {
       await ensureFavouriteTag(ctx, existing._id);
       return existing._id;

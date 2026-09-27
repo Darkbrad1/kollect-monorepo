@@ -22,10 +22,10 @@ async function setup() {
 
   const { siteId, mangaIds } = await t.run(async (ctx) => {
     const siteId = await ctx.db.insert("sites", {
-      domain: "asurascans.com",
+      domain: "example-scans.com",
       icon: "asura.png",
       title: "Asurascans",
-      link: "https://asurascans.com",
+      link: "https://example-scans.com",
       chapterInUrl: true,
       caseSensitive: false,
       configVersion: 1,

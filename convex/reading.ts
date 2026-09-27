@@ -31,7 +31,7 @@ import { mangaStatus, progressKey } from "./lib/validators";
 
 /** What the extension read off a reading page. */
 const pageInfo = v.object({
-  // The site's domain from the sites table, e.g. "asuracomic.net".
+  // The site's domain from the sites table, e.g. "asurascans.com".
   domain: v.string(),
   url: v.string(),
   // The series' identifier in the address, when the site has one.

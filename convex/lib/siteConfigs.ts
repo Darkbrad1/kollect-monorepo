@@ -2,9 +2,11 @@ import type { WithoutSystemFields } from "convex/server";
 import type { Doc } from "../_generated/dataModel";
 
 /**
- * The reading websites Kollect supports. `sites:seed` copies this list
- * into the sites table (run it after changing anything here); the
- * extension reads the table, so most fixes don't need a new release.
+ * The reading websites Kollect supports. They're copied into the sites
+ * table automatically (see syncSites in lib/sites.ts): new ones are
+ * added, and one whose configVersion went up is replaced. So after
+ * changing a site's rules, bump its configVersion. The extension reads
+ * the table, so most fixes don't need a new release.
  *
  * The extension also has to be allowed onto each domain: keep
  * SITE_DOMAINS in extension/lib/sites.ts in step with this list.
@@ -24,16 +26,16 @@ import type { Doc } from "../_generated/dataModel";
  */
 export const SITE_CONFIGS: WithoutSystemFields<Doc<"sites">>[] = [
   {
-    // NOT CHECKED AGAINST THE LIVE SITE YET: the address shape is from
-    // memory, and there are no selectors, so it relies on og:title
-    // and the chapter number in the address.
-    domain: "asuracomic.net",
+    // Address checked against a real chapter page
+    // (asurascans.com/comics/the-hero-cannot-rest-05c7df14/chapter/1).
+    // The title still comes from og:title until that's checked too.
+    domain: "asurascans.com",
     title: "Asura Scans",
-    link: "https://asuracomic.net",
-    icon: "https://asuracomic.net/favicon.ico",
-    slugPattern: "/series/:slug/chapter/:chapter",
+    link: "https://asurascans.com",
+    icon: "https://asurascans.com/favicon.ico",
+    slugPattern: "/comics/:slug/chapter/:chapter",
     chapterInUrl: true,
     caseSensitive: false,
-    configVersion: 1,
+    configVersion: 2,
   },
 ];

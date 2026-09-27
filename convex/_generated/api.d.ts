@@ -20,6 +20,7 @@ import type * as lib_pageRead from "../lib/pageRead.js";
 import type * as lib_pages from "../lib/pages.js";
 import type * as lib_settings from "../lib/settings.js";
 import type * as lib_siteConfigs from "../lib/siteConfigs.js";
+import type * as lib_sites from "../lib/sites.js";
 import type * as lib_sort from "../lib/sort.js";
 import type * as lib_tags from "../lib/tags.js";
 import type * as lib_titles from "../lib/titles.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   "lib/pages": typeof lib_pages;
   "lib/settings": typeof lib_settings;
   "lib/siteConfigs": typeof lib_siteConfigs;
+  "lib/sites": typeof lib_sites;
   "lib/sort": typeof lib_sort;
   "lib/tags": typeof lib_tags;
   "lib/titles": typeof lib_titles;

@@ -21,7 +21,7 @@ export type SiteRules = Pick<
 
 /** How the page is read. The extension backs this with the real page. */
 export type PageSource = {
-  /** The full address, e.g. "https://asuracomic.net/series/x/chapter/3". */
+  /** The full address, e.g. "https://asurascans.com/series/x/chapter/3". */
   url: string;
   /** The page's <title>. */
   documentTitle: string;
