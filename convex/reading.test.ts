@@ -207,9 +207,14 @@ describe("page state", () => {
     expect(await t.query(api.reading.pageState, { page: chapterPage(1) })).toBeNull();
   });
 
+  test("the button and progress bar are on for a new account", async () => {
+    const { state } = await setup();
+    expect((await state()).settings).toMatchObject({ scrollThreshold: 80, showProgressBar: true, showButton: true });
+  });
+
   test("reports your reading settings", async () => {
     const { me, state } = await setup();
-    await me.mutation(api.settings.updateSettings, { hasPercentageBar: true, scrollThreshold: 17 });
-    expect((await state()).settings).toMatchObject({ scrollThreshold: 17, showProgressBar: true, showButton: false });
+    await me.mutation(api.settings.updateSettings, { hasPercentageBar: false, scrollThreshold: 17 });
+    expect((await state()).settings).toMatchObject({ scrollThreshold: 17, showProgressBar: false, showButton: true });
   });
 });

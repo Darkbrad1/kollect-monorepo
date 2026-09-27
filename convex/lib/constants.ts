@@ -124,8 +124,10 @@ export const DEFAULT_SETTINGS = {
   autoClearTrash: true,
   autoCompleteOnFinish: false,
   scrollThreshold: 80,
-  hasPercentageBar: false,
-  hasScreenOverlayOptions: false,
+  // On for new accounts, so people see the Kollect button and progress
+  // bar on reading sites straight away. Both can be turned off in Settings.
+  hasPercentageBar: true,
+  hasScreenOverlayOptions: true,
 } as const;
 
 export const DAY_MS = 24 * 60 * 60 * 1000;

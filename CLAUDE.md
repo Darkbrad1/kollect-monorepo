@@ -93,6 +93,7 @@ These were settled with me, so don't reopen them without asking.
   - **Auto Complete On Finish** moves a manga to Completed when you finish the newest chapter *and* the site says the series has ended.
   - **The latest chapter** is updated whenever you visit a series or chapter page, plus the weekly job as a backup.
   - Adding from a page creates the manga in the shared manga list if it's new (unlike import, which never does).
+- **The Kollect button and progress bar are on by default** for new accounts. Existing accounts keep whatever they had.
 - **Settings on reading pages:** "Percentage Bar" in Settings and "Show Progress Bar" in the Kollect menu are the same switch. "Kollect Options" switched off hides only the Kollect button; tracking, the right-click menu and the shortcut keep working.
 - **On reading websites** (the Figma frame is called "on website"):
   - **Right-click menu:** a Kollect menu with "Add" and "Favourite". Add puts the manga on **Reading**. Favourite on a manga that isn't in the library yet adds it to Reading *and* favourites it, in one step.

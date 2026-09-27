@@ -250,8 +250,8 @@ export function createSampleStore(): SampleStore {
       trashRetentionDays: 30,
       autoCompleteOnFinish: false,
       scrollThreshold: 80,
-      hasPercentageBar: false,
-      hasScreenOverlayOptions: false,
+      hasPercentageBar: true,
+      hasScreenOverlayOptions: true,
       theme: FALLBACK_THEME
     },
     pages,
