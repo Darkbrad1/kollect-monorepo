@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { hostMatches, learnPattern, matchPath, parseChapterNumber } from "./pageMatch";
+import { hostMatches, labelledChapterNumber, learnPattern, matchPath, parseChapterNumber } from "./pageMatch";
 
 describe("hostMatches", () => {
   test("the domain itself and its subdomains", () => {
@@ -78,10 +78,58 @@ describe("learnPattern", () => {
     expect(matchPath(learned.pattern, "/comics/other-series-11aa22bb")).toEqual({ slug: "other-series-11aa22bb" });
   });
 
-  test.each(["/", "/series/solo-leveling", "/solo-leveling-chapter-12", "/12", "/watch"])(
+  test("series and chapter in one part", () => {
+    expect(learnPattern("/solo-leveling-chapter-12/")).toEqual({
+      pattern: "/:slug-chapter-:chapter",
+      slug: "solo-leveling",
+      chapter: "12",
+    });
+    expect(learnPattern("/manga/tower-of-god_ep_5.5")).toEqual({
+      pattern: "/manga/:slug_ep_:chapter",
+      slug: "tower-of-god",
+      chapter: "5.5",
+    });
+  });
+
+  test("a code instead of a chapter number, when the title names the chapter", () => {
+    expect(learnPattern("/series/omniscient-reader/a8f3c91e", "Omniscient Reader Chapter 201")).toEqual({
+      pattern: "/series/:slug/:chapter",
+      slug: "omniscient-reader",
+      chapter: "a8f3c91e",
+    });
+    expect(learnPattern("/series/omniscient-reader/a8f3c91e", "Omniscient Reader")).toBeNull();
+  });
+
+  test("a series number in the address isn't taken for the chapter when the title says otherwise", () => {
+    expect(learnPattern("/series/2/a8f3c91e", "Omniscient Reader Chapter 201")).toEqual({
+      pattern: "/series/:slug/:chapter",
+      slug: "2",
+      chapter: "a8f3c91e",
+    });
+    // …but a matching title keeps the address reading.
+    expect(learnPattern("/comics/sl/chapter/12", "Solo Leveling Chapter 12")?.pattern).toBe("/comics/:slug/chapter/:chapter");
+  });
+
+  test.each(["/", "/series/solo-leveling", "/12", "/watch"])(
     "%s isn't a chapter address it can learn from",
     (path) => {
       expect(learnPattern(path)).toBeNull();
     },
   );
+});
+
+describe("one-part patterns", () => {
+  test("match the series and chapter out of one part", () => {
+    expect(matchPath("/:slug-chapter-:chapter", "/Solo-Leveling-chapter-12/")).toEqual({
+      slug: "solo-leveling",
+      chapter: "12",
+    });
+    expect(matchPath("/manga/:slug_ep_:chapter", "/manga/tower_ep_5")).toEqual({ slug: "tower", chapter: "5" });
+    expect(matchPath("/:slug-chapter-:chapter", "/about-us")).toBeNull();
+  });
+});
+
+test("labelledChapterNumber only counts numbers called chapters", () => {
+  expect(labelledChapterNumber("Omniscient Reader Chapter 201 | Flame")).toBe(201);
+  expect(labelledChapterNumber("Top 10 manga of 2026")).toBeUndefined();
 });

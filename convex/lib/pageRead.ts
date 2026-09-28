@@ -1,5 +1,12 @@
 import type { Doc } from "../_generated/dataModel";
-import { hostMatches, learnPattern, matchPath, parseChapterNumber } from "./pageMatch";
+import {
+  hostMatches,
+  isChapterPart,
+  labelledChapterNumber,
+  learnPattern,
+  matchPath,
+  parseChapterNumber,
+} from "./pageMatch";
 
 /* Reads a reading-website page into what Kollect needs: which series,
    which chapter, the title and cover. Plain code with no browser or
@@ -77,9 +84,14 @@ export function readPage(site: SiteRules, source: PageSource): PageInfo | null {
     fromPath(source.data(), site.chapterPath) ??
     (site.chapterSelector ? source.text(site.chapterSelector) : undefined);
   if (match.chapter !== undefined) {
+    // From the page's own chapter text if the site has one; else from the
+    // address when it's a number ("12", "chapter-12"); else, for sites that
+    // use a code there, from the page title ("… Chapter 201").
     const number =
       (chapterOnPage !== undefined ? parseChapterNumber(chapterOnPage) : undefined) ??
-      parseChapterNumber(match.chapter);
+      (isChapterPart(match.chapter)
+        ? parseChapterNumber(match.chapter)
+        : labelledChapterNumber(source.meta("og:title") ?? source.documentTitle));
     if (number !== undefined) {
       // The page's own wording when there is some ("Chapter 5.5 - Extra");
       // a number from the address reads better as "Chapter 12".
@@ -110,6 +122,8 @@ export function readPage(site: SiteRules, source: PageSource): PageInfo | null {
 function seriesUrlFromPattern(pattern: string, url: URL): string | undefined {
   const want = pattern.split("/").filter(Boolean);
   const have = url.pathname.split("/").filter(Boolean);
+  // When the series shares a part with the chapter ("/:slug-chapter-:chapter"),
+  // there's no series page to point at.
   const slugAt = want.indexOf(":slug");
   if (slugAt === -1 || have.length <= slugAt) return undefined;
   return `${url.origin}/${have.slice(0, slugAt + 1).join("/")}`;
@@ -156,8 +170,8 @@ export type Guess = {
  */
 export function guessPage(source: PageSource): Guess | null {
   const url = new URL(source.url);
-  const learned = learnPattern(url.pathname);
-  if (learned === null || parseChapterNumber(learned.chapter) === undefined) return null;
+  const learned = learnPattern(url.pathname, source.meta("og:title") ?? source.documentTitle);
+  if (learned === null) return null;
 
   const domain = url.hostname.toLowerCase().replace(/^www\./, "");
   const siteName = source.meta("og:site_name")?.trim() || prettyDomain(domain);
@@ -167,6 +181,8 @@ export function guessPage(source: PageSource): Guess | null {
     ...readPage(rules, { ...source, meta: () => undefined, documentTitle: "?" })!,
     title: "",
   };
+  // Without a chapter number there's nothing to track yet.
+  if (page.chapter === undefined) return null;
   const icon = source.link('link[rel~="icon"]');
   return { page, slugPattern: learned.pattern, siteName, icon };
 }

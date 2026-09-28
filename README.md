@@ -174,7 +174,7 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 - **Auto Complete On Finish** moves a manga to Completed when you finish the newest chapter and the site says the series has ended.
 - **Every visit** updates the series' latest chapter, even for manga you haven't added.
 - **Adding from a page** creates the manga in the shared manga list if nobody has added it before. It's matched by its address on that site first, then by title.
-- **Adding on a website Kollect doesn't know** (only from a chapter page) adds the website too, for you only. Built-in websites are everyone's and win when both exist for the same address.
+- **Adding on a website Kollect doesn't know** (only from a chapter page) adds the website too, for you only. Kollect works out the site's chapter addresses from that page (`learnPattern` in `convex/lib/pageMatch.ts`). It understands `/‹series›/chapter/12`-style addresses, `/‹series›-chapter-12` (series and chapter in one part), and addresses with a code instead of a chapter number when the page title says which chapter it is. If it can't tell, the Add options stay greyed out and the page's console (right-click → Inspect → Console) says why. Built-in websites are everyone's and win when both exist for the same address.
 
 Each site's page-reading rules live in `convex/lib/siteConfigs.ts`: the shape of its chapter addresses (for Asura Scans, `/comics/:slug/chapter/:chapter`) and, if needed, where the title and chapter name are on the page. Without those, the title comes from the page's `og:title` tag and the chapter number from the address.
 

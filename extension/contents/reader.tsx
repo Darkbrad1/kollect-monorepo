@@ -94,6 +94,14 @@ function readThisPage(sites: Doc<"sites">[]): Reading {
     explain("Kollect doesn't know this website; this looks like a chapter page:", guess)
     return { kind: "new", guess }
   }
+  // Looks like a chapter, but the address couldn't be worked out: say so,
+  // since the Add options stay greyed out.
+  if (/chapter|episode|\bch\b/i.test(`${location.pathname} ${document.title}`)) {
+    explain(
+      "This looks like a chapter, but Kollect couldn't tell the series and chapter apart in this address, so Add is greyed out:",
+      location.pathname
+    )
+  }
   return { kind: "none" }
 }
 

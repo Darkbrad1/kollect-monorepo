@@ -133,6 +133,29 @@ describe("guessPage (a website Kollect doesn't know)", () => {
     expect(guessPage(page("https://x.com/read/tower/3"))!.page.title).toBe("");
   });
 
+  test("a site with series and chapter in one part", () => {
+    const guess = guessPage(
+      page("https://manhuaplus.org/solo-leveling-chapter-12/", { meta: { "og:title": "Solo Leveling Chapter 12" } }),
+    );
+    expect(guess).toMatchObject({
+      slugPattern: "/:slug-chapter-:chapter",
+      page: { slug: "solo-leveling", title: "Solo Leveling", chapter: { number: 12 } },
+    });
+    expect(guess!.page.seriesUrl).toBeUndefined();
+  });
+
+  test("a site that uses a code for the chapter takes the number from the title", () => {
+    const guess = guessPage(
+      page("https://flamecomics.xyz/series/omniscient-reader/a8f3c91e", {
+        meta: { "og:title": "Omniscient Reader Chapter 201 - Flame Comics", "og:site_name": "Flame Comics" },
+      }),
+    );
+    expect(guess).toMatchObject({
+      slugPattern: "/series/:slug/:chapter",
+      page: { slug: "omniscient-reader", title: "Omniscient Reader", chapter: { number: 201, label: "Chapter 201" } },
+    });
+  });
+
   test("not on pages that aren't chapters", () => {
     expect(guessPage(page("https://www.google.com/search"))).toBeNull();
     expect(guessPage(page("https://flamecomics.xyz/series/omniscient-reader"))).toBeNull();
