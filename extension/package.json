@@ -6,11 +6,12 @@
   "author": "bradley andrews",
   "scripts": {
     "dev": "plasmo dev",
-    "dev:firefox": "plasmo dev --target=firefox-mv3",
-    "build:firefox": "plasmo build --target=firefox-mv3",
+    "dev:firefox": "node scripts/dev-firefox.mjs",
+    "build:firefox": "plasmo build --target=firefox-mv2 && web-ext build --source-dir build/firefox-mv2-prod --artifacts-dir build --overwrite-dest",
     "build": "plasmo build",
     "package": "plasmo package",
-    "icons": "node scripts/build-icons.mjs"
+    "icons": "node scripts/build-icons.mjs",
+    "sign:firefox": "web-ext sign --source-dir build/firefox-mv2-prod --artifacts-dir build --channel unlisted"
   },
   "dependencies": {
     "@clerk/chrome-extension": "2.5.21",
@@ -34,7 +35,8 @@
     "postcss": "^8.4.49",
     "prettier": "3.2.4",
     "tailwindcss": "^3.4.19",
-    "typescript": "5.3.3"
+    "typescript": "5.3.3",
+    "web-ext": "^10.7.0"
   },
   "manifest": {
     "key": "$CRX_PUBLIC_KEY",

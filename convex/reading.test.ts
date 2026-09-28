@@ -268,6 +268,88 @@ describe("sites you add yourself", () => {
   });
 });
 
+describe("adding on a page Kollect can't read", () => {
+  // A series page on a new site: no chapter addresses learned yet.
+  const seriesPage = {
+    domain: "mangasite.io",
+    url: "https://mangasite.io/manga/tower-of-god",
+    title: "Tower of God",
+  };
+
+  test("adds the manga and the website, and the typed chapter becomes current", async () => {
+    const { t, me, entry } = await setup();
+    await me.mutation(api.reading.addFromPage, {
+      page: seriesPage,
+      newSite: { title: "Manga Site" },
+      currentChapter: { number: 40, label: "Chapter 40" },
+    });
+    const site = (await me.query(api.sites.list, {})).find((s) => s.domain === "mangasite.io")!;
+    expect(site.slugPattern).toBeUndefined();
+    expect(await entry()).toMatchObject({
+      currentChapterNumber: 40,
+      currentChapterUrl: seriesPage.url,
+      currentSiteId: site._id,
+    });
+
+    // Without the chapter, it just isn't started.
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("userMangas").collect()) await ctx.db.delete(row._id);
+    });
+    await me.mutation(api.reading.addFromPage, { page: { ...seriesPage, title: "Solo Leveling" } });
+    expect((await entry())!.currentChapterNumber).toBeUndefined();
+  });
+
+  test("a typed chapter doesn't replace one you already have", async () => {
+    const { me, chapterPage, entry } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    await me.mutation(api.reading.recordProgress, { page: chapterPage(5), percentage: 100 });
+    await me.mutation(api.reading.addFromPage, {
+      page: { ...chapterPage(5), chapter: undefined },
+      currentChapter: { number: 1, label: "Chapter 1" },
+    });
+    expect((await entry())!.currentChapterNumber).toBe(5);
+  });
+
+  test("the first chapter page teaches Kollect the addresses, and tracking starts", async () => {
+    const { me, entry } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: seriesPage, newSite: { title: "Manga Site" } });
+
+    const learned = await me.mutation(api.reading.learnSitePattern, {
+      domain: "mangasite.io",
+      slugPattern: "/manga/:slug/chapter-:chapter",
+    });
+    expect(learned).toBe(true);
+
+    await me.mutation(api.reading.recordProgress, {
+      page: {
+        domain: "mangasite.io",
+        url: "https://mangasite.io/manga/tower-of-god/chapter-3",
+        slug: "tower-of-god",
+        title: "Tower of God",
+        chapter: { number: 3, label: "Chapter 3" },
+      },
+      percentage: 100,
+    });
+    expect((await entry())!.currentChapterNumber).toBe(3);
+  });
+
+  test("only fills in a missing pattern on your own website", async () => {
+    const { t, me } = await setup();
+    // Built-in site: not changed.
+    expect(await me.mutation(api.reading.learnSitePattern, { domain: SITE, slugPattern: "/x/:slug/:chapter" })).toBe(false);
+
+    await me.mutation(api.reading.addFromPage, { page: seriesPage, newSite: { title: "Manga Site" } });
+    const other = t.withIdentity({ tokenIdentifier: "test|other", name: "Other" });
+    await other.mutation(api.users.createUser, {});
+    // Someone else's site: they can't see it, so nothing happens.
+    expect(await other.mutation(api.reading.learnSitePattern, { domain: "mangasite.io", slugPattern: "/a/:slug/:chapter" })).toBe(false);
+
+    // Once learned, it stays.
+    expect(await me.mutation(api.reading.learnSitePattern, { domain: "mangasite.io", slugPattern: "/manga/:slug/:chapter" })).toBe(true);
+    expect(await me.mutation(api.reading.learnSitePattern, { domain: "mangasite.io", slugPattern: "/other/:slug/:chapter" })).toBe(false);
+  });
+});
+
 describe("site list", () => {
   test("is set up automatically when the popup opens", async () => {
     const t = convexTest(schema, modules);
