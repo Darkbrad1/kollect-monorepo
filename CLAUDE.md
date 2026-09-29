@@ -8,6 +8,7 @@ A browser extension for keeping track of the manga, manhwa and manhua you're rea
 - **Ask me before making product decisions.** If a choice changes how the app behaves for the user (how a feature works, what happens in an edge case, what something is called), lay out the options, say which one you'd pick and why, and let me choose. Don't decide quietly.
 - **Technical choices are yours.** If a choice doesn't change what the user sees or experiences, go ahead and decide it. Just tell me what you picked.
 - **I use pnpm, not npm.** I don't have npm installed, so `npm` and `npx` commands won't work for me. Always give pnpm commands: `pnpm <script>`, `pnpm exec <tool>` for a tool installed in the project, or `pnpm dlx <tool>` for one that isn't.
+- **Write without AI tells, always.** Every reply, doc, commit message, code comment and piece of text you write follows `.claude/skills/unslop/SKILL.md`: plain words, no filler, no em dashes, sentence-case headings, and the rest of its rules. Check your writing against it before sending.
 - **Keep the docs up to date as you go.** Whenever a change affects how something works, how to set it up, or a decision we made, update both files in the same commit:
   - `CLAUDE.md` (this file): how to work with me, and the decisions we've settled.
   - `README.md`: what the project is, how to set it up and run it, how it works, and what isn't built yet.
@@ -31,6 +32,21 @@ Useful commands:
 - `pnpm --filter app exec convex <command>`: any other Convex command, for example `dashboard` or `run`
 - `pnpm --filter app exec convex run sites:seed`: copies the supported reading websites into the database right away. Normally not needed: it happens automatically each time the popup opens.
 - `pnpm --filter extension icons`: rewrites `extension/lib/icons.tsx` with every Remix icon the extension uses. Run it after using a new icon.
+
+## Project skills
+
+Skills live in `.claude/skills/<name>/SKILL.md`. The grilling skills come from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT licence; see `.claude/skills/LICENSE-mattpocock-skills`). They were copied unchanged, except for `grill-with-docs`: its `SKILL.md` description and `reference.md` were rewritten to follow `unslop`, and its `SKILL.md` adds the session notes file.
+
+- `/grill-with-docs` (only when typed): interviews me about a plan and writes the docs as it goes. It works by loading the two skills below, so keep all three.
+  - `grilling`: the interview. Questions come in numbered rounds, each with a recommended answer; it looks up facts itself and leaves decisions to me.
+  - `domain-modeling`: the paper trail. Settled terms go into `CONTEXT.md` (a glossary, format in `domain-modeling/CONTEXT-FORMAT.md`), and hard-to-reverse decisions become ADRs in `docs/adr/` (format in `domain-modeling/ADR-FORMAT.md`).
+  - Session notes: each session is also written to a Markdown file in `docs/grilling/` (questions, my answers, and what was settled), so I can copy it into Obsidian.
+  - Background in `.claude/skills/grill-with-docs/reference.md`. The `agents/openai.yaml` files are for other AI tools and don't affect Claude Code.
+- `unslop` (always on): the writing rules for everything Claude writes here (no filler, fancy words, em dashes and so on). "How to work with me" above makes it apply all the time; `/unslop` also runs it on a piece of text you give it.
+
+## Known bugs to fix
+
+- **Clicking a card doesn't open the manga in a new tab.** The click is wired to the cover only (`components/MangaCard.tsx`) and opens the manga's current chapter link (`currentChapterUrl`, via `openLink` in `components/Library.tsx`). Many manga don't have one: anything added with the + button or from a series page, and anything not yet read past the Scroll Threshold, so the click silently does nothing. Needs fixing; what a card should open when there's no current chapter (for example the series page) is a product decision to ask about.
 
 ## Extension code conventions
 
