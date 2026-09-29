@@ -8,6 +8,7 @@ A browser extension for keeping track of the manga, manhwa and manhua you're rea
 - **Ask me before making product decisions.** If a choice changes how the app behaves for the user (how a feature works, what happens in an edge case, what something is called), lay out the options, say which one you'd pick and why, and let me choose. Don't decide quietly.
 - **Technical choices are yours.** If a choice doesn't change what the user sees or experiences, go ahead and decide it. Just tell me what you picked.
 - **I use pnpm, not npm.** I don't have npm installed, so `npm` and `npx` commands won't work for me. Always give pnpm commands: `pnpm <script>`, `pnpm exec <tool>` for a tool installed in the project, or `pnpm dlx <tool>` for one that isn't.
+- **Write without AI tells, always.** Every reply, doc, commit message, code comment and piece of text you write follows `.claude/skills/unslop/SKILL.md`: plain words, no filler, no em dashes, sentence-case headings, and the rest of its rules. Check your writing against it before sending.
 - **Keep the docs up to date as you go.** Whenever a change affects how something works, how to set it up, or a decision we made, update both files in the same commit:
   - `CLAUDE.md` (this file): how to work with me, and the decisions we've settled.
   - `README.md`: what the project is, how to set it up and run it, how it works, and what isn't built yet.
@@ -40,7 +41,7 @@ Skills live in `.claude/skills/<name>/SKILL.md`. The grilling skills come from [
   - `grilling`: the interview. Questions come in numbered rounds, each with a recommended answer; it looks up facts itself and leaves decisions to me.
   - `domain-modeling`: the paper trail. Settled terms go into `CONTEXT.md` (a glossary, format in `domain-modeling/CONTEXT-FORMAT.md`), and hard-to-reverse decisions become ADRs in `docs/adr/` (format in `domain-modeling/ADR-FORMAT.md`).
   - Background in `.claude/skills/grill-with-docs/reference.md`. The `agents/openai.yaml` files are for other AI tools and don't affect Claude Code.
-- `/unslop` (only when typed): edits a piece of writing to remove AI-sounding patterns (filler, fancy words, em dashes and so on).
+- `unslop` (always on): the writing rules for everything Claude writes here (no filler, fancy words, em dashes and so on). "How to work with me" above makes it apply all the time; `/unslop` also runs it on a piece of text you give it.
 
 ## Known bugs to fix
 

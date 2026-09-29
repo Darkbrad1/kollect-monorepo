@@ -1,7 +1,6 @@
 ---
 name: unslop
-description: Cut AI tells from any writing. Must always apply.
-disable-model-invocation: true
+description: Cut AI tells from any writing. Must always apply, to every reply, doc, commit message, code comment and piece of text written in this project.
 ---
 
 # Unslop
