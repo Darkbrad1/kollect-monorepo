@@ -13,8 +13,12 @@ The manga one user has saved, each on one progress page.
 _Avoid_: collection, list
 
 **Private manga**:
-A manga in the shared manga list that is only on websites someone added for themselves. Only the people who added it see it, until someone adds it from a built-in website.
+A manga in the shared manga list that is only on own websites. It doesn't show in other people's Add Manga search until someone adds it from a built-in website.
 _Avoid_: hidden manga
+
+**Alternative title**:
+Another name a manga is known by, such as a translated title. Search and matching check it as well as the main title.
+_Avoid_: alt name, other title
 
 **Current chapter**:
 The furthest chapter you've read past your Scroll Threshold, or the one you typed in the check box.
