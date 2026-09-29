@@ -10,13 +10,13 @@ Work the tree in **rounds**. The **frontier** is every decision whose prerequisi
 Format a round like so:
 
 ```
-❓ **Q1** - **<question title>**: <question body, might be multiple paragraphs, including multiple choices>
+❓ **Q1** - **<question title>**: <question body, might be multiple paragraphs, including multiple choices; if multiple choice, format each option as "- [ ] option text">
 
 ➡️ <your recommended answer>
 
 ---
 
-❓ **Q2** - **<question title>**: <question body, might be multiple paragraphs, including multiple choices>
+❓ **Q2** - **<question title>**: <question body, might be multiple paragraphs, including multiple choices; if multiple choice, format each option as "- [ ] option text">
 
 ➡️ <your recommended answer>
 ```
