@@ -42,10 +42,17 @@ export function Cover({ src, className }: { src: string; className?: string }) {
       src={src}
       alt=""
       loading="lazy"
+      // MangaDex refuses covers asked for from other websites' pages.
+      referrerPolicy="no-referrer"
       onError={() => setBroken(true)}
       className={cx("bg-raised object-cover", className)}
     />
   )
+}
+
+/** The title you see: your own title for the manga, or the shared one. */
+export function titleOf(item: GridItem): string {
+  return item.userManga.customTitle ?? item.manga.title
 }
 
 /**
@@ -77,7 +84,7 @@ export function MangaCard({
     <div
       role="button"
       tabIndex={0}
-      aria-label={`Open ${manga.title}`}
+      aria-label={`Open ${titleOf(item)}`}
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return
@@ -107,7 +114,7 @@ export function MangaCard({
 
       <button
         type="button"
-        aria-label={`Options for ${manga.title}`}
+        aria-label={`Options for ${titleOf(item)}`}
         onClick={(e) => {
           e.stopPropagation()
           onMenu(e.currentTarget.getBoundingClientRect())
@@ -119,8 +126,8 @@ export function MangaCard({
         <RiMoreFill size={14} />
       </button>
 
-      <h3 className="mt-2 line-clamp-2 text-xs font-bold leading-[14px]" title={manga.title}>
-        {manga.title}
+      <h3 className="mt-2 line-clamp-2 text-xs font-bold leading-[14px]" title={titleOf(item)}>
+        {titleOf(item)}
       </h3>
       <div className="mt-auto flex items-center gap-1 text-2xs text-muted">
         <SiteIcon site={site} size={11} />

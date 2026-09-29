@@ -1,12 +1,17 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { internalAction, internalMutation, internalQuery } from "./_generated/server";
-import { addAltTitle, refreshMangaLatest } from "./lib/catalogue";
+import type { Id } from "./_generated/dataModel";
+import { action, internalAction, internalMutation, internalQuery, type ActionCtx } from "./_generated/server";
+import { getCurrentUser } from "./lib/auth";
+import { addAltTitle, refreshMangaLatest, removeMangaDexTitles } from "./lib/catalogue";
 import {
   MANGADEX_API,
   parseMangaDex,
+  summarize,
   type MangaDexAggregate,
+  type MangaDexDetails,
   type MangaDexManga,
+  type MangaDexResult,
 } from "./lib/mangadex";
 import { mangaStatus } from "./lib/validators";
 
@@ -19,9 +24,15 @@ import { mangaStatus } from "./lib/validators";
 
    The rules, as agreed:
    - The manga is found by searching its title and taking the first
-     result. If that's wrong, point it at the right one by hand:
+     result. Anyone can pick another entry from the card menu (Update
+     Details → MangaDex: `search`, then `pick`). The admin can also
+     point it at one by hand:
        pnpm --filter app exec convex run mangadex:lookup '{"mangaId": "<id>", "mangadexId": "<id from the mangadex.org/title/... address>"}'
+   - A pick changes the manga for everyone, except the title: it
+     becomes the picker's own title (userMangas.customTitle).
    - MangaDex's cover always replaces the website's.
+   - Relinking removes the old entry's titles before adding the new
+     one's. Titles saved from reading websites stay.
    - Alternative titles: English, ones in the Latin alphabet, and the
      original language (lib/mangadex.ts).
    - Its latest chapter counts like one more website: the highest wins.
@@ -71,11 +82,86 @@ export const lookup = internalAction({
       if (id === undefined) return `MangaDex has nothing called "${manga.title}".`;
     }
 
-    const entry = await getJson<{ data: MangaDexManga }>(`${MANGADEX_API}/manga/${id}?includes[]=cover_art`);
-    const aggregate = await getJson<MangaDexAggregate>(`${MANGADEX_API}/manga/${id}/aggregate`).catch(() => null);
-    const details = parseMangaDex(entry.data, aggregate);
-    await ctx.runMutation(internal.mangadex.apply, { mangaId, ...details });
+    const details = await fetchDetails(ctx, mangaId, id);
     return `Linked "${manga.title}" to mangadex.org/title/${details.mangadexId}.`;
+  },
+});
+
+/** Fetches one MangaDex entry and saves it on the manga. */
+async function fetchDetails(ctx: ActionCtx, mangaId: Id<"mangas">, mangadexId: string): Promise<MangaDexDetails> {
+  const entry = await getJson<{ data: MangaDexManga }>(`${MANGADEX_API}/manga/${mangadexId}?includes[]=cover_art`);
+  const aggregate = await getJson<MangaDexAggregate>(`${MANGADEX_API}/manga/${mangadexId}/aggregate`).catch(() => null);
+  const details = parseMangaDex(entry.data, aggregate);
+  await ctx.runMutation(internal.mangadex.apply, {
+    mangaId,
+    mangadexId: details.mangadexId,
+    altTitles: details.altTitles,
+    cover: details.cover,
+    status: details.status,
+    latestChapter: details.latestChapter,
+  });
+  return details;
+}
+
+/** Update Details → MangaDex: every result MangaDex gives for a title. */
+export const search = action({
+  args: { text: v.string() },
+  handler: async (ctx, { text }): Promise<MangaDexResult[]> => {
+    if (!(await ctx.runQuery(internal.mangadex.signedIn, {}))) throw new Error("Sign in first.");
+    const query = text.trim();
+    if (query === "") return [];
+    const params = new URLSearchParams({ title: query, limit: "20" });
+    params.append("includes[]", "cover_art");
+    params.append("order[relevance]", "desc");
+    for (const rating of ["safe", "suggestive", "erotica"]) params.append("contentRating[]", rating);
+    const found = await getJson<{ data: (MangaDexManga & { attributes: { year?: number | null } })[] }>(
+      `${MANGADEX_API}/manga?${params}`,
+    );
+    return found.data.map(summarize);
+  },
+});
+
+/**
+ * Update Details → MangaDex: links the manga to the entry you picked.
+ * The cover, other titles, latest chapter and status change for
+ * everyone; MangaDex's title becomes your own title only.
+ */
+export const pick = action({
+  args: { userMangaId: v.id("userMangas"), mangadexId: v.string() },
+  handler: async (ctx, { userMangaId, mangadexId }): Promise<void> => {
+    const mangaId = await ctx.runQuery(internal.mangadex.ownedManga, { userMangaId });
+    if (mangaId === null) throw new Error("That manga isn't in your library.");
+    const details = await fetchDetails(ctx, mangaId, mangadexId);
+    if (details.title !== "") {
+      await ctx.runMutation(internal.mangadex.setOwnTitle, { userMangaId, title: details.title });
+    }
+  },
+});
+
+export const signedIn = internalQuery({
+  args: {},
+  handler: async (ctx) => (await getCurrentUser(ctx)) !== null,
+});
+
+/** The manga behind one of your library rows (not in the trash), or null. */
+export const ownedManga = internalQuery({
+  args: { userMangaId: v.id("userMangas") },
+  handler: async (ctx, { userMangaId }) => {
+    const user = await getCurrentUser(ctx);
+    const row = await ctx.db.get(userMangaId);
+    if (user === null || row === null || row.userId !== user._id || row.isDeleted) return null;
+    return row.mangaId;
+  },
+});
+
+/** Your own title becomes MangaDex's, unless it's the same as the shared one. */
+export const setOwnTitle = internalMutation({
+  args: { userMangaId: v.id("userMangas"), title: v.string() },
+  handler: async (ctx, { userMangaId, title }) => {
+    const row = await ctx.db.get(userMangaId);
+    const manga = row === null ? null : await ctx.db.get(row.mangaId);
+    if (row === null || manga === null) return;
+    await ctx.db.patch(userMangaId, { customTitle: title === manga.title ? undefined : title });
   },
 });
 
@@ -101,8 +187,10 @@ export const apply = internalMutation({
     }
     await ctx.db.patch(mangaId, patch);
 
+    // The old entry's titles go, so they stop matching; then the new ones.
+    await removeMangaDexTitles(ctx, mangaId);
     for (const title of altTitles) {
-      await addAltTitle(ctx, (await ctx.db.get(mangaId))!, title);
+      await addAltTitle(ctx, (await ctx.db.get(mangaId))!, title, "mangadex");
     }
 
     // Its latest chapter, kept like a website's (see refreshMangaLatest).

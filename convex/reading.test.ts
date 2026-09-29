@@ -777,3 +777,59 @@ describe("details from MangaDex", () => {
     expect(await t.run(async (ctx) => (await ctx.db.get(manga._id))!.latestChapter)).toBe(150);
   });
 });
+
+describe("your own title", () => {
+  test("shows only for you, is searched, and clearing it goes back to the shared one", async () => {
+    const { t, me, chapterPage, entry } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    const row = (await entry())!;
+
+    await me.mutation(api.library.setTitle, { userMangaId: row._id, title: "  My   Solo  " });
+    expect((await entry())!.customTitle).toBe("My Solo");
+    const found = await me.query(api.pages.searchLibrary, { text: "my solo" });
+    expect(found.items).toHaveLength(1);
+    // The shared title still finds it too.
+    expect((await me.query(api.pages.searchLibrary, { text: "leveling" })).items).toHaveLength(1);
+    // Not changed for anyone else.
+    expect((await t.run(async (ctx) => (await ctx.db.query("mangas").collect())[0])).title).toBe("Solo Leveling");
+
+    await me.mutation(api.library.setTitle, { userMangaId: row._id, title: "Solo Leveling" });
+    expect((await entry())!.customTitle).toBeUndefined();
+  });
+
+  test("is exported and imported", async () => {
+    const { me, chapterPage, entry } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    await me.mutation(api.library.setTitle, { userMangaId: (await entry())!._id, title: "Mine" });
+    const file = await me.query(api.transfer.exportLibrary, {});
+    expect(file.mangas[0].ownTitle).toBe("Mine");
+  });
+});
+
+describe("picking a MangaDex entry", () => {
+  test("swaps out the old entry's titles and keeps the ones from websites", async () => {
+    const { t, me, chapterPage } = await setup();
+    await addReaper(t);
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    const manga = await t.run(async (ctx) => (await ctx.db.query("mangas").collect())[0]);
+    // A title saved from a website.
+    const page = reaperPage(7, "solo-leveling-manhwa", "Solo Leveling Manhwa");
+    await me.mutation(api.reading.addFromPage, { page, choice: manga._id });
+
+    await t.mutation(internal.mangadex.apply, { mangaId: manga._id, mangadexId: "wrong", altTitles: ["Wrong Title"] });
+    await t.mutation(internal.mangadex.apply, { mangaId: manga._id, mangadexId: "right", altTitles: ["Only I Level Up"] });
+
+    const after = await t.run(async (ctx) => (await ctx.db.get(manga._id))!);
+    expect(after.altTitles).toEqual(["Solo Leveling Manhwa", "Only I Level Up"]);
+    const rows = await t.run(async (ctx) => await ctx.db.query("mangaAltTitles").collect());
+    expect(rows.map((r) => r.normalizedTitle).sort()).toEqual(["only i level up", "solo leveling manhwa"]);
+  });
+
+  test("the picked entry's title becomes only your own title", async () => {
+    const { t, me, chapterPage, entry } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    await t.mutation(internal.mangadex.setOwnTitle, { userMangaId: (await entry())!._id, title: "Na Honjaman Level Up" });
+    expect((await entry())!.customTitle).toBe("Na Honjaman Level Up");
+    expect((await t.run(async (ctx) => (await ctx.db.query("mangas").collect())[0])).title).toBe("Solo Leveling");
+  });
+});

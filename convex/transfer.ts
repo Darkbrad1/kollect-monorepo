@@ -92,6 +92,9 @@ const mangaEntry = v.object({
   status: v.optional(mangaStatus),
 
   // Where it sits and how far along it is
+  // The exporter's own title, if they gave it one. Optional, so files
+  // from before own titles existed still import.
+  ownTitle: v.optional(v.string()),
   progressKey,
   favourite: v.boolean(),
   // The user's own tag names. (`tags` above is the series' genres.)
@@ -189,6 +192,7 @@ export const exportLibrary = query({
         year: manga.year,
         status: manga.status,
 
+        ownTitle: row.customTitle,
         progressKey: row.progressKey,
         favourite: rowTags.some((tag) => tag.builtIn === "favourite"),
         userTags: rowTags.filter((tag) => tag.builtIn === null).map((tag) => tag.name),
@@ -491,6 +495,7 @@ export const importMangas = mutation({
           addedAt: entry.addedAt,
           progressKey: entry.progressKey,
           tagIds: [...new Set(fileTagIds)],
+          customTitle: entry.ownTitle,
           isDeleted: false,
           currentChapterNumber: fileSide.number,
           currentChapterLabel: fileSide.label,
@@ -514,6 +519,10 @@ export const importMangas = mutation({
       const tagIds = [...new Set([...existing.tagIds, ...fileTagIds])];
       if (tagIds.length !== existing.tagIds.length) {
         await ctx.db.patch(existing._id, { tagIds });
+      }
+      // Import never removes: a title you already gave it stays.
+      if (existing.customTitle === undefined && entry.ownTitle !== undefined) {
+        await ctx.db.patch(existing._id, { customTitle: entry.ownTitle });
       }
     }
 

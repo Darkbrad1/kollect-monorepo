@@ -28,6 +28,8 @@ export type MangaDexAggregate = {
 
 export type MangaDexDetails = {
   mangadexId: string;
+  /** MangaDex's main title: the English one if there is one. */
+  title: string;
   altTitles: string[];
   cover?: string;
   status?: "ongoing" | "hiatus" | "completed" | "cancelled";
@@ -75,7 +77,43 @@ export function parseMangaDex(manga: MangaDexManga, aggregate: MangaDexAggregate
     }
   }
 
-  return { mangadexId: manga.id, altTitles: titles, cover, status, latestChapter: latest };
+  return {
+    mangadexId: manga.id,
+    title: mainTitle(attributes.title),
+    altTitles: titles,
+    cover,
+    status,
+    latestChapter: latest,
+  };
+}
+
+function mainTitle(title: LocalizedString): string {
+  return (title.en ?? Object.values(title)[0] ?? "").trim();
+}
+
+/** One result in the Update Details → MangaDex search. */
+export type MangaDexResult = {
+  mangadexId: string;
+  title: string;
+  cover?: string;
+  type: "manga" | "manhwa" | "manhua" | "other";
+  year?: number;
+  status?: string;
+};
+
+export function summarize(manga: MangaDexManga & { attributes: { year?: number | null } }): MangaDexResult {
+  const lang = manga.attributes.originalLanguage;
+  const type = lang === "ja" ? "manga" : lang === "ko" ? "manhwa" : lang.startsWith("zh") ? "manhua" : "other";
+  const fileName = manga.relationships.find((r) => r.type === "cover_art")?.attributes?.fileName;
+  return {
+    mangadexId: manga.id,
+    title: mainTitle(manga.attributes.title),
+    // The small 256px thumbnail is plenty for a list.
+    cover: fileName ? `https://uploads.mangadex.org/covers/${manga.id}/${fileName}.256.jpg` : undefined,
+    type,
+    year: manga.attributes.year ?? undefined,
+    status: manga.attributes.status ?? undefined,
+  };
 }
 
 function parseChapter(value: string | null | undefined): number | undefined {

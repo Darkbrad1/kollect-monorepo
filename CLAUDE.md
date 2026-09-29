@@ -58,7 +58,6 @@ Ideas to come back to. Don't start them unless asked.
 
 - **A public page on the web app.** Visitors who aren't signed in see a list of every website users have added, with no duplicates.
 - **Your catalogue on the web app.** Signed in, you can see your whole library there too.
-- **Your own title for a manga.** Anyone can give a manga a title that only they see, while the shared title stays the same. For now, the admin fixes typos in shared titles from the Convex dashboard.
 - **A proper way to remove users**, friendlier than the `admin:deleteUser` command, for example also removing their Clerk login.
 
 ## Decisions already made
@@ -125,6 +124,7 @@ These were settled with me, so don't reopen them without asking.
   - **Reading on another website** tracks an exact title match (main or alternative) with a manga in your library without asking. The first time each person reads that manga on that website, a note says it matched, with **Not this manga?**. That button is only for you: it takes back what was saved there since the match, stops tracking it there, and leaves that manga out when you then press Add; your pick is only yours. Everyone else keeps the link. Close titles are never tracked without asking.
   - **Private manga** (only on own websites) are hidden only from other people's Add Manga search. They still show in "Is it one of these?". When one goes public, its title stays the main title and the built-in website's title becomes an alternative title.
   - **Title typos** in the shared list are fixed by the admin from the Convex dashboard.
+- **Your own title** (`userMangas.customTitle`): everyone can give a manga their own title, which only they see. Click the title in the Details panel to type it: Enter or clicking away saves, Escape cancels, and an empty box (or the shared title typed back) goes back to the shared title. It shows everywhere in your library: cards, Details, Copy Title, library search (which also still matches the shared and alternative titles), sorting by Title, and export and import (`ownTitle`; import never replaces one you already have). Add Manga and "Is it one of these?" show the shared title, because they show the shared list. The latest chapter stays shared; only your current chapter is yours.
   - **On a known website**, Add still waits for the Scroll Threshold before a chapter becomes current.
   - **A typed chapter** for a manga you already have follows the import rule (bigger is current, smaller goes to history), and the note after Add says what happened ("Already on Reading. Now on chapter 55").
   - **Add on a page that isn't a manga**, on a built-in website or an own website that has learned its chapter addresses, says "This isn't a manga page" with **Add anyway**, which opens the check box. Other websites open the check box straight away.
@@ -162,8 +162,11 @@ These were settled with me, so don't reopen them without asking.
 - **Details from MangaDex** (`convex/mangadex.ts`, `convex/lib/mangadex.ts`):
   - Each manga is looked up when it's first added to the shared list, and again by a weekly job (Sunday 03:00 UTC), which also covers older manga.
   - It's found by searching its title and taking the first result. The admin can relink one by hand with `mangadex:lookup` and a `mangadexId`.
+  - **Update Details → MangaDex** in the card menu (not in the trash): a search box filled in with the title you see, results as you type (cover, title, type, year, status), and a "Linked now" badge on the current entry. Picking one changes the cover, other titles, latest chapter and status for everyone, and makes MangaDex's title your own title only. Update Details is a submenu so other places to get details from can be added later.
+  - Relinking removes the old entry's alternative titles first; titles saved from reading websites stay.
+  - The card's Details panel has a "Details from MangaDex" link to the linked entry.
+  - Covers load without sending the page address (`referrerPolicy="no-referrer"`), because MangaDex refuses covers asked for from other websites.
   - The MangaDex cover always replaces the website's.
   - Alternative titles saved: English, ones in the Latin alphabet (like "Na Honjaman Level Up"), and the original-language title.
   - Its latest chapter counts like one more website: the highest number wins.
   - Its series status is used when no reading website has given one; a website's status wins.
-  - Still to build: a "Find on MangaDex" item in the card menu to search and pick the entry by hand (details being settled), and a "Details from MangaDex" credit link in the card's Details panel.

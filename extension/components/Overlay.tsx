@@ -228,7 +228,7 @@ export function ChooseBox({
               onClick={() => onPick(c.mangaId)}
               className="flex w-full items-center gap-2 rounded-md p-1 text-left hover:bg-raised">
               {c.image ? (
-                <img src={c.image} alt="" className="h-11 w-8 shrink-0 rounded object-cover" />
+                <img src={c.image} alt="" referrerPolicy="no-referrer" className="h-11 w-8 shrink-0 rounded object-cover" />
               ) : (
                 <div className="h-11 w-8 shrink-0 rounded bg-raised" />
               )}

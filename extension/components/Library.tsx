@@ -13,7 +13,7 @@ import { CardGrid, GridSkeleton } from "./CardGrid"
 import { CardMenu } from "./CardMenu"
 import type { View } from "./ControlsBar"
 import { EmptyState } from "./EmptyState"
-import { MangaCard, type GridItem } from "./MangaCard"
+import { MangaCard, titleOf, type GridItem } from "./MangaCard"
 import { ConfirmDialog, Floating } from "./ui"
 
 /** Waits until typing pauses before searching. */
@@ -179,7 +179,7 @@ export function Library({
 
       {confirm && (
         <ConfirmDialog
-          message={`After doing this, ${confirm.manga.title} can't be restored.`}
+          message={`After doing this, ${titleOf(confirm)} can't be restored.`}
           confirmLabel="Delete"
           onCancel={() => setConfirm(null)}
           onConfirm={() => {

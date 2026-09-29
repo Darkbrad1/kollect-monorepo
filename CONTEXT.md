@@ -20,6 +20,10 @@ _Avoid_: hidden manga
 Another name a manga is known by, such as a translated title. Search and matching check it as well as the main title.
 _Avoid_: alt name, other title
 
+**Own title**:
+The title one user gave a manga, which only they see in their library. Everyone else sees the shared title.
+_Avoid_: custom title, nickname
+
 **Current chapter**:
 The furthest chapter you've read past your Scroll Threshold, or the one you typed in the check box.
 _Avoid_: last chapter, latest chapter (that's the newest chapter the series has)

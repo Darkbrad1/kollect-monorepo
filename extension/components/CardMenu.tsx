@@ -8,7 +8,9 @@ import {
   RiHeartFill,
   RiHeartLine,
   RiLinksLine,
-  RiPriceTag3Line
+  RiPriceTag3Line,
+  RiRefreshLine,
+  RiSearchLine
 } from "~lib/icons"
 import { useMemo, useState } from "react"
 
@@ -18,12 +20,13 @@ import { useM, useQ } from "~lib/data"
 import { PAGE_ICONS, PROGRESS_PAGES } from "~lib/pages"
 
 import { CardDetails } from "./CardDetails"
-import type { GridItem } from "./MangaCard"
+import { titleOf, type GridItem } from "./MangaCard"
+import { MangaDexPicker } from "./MangaDexPicker"
 import { Chip, Menu, MenuItem } from "./ui"
 
 /**
  * The ⋯ menu on a card. Library pages get Favourite, Copy Title, Copy
- * Link, Details, Move To, Add Tags and Trash; the trash page gets
+ * Link, Details, Move To, Add Tags, Update Details and Trash; the trash page gets
  * Details, Restore, Copy Title, Copy Link and Delete.
  */
 export function CardMenu({
@@ -41,7 +44,7 @@ export function CardMenu({
   onClose: () => void
   onDelete: () => void
 }) {
-  const { userManga, manga } = item
+  const { userManga } = item
   const setFavourite = useM(api.tags.setFavourite)
   const move = useM(api.library.moveToProgressPage)
   const softDelete = useM(api.trash.softDelete)
@@ -60,7 +63,7 @@ export function CardMenu({
       <MenuItem
         icon={RiFileCopyLine}
         label="Copy Title"
-        onClick={run(() => navigator.clipboard.writeText(manga.title))}
+        onClick={run(() => navigator.clipboard.writeText(titleOf(item)))}
       />
       <MenuItem
         icon={RiLinksLine}
@@ -87,7 +90,7 @@ export function CardMenu({
   }
 
   return (
-    <Menu className="w-[150px]">
+    <Menu className="w-[170px]">
       <MenuItem
         icon={isFavourite ? RiHeartFill : RiHeartLine}
         label={isFavourite ? "Unfavourite" : "Favourite"}
@@ -116,6 +119,16 @@ export function CardMenu({
         icon={RiPriceTag3Line}
         label="Add Tags"
         submenu={<TagPicker userManga={userManga} />}
+      />
+      {/* More places to get details from can be added to this list later. */}
+      <MenuItem
+        icon={RiRefreshLine}
+        label="Update Details"
+        submenu={
+          <Menu className="w-[130px]">
+            <MenuItem icon={RiSearchLine} label="MangaDex" submenu={<MangaDexPicker item={item} onDone={onClose} />} />
+          </Menu>
+        }
       />
       <MenuItem
         icon={RiDeleteBin7Line}

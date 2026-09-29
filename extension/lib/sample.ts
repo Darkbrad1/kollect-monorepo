@@ -396,6 +396,11 @@ function mutate(s: SampleStore, name: string, a: Args): { store: SampleStore; re
       }
       return { store: { ...s, library: [...s.library, row] } }
     }
+    case "library:setTitle": {
+      const clean = String(a.title ?? "").trim()
+      const shared = s.mangas.find((m) => m._id === row!.mangaId)?.title
+      return patchRow(a.userMangaId, { customTitle: clean === "" || clean === shared ? undefined : clean })
+    }
     case "library:moveToProgressPage":
       return patchRow(a.userMangaId, { progressKey: a.systemKey })
     case "tags:setFavourite":
@@ -501,6 +506,32 @@ export function sampleSource(
         return out.store
       })
       return result
+    },
+    act: async (ref, args) => {
+      const name = getFunctionName(ref as FunctionReference<"action">)
+      const a = (args ?? {}) as Args
+      if (name === "mangadex:search") {
+        const needle = normalizeTitle(a.text)
+        return SAMPLE_MANGADEX.filter((r) => normalizeTitle(r.title).includes(needle.split(" ")[0] ?? ""))
+      }
+      if (name === "mangadex:pick") {
+        const title = SAMPLE_MANGADEX.find((r) => r.mangadexId === a.mangadexId)?.title
+        setStore((current) => {
+          const next = mutate(current, "library:setTitle", { userMangaId: a.userMangaId, title }).store
+          const mangaId = next.library.find((r) => r._id === a.userMangaId)?.mangaId
+          return { ...next, mangas: next.mangas.map((m) => (m._id === mangaId ? { ...m, mangadexId: a.mangadexId } : m)) }
+        })
+        return
+      }
+      throw new Error(`The preview has no made-up version of ${name}.`)
     }
   }
 }
+
+/** Made-up MangaDex search results. */
+const SAMPLE_MANGADEX = [
+  { mangadexId: "a1", title: "Solo Leveling", type: "manhwa", year: 2018, status: "completed" },
+  { mangadexId: "a2", title: "Solo Leveling: Ragnarok", type: "manhwa", year: 2024, status: "ongoing" },
+  { mangadexId: "a3", title: "Solo Leveling (Novel)", type: "other", year: 2016, status: "completed" },
+  { mangadexId: "b1", title: "Tower of God", type: "manhwa", year: 2010, status: "ongoing" }
+]

@@ -48,3 +48,18 @@ describe("reading a MangaDex manga", () => {
     expect(parseMangaDex(noLast, null).latestChapter).toBeUndefined();
   });
 });
+
+describe("a search result", () => {
+  test("says the type from the original language, with year, status and a small cover", async () => {
+    const { summarize } = await import("./mangadex");
+    const result = summarize({ ...soloLeveling, attributes: { ...soloLeveling.attributes, year: 2018 } });
+    expect(result).toEqual({
+      mangadexId: "32d76d19",
+      title: "Solo Leveling",
+      cover: "https://uploads.mangadex.org/covers/32d76d19/cover.jpg.256.jpg",
+      type: "manhwa",
+      year: 2018,
+      status: "completed",
+    });
+  });
+});

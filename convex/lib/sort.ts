@@ -42,7 +42,7 @@ function valueFor(
       return siteId === undefined ? undefined : siteTitleById.get(siteId)?.toLowerCase();
     }
     case "title":
-      return item.manga.title.toLowerCase();
+      return (item.userManga.customTitle ?? item.manga.title).toLowerCase();
   }
 }
 

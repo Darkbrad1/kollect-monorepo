@@ -121,6 +121,10 @@ export default defineSchema({
     // it back where it was. Changed only through moveToProgressPage.
     progressKey,
 
+    // The user's own title for this manga, shown instead of the shared
+    // one everywhere in their library. Missing means the shared title.
+    customTitle: v.optional(v.string()),
+
     // The user's tags on this manga, including Favourite.
     tagIds: v.array(v.id("userTags")),
 
@@ -216,7 +220,11 @@ export default defineSchema({
   mangaAltTitles: defineTable({
     mangaId: v.id("mangas"),
     normalizedTitle: v.string(),
+    // "mangadex" for titles from the linked MangaDex entry, so they can
+    // be swapped out when the manga is linked to another entry.
+    source: v.optional(v.literal("mangadex")),
   })
+    .index("by_manga", ["mangaId"])
     .index("by_normalizedTitle", ["normalizedTitle"])
     .searchIndex("search_title", { searchField: "normalizedTitle" }),
 

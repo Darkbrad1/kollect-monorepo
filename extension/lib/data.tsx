@@ -1,4 +1,4 @@
-import { useConvex, useMutation, useQuery } from "convex/react"
+import { useAction, useConvex, useMutation, useQuery } from "convex/react"
 import type {
   FunctionArgs,
   FunctionReference,
@@ -13,10 +13,12 @@ import { createContext, useContext, type ReactNode } from "react"
 
 type AnyQuery = FunctionReference<"query">
 type AnyMutation = FunctionReference<"mutation">
+type AnyAction = FunctionReference<"action">
 
 export type DataSource = {
   query: (ref: AnyQuery, args: unknown) => unknown
   mutate: (ref: AnyMutation, args: unknown) => Promise<unknown>
+  act: (ref: AnyAction, args: unknown) => Promise<unknown>
 }
 
 const SampleData = createContext<DataSource | null>(null)
@@ -56,6 +58,19 @@ export function useM<M extends AnyMutation>(
   }
   // eslint-disable-next-line react-hooks/rules-of-hooks
   return useMutation(ref) as never
+}
+
+/** An action (a server function that can reach other websites, such as
+    MangaDex), returned as a function to call. */
+export function useA<A extends AnyAction>(
+  ref: A
+): (args: FunctionArgs<A>) => Promise<FunctionReturnType<A>> {
+  const sample = useContext(SampleData)
+  if (sample) {
+    return (args) => sample.act(ref, args) as Promise<FunctionReturnType<A>>
+  }
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  return useAction(ref) as never
 }
 
 /** Runs a query once, for things like Export that aren't live views. */

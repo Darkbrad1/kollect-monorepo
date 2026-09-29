@@ -283,3 +283,19 @@ export const cardLink = query({
     return null;
   },
 });
+
+/**
+ * Sets your own title for a manga, shown instead of the shared one
+ * everywhere in your library. An empty title, or the shared title typed
+ * back in, goes back to the shared one.
+ */
+export const setTitle = mutation({
+  args: { userMangaId: v.id("userMangas"), title: v.string() },
+  handler: async (ctx, { userMangaId, title }) => {
+    const user = await requireUser(ctx);
+    const userManga = await requireOwnedManga(ctx, user._id, userMangaId);
+    const manga = await ctx.db.get(userManga.mangaId);
+    const clean = title.trim().replace(/\s+/g, " ");
+    await ctx.db.patch(userMangaId, { customTitle: clean === "" || clean === manga?.title ? undefined : clean });
+  },
+});

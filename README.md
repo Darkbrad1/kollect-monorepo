@@ -144,6 +144,7 @@ The popup is 800 × 600 pixels. When you're signed out it shows the sign-in scre
 | `components/CardGrid.tsx` | The grid itself. It only draws the rows you can see, plus 10 manga above and 10 below, so big libraries stay fast. |
 | `components/MangaCard.tsx` | One card: cover, title, site icon, chapter and how long ago you read it. Clicking it opens the chapter you're on, or the series' page on a website (`library:cardLink` picks which). |
 | `components/CardMenu.tsx` | The ⋯ menu on a card, and the Add Tags panel. |
+| `components/MangaDexPicker.tsx` | Update Details → MangaDex: search MangaDex and pick the right entry. |
 | `components/CardDetails.tsx` | The Details panel: chapter, last read, the site and chapter dropdowns, and the progress bar. |
 | `components/PagePopups.tsx` | The Filter and Sort popups. Changes save on their own a moment after you stop clicking. |
 | `components/SettingsPage.tsx` | The Settings screen: Account, General, Theme and Tags. |
@@ -289,6 +290,12 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 
 When a manga is first added to the shared list, and every Sunday for all manga, Kollect looks it up on [MangaDex](https://mangadex.org) (`convex/mangadex.ts`). It takes the first search result and saves its cover (replacing the website's), its English, Latin-alphabet and original-language titles as alternative titles, its latest chapter (counted like one more website, so the highest number wins) and its series status (only when no reading website gave one). The lookups are spaced out to stay under MangaDex's limit of about 5 requests a second. The code that reads MangaDex's answers is in `convex/lib/mangadex.ts`, with tests.
 
+When the first result is wrong, anyone can fix it from the card menu: **Update Details → MangaDex** searches MangaDex (the box starts with the title and can be changed) and lists every result with its cover, type, year and status. Picking one updates the cover, other titles, latest chapter and status for everyone, and sets MangaDex's title as your own title. The old entry's titles are removed first. The Details panel links to the MangaDex entry ("Details from MangaDex"). The admin can also relink one by hand: `pnpm --filter app exec convex run mangadex:lookup '{"mangaId": "<id>", "mangadexId": "<id>"}'`.
+
+### Your own title
+
+Click a manga's title in its Details panel to give it your own title. Only you see it, on cards, in Details, in library search and when sorting by Title, and it's part of your export. Clear the box to go back to the shared title.
+
 ### Scheduled jobs
 
 | When | What |
@@ -299,7 +306,6 @@ When a manga is first added to the shared list, and every Sunday for all manga, 
 
 ## What's not built yet
 
-- **Picking a MangaDex entry by hand.** Kollect links each manga to the first MangaDex search result (`convex/mangadex.ts`). A card-menu button to search MangaDex and pick the right entry, and a "Details from MangaDex" credit in the Details panel, are still to come. Until then, relink one with `pnpm --filter app exec convex run mangadex:lookup '{"mangaId": "<id>", "mangadexId": "<id>"}'`.
 
 Ideas saved for later are listed in CLAUDE.md under "For the future".
 

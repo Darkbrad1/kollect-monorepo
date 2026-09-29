@@ -1,3 +1,5 @@
+import { useState } from "react"
+
 import { RiBookOpenLine, RiCalendarScheduleLine } from "~lib/icons"
 
 import { api } from "../../convex/_generated/api"
@@ -5,7 +7,7 @@ import type { Doc, Id } from "../../convex/_generated/dataModel"
 import { useM, useQ } from "~lib/data"
 import { daysAgo } from "~lib/format"
 
-import { Cover, SiteIcon, type GridItem } from "./MangaCard"
+import { Cover, SiteIcon, titleOf, type GridItem } from "./MangaCard"
 import { Select } from "./ui"
 
 /**
@@ -58,7 +60,7 @@ export function CardDetails({
         <div className="flex gap-2.5">
           <Cover src={manga.image} className="h-[100px] w-[70px] shrink-0 rounded-lg" />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <h3 className="line-clamp-2 text-[15px] font-extrabold leading-[18px]">{manga.title}</h3>
+            <TitleBox item={item} readOnly={readOnly} />
             <dl className="rounded-lg bg-raised px-2.5 py-1.5 text-xs">
               <div className="flex items-center gap-1.5 py-0.5">
                 <RiBookOpenLine size={13} className="text-muted" />
@@ -73,6 +75,15 @@ export function CardDetails({
                 <dd className="ml-auto font-semibold">{daysAgo(userManga.lastReadAt) || "Never"}</dd>
               </div>
             </dl>
+            {manga.mangadexId && (
+              <a
+                href={`https://mangadex.org/title/${manga.mangadexId}`}
+                target="_blank"
+                rel="noreferrer"
+                className="w-fit text-2xs text-muted underline-offset-2 hover:text-fg hover:underline">
+                Details from MangaDex
+              </a>
+            )}
           </div>
         </div>
 
@@ -124,5 +135,50 @@ export function CardDetails({
         </span>
       </div>
     </div>
+  )
+}
+
+/**
+ * The title in Details. Click it to type your own title for this manga,
+ * which only you see. Enter or clicking away saves it, Escape cancels,
+ * and an empty box goes back to the shared title.
+ */
+function TitleBox({ item, readOnly }: { item: GridItem; readOnly: boolean }) {
+  const setTitle = useM(api.library.setTitle)
+  const [draft, setDraft] = useState<string | null>(null)
+  const title = titleOf(item)
+  const className = "text-[15px] font-extrabold leading-[18px]"
+
+  if (readOnly) return <h3 className={`line-clamp-2 ${className}`}>{title}</h3>
+
+  if (draft === null) {
+    return (
+      <button
+        type="button"
+        title="Click to give it your own title"
+        onClick={() => setDraft(title)}
+        className={`line-clamp-2 rounded-md text-left hover:bg-raised ${className}`}>
+        {title}
+      </button>
+    )
+  }
+
+  const save = () => {
+    if (draft.trim() !== title) void setTitle({ userMangaId: item.userManga._id, title: draft })
+    setDraft(null)
+  }
+  return (
+    <input
+      autoFocus
+      value={draft}
+      placeholder={item.manga.title}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") save()
+        if (e.key === "Escape") setDraft(null)
+      }}
+      className={`w-full rounded-md bg-raised px-1.5 py-0.5 text-fg focus:outline-none focus:ring-1 focus:ring-primary ${className}`}
+    />
   )
 }

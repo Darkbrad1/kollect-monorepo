@@ -129,8 +129,9 @@ export const searchLibrary = query({
       const manga = await ctx.db.get(userManga.mangaId);
       if (manga === null) continue;
 
-      const title = normalizeTitle(manga.title);
-      const names = [title, ...manga.altTitles.map(normalizeTitle)];
+      // Your own title is the one you see, so it's matched and sorted on.
+      const title = normalizeTitle(userManga.customTitle ?? manga.title);
+      const names = [title, normalizeTitle(manga.title), ...manga.altTitles.map(normalizeTitle)];
       if (!names.some((name) => name.includes(needle))) continue;
 
       hits.push({
