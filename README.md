@@ -54,6 +54,13 @@ You'll need Node.js and [pnpm](https://pnpm.io). The project uses pnpm only, so 
    ```
    Then in Chrome, open `chrome://extensions`, turn on Developer mode, click "Load unpacked", and choose `extension/build/chrome-mv3-dev`.
 
+   If a page's console (right-click → Inspect → Console) says **"Cannot find module '~lib/…'"** after you pull new code, Plasmo's saved build is out of date. Stop `pnpm dev:extension`, delete it, and start again:
+   ```bash
+   rm -rf extension/.plasmo extension/build/chrome-mv3-dev
+   pnpm dev:extension
+   ```
+   Then click the reload arrow on Kollect in `chrome://extensions`.
+
 ## Looking at the screens without an account
 
 The extension has a **preview page** that shows every screen filled with made-up manga, so you can click around without signing in or having anything in your library. Nothing you do there is saved: it all resets when you reload.
