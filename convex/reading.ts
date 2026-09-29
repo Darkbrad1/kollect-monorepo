@@ -198,6 +198,9 @@ export const pageState = query({
  * - `favourite` also favourites it (adding it to Reading first if
  *   it isn't in your library yet).
  * - Something in the trash is restored first.
+ * - `currentChapter` is the chapter you typed in the check box on a page
+ *   Kollect can't read; it becomes your current chapter if you don't
+ *   have one yet.
  */
 export const addFromPage = mutation({
   args: {
@@ -205,13 +208,19 @@ export const addFromPage = mutation({
     progressKey: v.optional(progressKey),
     favourite: v.optional(v.boolean()),
     // For a website Kollect doesn't know yet: its name, and the shape of
-    // its chapter addresses learned from this page (lib/pageMatch.ts).
-    // The site is added for this user only.
+    // its chapter addresses learned from this page (lib/pageMatch.ts),
+    // if it could learn it here; otherwise learnSitePattern fills it in
+    // later, from a chapter page. The site is added for this user only.
     newSite: v.optional(
-      v.object({ title: v.string(), slugPattern: v.string(), icon: v.optional(v.string()) }),
+      v.object({
+        title: v.string(),
+        slugPattern: v.optional(v.string()),
+        icon: v.optional(v.string()),
+      }),
     ),
+    currentChapter: v.optional(v.object({ number: v.number(), label: v.string() })),
   },
-  handler: async (ctx, { page, progressKey: target, favourite, newSite }) => {
+  handler: async (ctx, { page, progressKey: target, favourite, newSite, currentChapter }) => {
     const user = await requireUser(ctx);
     let site = await siteForDomain(ctx, page.domain, user._id);
     if (site === null && newSite !== undefined) site = await addSite(ctx, user._id, page, newSite);
@@ -229,6 +238,19 @@ export const addFromPage = mutation({
     if (favourite) {
       const tag = await favouriteTag(ctx, user._id);
       await addTagTo(ctx, (await ctx.db.get(userMangaId))!, tag._id);
+    }
+    const entry = (await ctx.db.get(userMangaId))!;
+    if (currentChapter !== undefined && entry.currentChapterNumber === undefined) {
+      await ctx.db.patch(userMangaId, {
+        currentChapterNumber: currentChapter.number,
+        currentChapterLabel: currentChapter.label,
+        currentChapterUrl: page.url,
+        currentSiteId: site._id,
+        readSiteIds: (entry.readSiteIds ?? []).includes(site._id)
+          ? entry.readSiteIds
+          : [...(entry.readSiteIds ?? []), site._id],
+        lastReadAt: Date.now(),
+      });
     }
     return { userMangaId, action };
   },
@@ -325,13 +347,11 @@ async function addSite(
   ctx: MutationCtx,
   userId: Id<"users">,
   page: PageInfo,
-  newSite: { title: string; slugPattern: string; icon?: string },
+  newSite: { title: string; slugPattern?: string; icon?: string },
 ): Promise<Doc<"sites">> {
   const title = newSite.title.trim();
   if (title === "") throw new Error("Give the website a name.");
-  if (!newSite.slugPattern.includes(":slug") || !newSite.slugPattern.includes(":chapter")) {
-    throw new Error("Kollect couldn't work out this website's chapter addresses.");
-  }
+  if (newSite.slugPattern !== undefined) checkPattern(newSite.slugPattern);
   const domain = page.domain.toLowerCase();
   const origin = new URL(page.url).origin;
   const siteId = await ctx.db.insert("sites", {
@@ -347,6 +367,30 @@ async function addSite(
   });
   return (await ctx.db.get(siteId))!;
 }
+
+function checkPattern(pattern: string) {
+  if (!pattern.includes(":slug") || !pattern.includes(":chapter")) {
+    throw new Error("Kollect couldn't work out this website's chapter addresses.");
+  }
+}
+
+/**
+ * Teaches Kollect the chapter addresses of a website you added from a
+ * page where it couldn't learn them (a series page, say). Called from
+ * the first chapter page you open there. Only fills in a missing
+ * pattern on one of your own websites; returns whether it did.
+ */
+export const learnSitePattern = mutation({
+  args: { domain: v.string(), slugPattern: v.string() },
+  handler: async (ctx, { domain, slugPattern }) => {
+    const user = await requireUser(ctx);
+    const site = await siteForDomain(ctx, domain, user._id);
+    if (site === null || site.addedBy !== user._id || site.slugPattern !== undefined) return false;
+    checkPattern(slugPattern);
+    await ctx.db.patch(site._id, { slugPattern, configVersion: site.configVersion + 1 });
+    return true;
+  },
+});
 
 /** Auto Complete On Finish: past the threshold on the newest chapter of
     a series the site says has ended. */

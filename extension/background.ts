@@ -43,7 +43,13 @@ async function handle(request: Request): Promise<unknown> {
         page: request.page,
         progressKey: request.progressKey,
         favourite: request.favourite,
-        newSite: request.newSite
+        newSite: request.newSite,
+        currentChapter: request.currentChapter
+      })
+    case "learn":
+      return await client.mutation(api.reading.learnSitePattern, {
+        domain: request.domain,
+        slugPattern: request.slugPattern
       })
     case "progress":
       await client.mutation(api.reading.recordProgress, {

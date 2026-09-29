@@ -31,3 +31,6 @@ dist/
 
 # typescript
 *.tsbuildinfo
+
+# Firefox profile used by pnpm dev:firefox (web-ext)
+/.firefox-profile

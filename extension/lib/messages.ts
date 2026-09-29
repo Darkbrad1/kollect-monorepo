@@ -27,8 +27,11 @@ export type Request =
       progressKey?: ProgressKey
       favourite?: boolean
       /** For a website Kollect doesn't know yet (see convex/reading.ts). */
-      newSite?: { title: string; slugPattern: string; icon?: string }
+      newSite?: { title: string; slugPattern?: string; icon?: string }
+      /** The chapter typed in the check box on a page Kollect can't read. */
+      currentChapter?: { number: number; label: string }
     }
+  | { type: "learn"; domain: string; slugPattern: string }
   | { type: "progress"; page: PageInfo; percentage: number }
   | { type: "settings"; patch: SettingsPatch }
 
@@ -38,7 +41,9 @@ export type Response<R extends Request> = R extends { type: "sites" }
     ? PageState
     : R extends { type: "add" }
       ? AddResult
-      : void
+      : R extends { type: "learn" }
+        ? boolean
+        : void
 
 /** Background → reading page: the right-click menu or the shortcut was
     used, so add the manga on this page. */

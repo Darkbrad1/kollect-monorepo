@@ -13,15 +13,14 @@ import { cx, Stepper, Switch } from "./ui"
  * scroll threshold. It stays faint until the mouse is over it, so it
  * doesn't get in the way of reading.
  *
- * It shows on every website. Off a manga's chapter page the Add options
- * are greyed out with a note saying where to go.
+ * It shows on every website, and Add works on every page: where Kollect
+ * can't read the page itself, a check box asks for the details.
  *
  * It only draws; whoever uses it passes in the manga's page and the
  * settings, and saves the changes.
  */
 export function Overlay({
   progressKey,
-  canAdd,
   onPick,
   panel,
   showProgressBar,
@@ -31,8 +30,6 @@ export function Overlay({
 }: {
   /** The page the manga is on, or undefined if it isn't in the library yet. */
   progressKey: ProgressKey | undefined
-  /** False when this page isn't one a manga can be added from. */
-  canAdd: boolean
   onPick: (key: ProgressKey) => void
   /** Shown above the button instead of the menu, such as the "add this website" box. */
   panel?: ReactNode
@@ -78,7 +75,6 @@ export function Overlay({
               <button
                 key={key}
                 type="button"
-                disabled={!canAdd}
                 onClick={() => onPick(key)}
                 className={cx(
                   "flex h-6 w-full items-center gap-2 rounded-md px-2 text-left text-xs transition-colors",
@@ -90,9 +86,6 @@ export function Overlay({
               </button>
             )
           })}
-          {!canAdd && (
-            <p className="px-2 pb-1 pt-0.5 text-2xs text-muted">Open a chapter page to add a manga.</p>
-          )}
           <div className="flex h-6 items-center justify-between whitespace-nowrap px-2 text-xs">
             Show Progress Bar
             <Switch checked={showProgressBar} onChange={onShowProgressBar} label="Show Progress Bar" />
@@ -150,35 +143,48 @@ export function Toast({ message, error }: { message: string; error?: boolean }) 
   )
 }
 
-export type NewSiteDraft = { siteName: string; title: string; chapter: number }
+export type NewSiteDraft = { siteName: string; title: string; chapter?: number }
 
 /**
- * Shown when adding a manga on a website Kollect doesn't know yet. It
- * shows what Kollect found (the website's name, the manga's title and
- * the chapter) so you can correct them, and the chapter-address shape it
- * learned, which it will use to track this website from now on.
+ * The check box shown when adding from a page Kollect can't fully read:
+ * a website it doesn't know, or a page it can't make sense of. It shows
+ * what Kollect found (the website's name for a new website, the manga's
+ * title, the chapter) so you can correct or fill them in. The chapter
+ * can be left empty ("Not Started").
  */
 export function AddSiteBox({
   heading,
   draft,
   pattern,
+  askSite,
   onConfirm,
   onCancel
 }: {
   heading: string
   draft: NewSiteDraft
-  /** e.g. "/comics/:slug/chapter/:chapter" */
-  pattern: string
+  /** The chapter-address shape Kollect learned here, e.g. "/comics/:slug/chapter/:chapter". */
+  pattern?: string
+  /** Ask for the website's name: it's new to Kollect. */
+  askSite: boolean
   onConfirm: (draft: NewSiteDraft) => void
   onCancel: () => void
 }) {
   const [siteName, setSiteName] = useState(draft.siteName)
   const [title, setTitle] = useState(draft.title)
-  const [chapter, setChapter] = useState(String(draft.chapter))
-  const number = Number(chapter)
-  const ready = siteName.trim() !== "" && title.trim() !== "" && chapter.trim() !== "" && Number.isFinite(number)
+  const [chapter, setChapter] = useState(draft.chapter === undefined ? "" : String(draft.chapter))
+  const number = chapter.trim() === "" ? undefined : Number(chapter)
+  const ready =
+    (!askSite || siteName.trim() !== "") &&
+    title.trim() !== "" &&
+    (number === undefined || Number.isFinite(number))
   const submit = () => ready && onConfirm({ siteName: siteName.trim(), title: title.trim(), chapter: number })
-  const shape = pattern.replace(":slug", "‹series›").replace(":chapter", "‹chapter›")
+  const shape = pattern?.replace(":slug", "‹series›").replace(":chapter", "‹chapter›")
+
+  const intro = askSite
+    ? pattern
+      ? "Kollect doesn't know this website yet. Check these, then add it."
+      : "Kollect doesn't know this website yet. It'll learn its chapter addresses the first time you open a chapter here, and start tracking then."
+    : "Kollect can't read this page by itself. Check these, then add it."
 
   return (
     <div
@@ -192,16 +198,23 @@ export function AddSiteBox({
       }}
       className="w-[260px] rounded-lg bg-surface p-3 text-xs shadow-pop">
       <p className="text-[13px] font-bold">{heading}</p>
-      <p className="mt-1 text-2xs leading-4 text-muted">
-        Kollect doesn't know this website yet. Check these, then add it.
-      </p>
+      <p className="mt-1 text-2xs leading-4 text-muted">{intro}</p>
       <div className="mt-2.5 flex flex-col gap-2">
-        <Field label="Website" value={siteName} onChange={setSiteName} autoFocus />
-        <Field label="Title" value={title} onChange={setTitle} />
-        <Field label="Chapter" value={chapter} onChange={(v) => setChapter(v.replace(/[^0-9.]/g, ""))} />
+        {askSite && <Field label="Website" value={siteName} onChange={setSiteName} autoFocus />}
+        <Field label="Title" value={title} onChange={setTitle} autoFocus={!askSite} />
+        <Field
+          label="Chapter"
+          value={chapter}
+          placeholder="Not started"
+          onChange={(v) => setChapter(v.replace(/[^0-9.]/g, ""))}
+        />
       </div>
-      <p className="mt-2 text-2xs leading-4 text-muted">Chapter addresses look like</p>
-      <p className="mt-0.5 break-all rounded-md bg-raised px-2 py-1 text-2xs leading-4">{shape}</p>
+      {shape && (
+        <>
+          <p className="mt-2 text-2xs leading-4 text-muted">Chapter addresses look like</p>
+          <p className="mt-0.5 break-all rounded-md bg-raised px-2 py-1 text-2xs leading-4">{shape}</p>
+        </>
+      )}
       <div className="mt-3 flex justify-end gap-1.5">
         <button type="button" onClick={onCancel} className="h-7 rounded-md px-3 hover:bg-raised">
           Cancel
@@ -222,12 +235,14 @@ function Field({
   label,
   value,
   onChange,
-  autoFocus
+  autoFocus,
+  placeholder
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   autoFocus?: boolean
+  placeholder?: string
 }) {
   return (
     <label className="flex flex-col gap-1">
@@ -235,8 +250,9 @@ function Field({
       <input
         autoFocus={autoFocus}
         value={value}
+        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="h-7 rounded-md bg-raised px-2 text-xs text-fg focus:outline-none focus:ring-1 focus:ring-primary"
+        className="h-7 rounded-md bg-raised px-2 text-xs text-fg placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-primary"
       />
     </label>
   )

@@ -68,9 +68,24 @@ The made-up data lives in `extension/lib/sample.ts`.
 
 ## Trying it in Firefox
 
-1. Run `pnpm dev:firefox` (instead of, or alongside, `pnpm dev:extension`).
-2. In Firefox, open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…**, and choose `extension/build/firefox-mv3-dev/manifest.json`. It stays loaded until Firefox restarts.
-3. Firefox asks before letting an extension onto websites. Open `about:addons` → Kollect → **Permissions** and turn on access to all websites (and `localhost`). Without this, the Kollect button won't appear and the login from the sign-in website won't reach the extension.
+Run the sign-in app (`pnpm dev:app`) and Convex (`pnpm dev:convex`) as usual, then:
+
+```bash
+pnpm dev:firefox
+```
+
+This builds the extension for Firefox and opens Firefox with Kollect already loaded, using `web-ext` (Mozilla's tool for running extensions). It opens the sign-in page first: sign in there once. Firefox keeps its own profile in `extension/.firefox-profile`, so you stay signed in next time. When you change the code, the extension reloads by itself.
+
+The Firefox build uses Firefox's classic extension format (Manifest V2), so website access is granted once when Kollect is installed; Firefox doesn't ask on every site.
+
+**Making a Firefox package:**
+
+```bash
+pnpm --filter extension build:firefox   # makes extension/build/extension-<version>.zip
+pnpm --filter extension sign:firefox    # sends it to Mozilla to be signed as a .xpi
+```
+
+Normal Firefox only keeps extensions that Mozilla has signed. Signing needs an API key and secret from addons.mozilla.org (Tools → Manage API Keys), set as `WEB_EXT_API_KEY` and `WEB_EXT_API_SECRET` before running `sign:firefox`. The signed `.xpi` in `extension/build` can then be installed in any Firefox by dragging it into the window.
 
 The login part (Clerk's extension package) is made with Chrome in mind, so it's the most likely thing to need changes on Firefox.
 
@@ -122,7 +137,7 @@ The popup is 800 × 600 pixels. When you're signed out it shows the sign-in scre
 | `lib/data.tsx` | How screens talk to the backend. The preview page swaps it for made-up data. |
 | `tabs/preview.tsx` | The preview page described above. |
 
-**On websites.** The Kollect button shows on every website. When you open a page on a site Kollect knows, `contents/reader.tsx` reads it with the shared rules in `convex/lib/pageRead.ts` (which site, which series, which chapter, title and cover). It then asks the background worker whether that manga is in your library and what your settings are. As you scroll, it reports your progress, at most every couple of seconds and only when something changed. The server decides what counts; see [Reading tracking](#reading-tracking). On a site it doesn't know, a chapter page can still be added: a box shows the website's name, the manga's title and the chapter for you to check, and the address shape Kollect learned from the page (`convex/lib/pageMatch.ts`, `learnPattern`). Once added, that website is tracked like any other, for you only. Off a chapter page, the Add options are greyed out. The Kollect button and progress bar are on for a new account; they can be switched off in Settings ("Kollect Options" and "Percentage Bar").
+**On websites.** The Kollect button shows on every website. When you open a page on a site Kollect knows, `contents/reader.tsx` reads it with the shared rules in `convex/lib/pageRead.ts` (which site, which series, which chapter, title and cover). It then asks the background worker whether that manga is in your library and what your settings are. As you scroll, it reports your progress, at most every couple of seconds and only when something changed. The server decides what counts; see [Reading tracking](#reading-tracking). Add works on every page. On a site it doesn't know, or on a page it can't read, a check box shows the website's name, the manga's title and the chapter for you to check or fill in (the chapter can be left empty). On a chapter page Kollect also learns the site's address shape (`convex/lib/pageMatch.ts`, `learnPattern`); otherwise it learns it the first time you open a chapter there. Once it knows the addresses, that website is tracked like any other, for you only. The Kollect button and progress bar are on for a new account; they can be switched off in Settings ("Kollect Options" and "Percentage Bar").
 
 **Theme.** Your three colours set everything: *base* is the background (panels are slightly lighter or darker shades of it), *primary* is for selected things and main buttons, and *secondary* is for the progress bars. Text switches between light and dark on its own so it's always readable. The default theme is base `#1C1C1C`, primary `#D9D9D9`, secondary `#5FA8B0`, font Manrope. The fonts on offer are Manrope, Inter, Montserrat and Nunito.
 
@@ -174,7 +189,7 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 - **Auto Complete On Finish** moves a manga to Completed when you finish the newest chapter and the site says the series has ended.
 - **Every visit** updates the series' latest chapter, even for manga you haven't added.
 - **Adding from a page** creates the manga in the shared manga list if nobody has added it before. It's matched by its address on that site first, then by title.
-- **Adding on a website Kollect doesn't know** (only from a chapter page) adds the website too, for you only. Kollect works out the site's chapter addresses from that page (`learnPattern` in `convex/lib/pageMatch.ts`). It understands `/‹series›/chapter/12`-style addresses, `/‹series›-chapter-12` (series and chapter in one part), and addresses with a code instead of a chapter number when the page title says which chapter it is. If it can't tell, the Add options stay greyed out and the page's console (right-click → Inspect → Console) says why. Built-in websites are everyone's and win when both exist for the same address.
+- **Adding on a website Kollect doesn't know** adds the website too, for you only. From a series page (or any page it can't read), you check the details in a box and can type the chapter you're on; the site's chapter addresses are learned the first time you open a chapter there, and tracking starts then. Kollect works out the site's chapter addresses from that page (`learnPattern` in `convex/lib/pageMatch.ts`). It understands `/‹series›/chapter/12`-style addresses, `/‹series›-chapter-12` (series and chapter in one part), and addresses with a code instead of a chapter number when the page title says which chapter it is. If it can't tell, Add still works through the check box, and the page's console (right-click → Inspect → Console) says what Kollect made of the page. Built-in websites are everyone's and win when both exist for the same address.
 
 Each site's page-reading rules live in `convex/lib/siteConfigs.ts`: the shape of its chapter addresses (for Asura Scans, `/comics/:slug/chapter/:chapter`) and, if needed, where the title and chapter name are on the page. Without those, the title comes from the page's `og:title` tag and the chapter number from the address.
 

@@ -88,7 +88,6 @@ function ReadingPagePreview() {
       {showBar && <ProgressBar percent={percent} />}
       <Overlay
         progressKey={progressKey}
-        canAdd
         onPick={(key) => (known ? setProgressKey(key) : setAdding(key))}
         panel={
           adding && (
@@ -96,6 +95,7 @@ function ReadingPagePreview() {
               heading={`Add to ${adding[0].toUpperCase()}${adding.slice(1)}`}
               draft={{ siteName: "Flame Comics", title: "Omniscient Reader", chapter: 201 }}
               pattern="/series/:slug/:chapter"
+              askSite
               onConfirm={() => {
                 setKnown(true)
                 setProgressKey(adding)

@@ -3,7 +3,9 @@ import type { PlasmoCSConfig } from "plasmo"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import type { Doc } from "../../convex/_generated/dataModel"
+import { labelledChapterNumber } from "../../convex/lib/pageMatch"
 import {
+  cleanTitle,
   guessPage,
   readPage,
   siteForUrl,
@@ -76,7 +78,10 @@ function scrolledPercent(): number {
 type Reading =
   | { kind: "known"; page: PageInfo } // a manga page on a site Kollect knows
   | { kind: "new"; guess: Guess } // a chapter page on a site it doesn't
-  | { kind: "none" } // anything else
+  // a chapter page on a website you added before Kollect knew its chapter
+  // addresses: it learns them from this page
+  | { kind: "learn"; site: Doc<"sites">; guess: Guess }
+  | { kind: "none"; site?: Doc<"sites"> } // anything else
 
 function readThisPage(sites: Doc<"sites">[]): Reading {
   const site = siteForUrl(sites, location.href)
@@ -86,26 +91,53 @@ function readThisPage(sites: Doc<"sites">[]): Reading {
       explain("Read this page as:", page)
       return { kind: "known", page }
     }
-    explain(`Not a series or chapter page on ${site.title} (addresses look like ${site.slugPattern}).`)
-    return { kind: "none" }
+    if (site.slugPattern === undefined) {
+      const guess = guessPage(pageSource())
+      if (guess) return { kind: "learn", site, guess: { ...guess, page: { ...guess.page, domain: site.domain } } }
+    }
+    explain(`Not a series or chapter page on ${site.title}; Add will ask for the details.`)
+    return { kind: "none", site }
   }
   const guess = guessPage(pageSource())
   if (guess) {
     explain("Kollect doesn't know this website; this looks like a chapter page:", guess)
     return { kind: "new", guess }
   }
-  // Looks like a chapter, but the address couldn't be worked out: say so,
-  // since the Add options stay greyed out.
-  if (/chapter|episode|\bch\b/i.test(`${location.pathname} ${document.title}`)) {
-    explain(
-      "This looks like a chapter, but Kollect couldn't tell the series and chapter apart in this address, so Add is greyed out:",
-      location.pathname
-    )
-  }
   return { kind: "none" }
 }
 
-type Adding = { progressKey: ProgressKey; favourite?: boolean; guess: Guess }
+/** What Add can go on for a page Kollect can't read: the address, and
+    whatever the page title says. You check it in the box. */
+function pageBasics(site?: Doc<"sites">): { page: PageInfo; siteName: string; chapter?: number; icon?: string } {
+  const source = pageSource()
+  const domain = site?.domain ?? location.hostname.toLowerCase().replace(/^www\./, "")
+  const siteName = site?.title ?? (source.meta("og:site_name")?.trim() || domain.split(".")[0].replace(/^./, (c) => c.toUpperCase()))
+  const rawTitle = source.meta("og:title") ?? source.documentTitle
+  return {
+    page: {
+      domain,
+      url: location.origin + location.pathname,
+      title: cleanTitle(rawTitle, siteName),
+      image: source.meta("og:image") || undefined
+    },
+    siteName,
+    chapter: labelledChapterNumber(rawTitle),
+    icon: source.link('link[rel~="icon"]')
+  }
+}
+
+/** The check box's contents while it's open. */
+type Adding = {
+  progressKey: ProgressKey
+  favourite?: boolean
+  page: PageInfo
+  draft: NewSiteDraft
+  /** The chapter-address shape learned from this page, if any. */
+  pattern?: string
+  /** True when the website is new to Kollect, so its name is asked for. */
+  newSite: boolean
+  icon?: string
+}
 
 export default function Reader() {
   const [sites, setSites] = useState<Doc<"sites">[] | null>(null)
@@ -121,7 +153,7 @@ export default function Reader() {
   readingRef.current = reading
   const stateRef = useRef(state)
   stateRef.current = state
-  const page = reading.kind === "known" ? reading.page : null
+  const page = reading.kind === "known" ? reading.page : reading.kind === "learn" ? reading.guess.page : null
 
   const say = useCallback((message: string, error = false) => {
     setToast({ message, error })
@@ -224,17 +256,37 @@ export default function Reader() {
   const add = useCallback(
     async (opts: { progressKey?: ProgressKey; favourite?: boolean }) => {
       const current = readingRef.current
+      const progressKey = opts.progressKey ?? "reading"
       if (current.kind === "new") {
         // A website Kollect doesn't know: check what it found first.
-        setAdding({ progressKey: opts.progressKey ?? "reading", favourite: opts.favourite, guess: current.guess })
+        const { guess } = current
+        setAdding({
+          progressKey,
+          favourite: opts.favourite,
+          page: guess.page,
+          draft: { siteName: guess.siteName, title: guess.page.title, chapter: guess.page.chapter?.number },
+          pattern: guess.slugPattern,
+          newSite: true,
+          icon: guess.icon
+        })
         return
       }
       if (current.kind === "none") {
-        say("Open a chapter page to add a manga.", true)
+        // A page Kollect can't read: fill in what it can, you check the rest.
+        const basics = pageBasics(current.site)
+        setAdding({
+          progressKey,
+          favourite: opts.favourite,
+          page: basics.page,
+          draft: { siteName: basics.siteName, title: basics.page.title, chapter: basics.chapter },
+          newSite: current.site === undefined,
+          icon: basics.icon
+        })
         return
       }
+      const known = current.kind === "known" ? current.page : current.guess.page
       try {
-        const { action } = await ask({ type: "add", page: current.page, ...opts })
+        const { action } = await ask({ type: "add", page: known, ...opts })
         await refresh()
         const where = stateRef.current?.progressKey ?? opts.progressKey ?? null
         const moved = action === "noop" && opts.progressKey !== undefined
@@ -247,26 +299,44 @@ export default function Reader() {
     [refresh, say, sayError, send]
   )
 
-  /** "Add" in the box for a new website. */
-  const addNewSite = async (draft: NewSiteDraft) => {
+  /** "Add" in the check box. */
+  const addChecked = async (draft: NewSiteDraft) => {
     if (!adding) return
-    const { guess, progressKey, favourite } = adding
+    const { page: base, progressKey, favourite, pattern, newSite, icon } = adding
+    const typed = draft.chapter !== undefined ? { number: draft.chapter, label: `Chapter ${draft.chapter}` } : undefined
     try {
       const { action } = await ask({
         type: "add",
-        page: { ...guess.page, title: draft.title, chapter: { number: draft.chapter, label: `Chapter ${draft.chapter}` } },
+        // With a learned pattern, tracking takes over from here; without
+        // one, the chapter you typed becomes your current chapter.
+        page: { ...base, title: draft.title, chapter: pattern ? typed : undefined },
         progressKey,
         favourite,
-        newSite: { title: draft.siteName, slugPattern: guess.slugPattern, icon: guess.icon }
+        newSite: newSite ? { title: draft.siteName, slugPattern: pattern, icon } : undefined,
+        currentChapter: pattern ? undefined : typed
       })
       setAdding(null)
       say(addedMessage(action, progressKey, favourite))
-      // The website is known now: reload the list so this page is tracked.
+      // The website may be new: reload the list so this page is tracked.
       await loadSites()
     } catch (error) {
       sayError(error)
     }
   }
+
+  // A chapter page on a website you added from a page where Kollect
+  // couldn't learn its addresses: learn them now, then track as usual.
+  useEffect(() => {
+    if (reading.kind !== "learn") return
+    ask({ type: "learn", domain: reading.site.domain, slugPattern: reading.guess.slugPattern })
+      .then((learned) => {
+        if (learned) {
+          explain(`Learned ${reading.site.title}'s chapter addresses:`, reading.guess.slugPattern)
+          void loadSites()
+        }
+      })
+      .catch((error: unknown) => explain("Couldn't save this website's chapter addresses.", error))
+  }, [reading, loadSites])
 
   /* ── messages from the background (right-click menu, shortcut) ── */
 
@@ -311,9 +381,10 @@ export default function Reader() {
   const addBox = adding && (
     <AddSiteBox
       heading={`Add to ${label(adding.progressKey)}${adding.favourite ? " and favourite" : ""}`}
-      draft={{ siteName: adding.guess.siteName, title: adding.guess.page.title, chapter: adding.guess.page.chapter!.number }}
-      pattern={adding.guess.slugPattern}
-      onConfirm={(draft) => void addNewSite(draft)}
+      draft={adding.draft}
+      pattern={adding.pattern}
+      askSite={adding.newSite}
+      onConfirm={(draft) => void addChecked(draft)}
       onCancel={() => setAdding(null)}
     />
   )
@@ -324,7 +395,6 @@ export default function Reader() {
       {state.settings.showButton || adding ? (
         <Overlay
           progressKey={state.progressKey ?? undefined}
-          canAdd={reading.kind !== "none"}
           onPick={(key) => void add({ progressKey: key })}
           panel={addBox}
           showProgressBar={state.settings.showProgressBar}
