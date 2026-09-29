@@ -135,7 +135,7 @@ The popup is 800 × 600 pixels. When you're signed out it shows the sign-in scre
 | `components/AddManga.tsx` | The Add Manga panel: search every manga people have added to Kollect (by title or alternative title, leaving out other people's private manga) and add one to the page you're on. |
 | `components/Library.tsx` | Loads the manga for the page (or the trash, or your search), filters and sorts them, and shows the grid. |
 | `components/CardGrid.tsx` | The grid itself. It only draws the rows you can see, plus 10 manga above and 10 below, so big libraries stay fast. |
-| `components/MangaCard.tsx` | One card: cover, title, site icon, chapter and how long ago you read it. |
+| `components/MangaCard.tsx` | One card: cover, title, site icon, chapter and how long ago you read it. Clicking it opens the chapter you're on, or the series' page on a website (`library:cardLink` picks which). |
 | `components/CardMenu.tsx` | The ⋯ menu on a card, and the Add Tags panel. |
 | `components/CardDetails.tsx` | The Details panel: chapter, last read, the site and chapter dropdowns, and the progress bar. |
 | `components/PagePopups.tsx` | The Filter and Sort popups. Changes save on their own a moment after you stop clicking. |
@@ -289,7 +289,6 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 
 Ideas saved for later are listed in CLAUDE.md under "For the future".
 
-- **Bug: clicking a card doesn't open the manga.** It only opens the chapter you're on, and many manga don't have one yet (see "Known bugs to fix" in CLAUDE.md).
 
 - **Checking Asura Scans against the real site.** Its address (`asurascans.com/comics/<series>/chapter/<n>`) is checked, but the title still comes from the page's `og:title` tag, which hasn't been checked. It may also need selectors for the newest chapter and whether the series has ended.
 - **More built-in reading websites.** Only Asura Scans so far; others can be added by users for themselves. There's no screen yet to see, rename or remove the websites you've added.

@@ -687,3 +687,55 @@ describe("matching while you read", () => {
     expect(result).toEqual({ tracked: false });
   });
 });
+
+describe("clicking a card", () => {
+  const link = async (me: ReturnType<ReturnType<typeof convexTest>["withIdentity"]>, t: ReturnType<typeof convexTest>) => {
+    const row = await t.run(async (ctx) => (await ctx.db.query("userMangas").collect())[0]);
+    return await me.query(api.library.cardLink, { userMangaId: row._id });
+  };
+
+  test("opens the chapter you're on", async () => {
+    const { t, me, chapterPage } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    await me.mutation(api.reading.recordProgress, { page: chapterPage(5), percentage: 100 });
+    expect(await link(me, t)).toBe(`https://${SITE}/comics/solo-leveling/chapter/5`);
+  });
+
+  test("without one, opens the series page on the website you added it from", async () => {
+    const { t, me, chapterPage } = await setup();
+    await addReaper(t);
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    // Also on another website, which you didn't add it from.
+    const manga = await t.run(async (ctx) => (await ctx.db.query("mangas").collect())[0]);
+    const reaper = await t.run(async (ctx) => (await ctx.db.query("sites").collect()).find((s) => s.domain === "reaperscans.com")!);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("mangaSources", { mangaId: manga._id, siteId: reaper._id, slug: "x", url: "https://reaperscans.com/series/x" });
+    });
+    expect(await link(me, t)).toBe(`https://${SITE}/comics/solo-leveling`);
+  });
+
+  test("otherwise a built-in website it's on, and in the trash too", async () => {
+    const { t, me, chapterPage } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("userSourceLinks").collect()) await ctx.db.delete(row._id);
+    });
+    const row = await t.run(async (ctx) => (await ctx.db.query("userMangas").collect())[0]);
+    await me.mutation(api.trash.softDelete, { userMangaId: row._id });
+    expect(await link(me, t)).toBe(`https://${SITE}/comics/solo-leveling`);
+  });
+
+  test("null when Kollect has no link", async () => {
+    const { t, me } = await setup();
+    await t.run(async (ctx) => {
+      const mangaId = await ctx.db.insert("mangas", {
+        title: "Imported", normalizedTitle: "imported", altTitles: [], image: "", type: "other", authors: [], tags: [],
+      });
+      const user = (await ctx.db.query("users").collect())[0];
+      await ctx.db.insert("userMangas", {
+        userId: user._id, mangaId, addedAt: 0, progressKey: "reading", tagIds: [], isDeleted: false,
+      });
+    });
+    expect(await link(me, t)).toBeNull();
+  });
+});

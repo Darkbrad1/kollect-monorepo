@@ -44,10 +44,6 @@ Skills live in `.claude/skills/<name>/SKILL.md`. The grilling skills come from [
   - Background in `.claude/skills/grill-with-docs/reference.md`. The `agents/openai.yaml` files are for other AI tools and don't affect Claude Code.
 - `unslop` (always on): the writing rules for everything Claude writes here (no filler, fancy words, em dashes and so on). "How to work with me" above makes it apply all the time; `/unslop` also runs it on a piece of text you give it.
 
-## Known bugs to fix
-
-- **Clicking a card doesn't open the manga in a new tab.** The click is wired to the cover only (`components/MangaCard.tsx`) and opens the manga's current chapter link (`currentChapterUrl`, via `openLink` in `components/Library.tsx`). Many manga don't have one: anything added with the + button or from a series page, and anything not yet read past the Scroll Threshold, so the click silently does nothing. Needs fixing; what a card should open when there's no current chapter (for example the series page) is a product decision to ask about.
-
 ## Extension code conventions
 
 - Import icons from `~lib/icons`, never from `@remixicon/react` directly (the full package is 3 MB). Then run `pnpm --filter extension icons`.
@@ -150,7 +146,7 @@ These were settled with me, so don't reopen them without asking.
   - After adding from the right-click menu or the shortcut, a short note ("Added to Reading", "Already on Planned") appears beside the Kollect button for 3 seconds.
 - **Reading websites:** start with one site, **Asura Scans** (`asurascans.com`, chapter addresses like `/comics/<series>/chapter/<n>`), get it fully working, then add others. The address is checked; the title (from `og:title`) isn't yet.
 - **The extension screens** are built on the `design` branch. These parts weren't in the Figma design and were confirmed afterwards:
-  - **Cards:** clicking a cover opens the current chapter in a new tab. Details opens as a side panel next to the ⋯ menu. The menu says "Unfavourite" when the manga is already a favourite. Favourite is hidden from tag lists (Add Tags, Settings → Tags). Trash cards show "N Days Left" and their Details panel is look-only. A manga you haven't started shows "Not Started".
+  - **Cards:** clicking anywhere on a card opens the manga in a new tab (the ⋯ button and right-click open the menu). It opens the chapter you're on; without one, the series' page on the website you last read it on, then the website you added it from, then any built-in website (`library:cardLink`). With no link at all, a note says "Kollect doesn't have a link for this manga yet. Open it from its website and press Add." Trash cards open the same way. Details opens as a side panel next to the ⋯ menu. The menu says "Unfavourite" when the manga is already a favourite. Favourite is hidden from tag lists (Add Tags, Settings → Tags). Trash cards show "N Days Left" and their Details panel is look-only. A manga you haven't started shows "Not Started".
   - **Top bar:** the ⌄ button lists every page by name. Filter and Sort are greyed out in the trash and while searching. Search results show a badge saying which page each manga is on. Empty pages show a short message.
   - **Filter and Sort** save on their own a moment after you stop clicking. A new sort row starts as Dec, and each sort option can only be used once.
   - **Settings** opens as a full screen with a Back button. Clear Trash Time moves 1 day at a time and is greyed out when Auto Clear Trash is off. Fonts: Manrope, Inter, Montserrat, Nunito. Clicking a tag chip opens an editor (name, colour, Save, Delete with confirmation).
