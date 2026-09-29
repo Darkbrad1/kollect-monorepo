@@ -35,7 +35,7 @@ Useful commands:
 
 ## Project skills
 
-Skills live in `.claude/skills/<name>/SKILL.md`. The grilling skills come from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT licence, copied unchanged; see `.claude/skills/LICENSE-mattpocock-skills`).
+Skills live in `.claude/skills/<name>/SKILL.md`. The grilling skills come from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT licence; see `.claude/skills/LICENSE-mattpocock-skills`). They were copied unchanged, except that `grill-with-docs` (its `SKILL.md` description and `reference.md`) was rewritten to follow `unslop`.
 
 - `/grill-with-docs` (only when typed): interviews me about a plan and writes the docs as it goes. It works by loading the two skills below, so keep all three.
   - `grilling`: the interview. Questions come in numbered rounds, each with a recommended answer; it looks up facts itself and leaves decisions to me.
