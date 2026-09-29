@@ -62,6 +62,7 @@ Ideas to come back to. Don't start them unless asked.
 
 - **A public page on the web app.** Visitors who aren't signed in see a list of every website users have added, with no duplicates.
 - **Your catalogue on the web app.** Signed in, you can see your whole library there too.
+- **Your own title for a manga.** Anyone can give a manga a title that only they see, while the shared title stays the same. For now, the admin fixes typos in shared titles from the Convex dashboard.
 - **A proper way to remove users**, friendlier than the `admin:deleteUser` command, for example also removing their Clerk login.
 
 ## Decisions already made

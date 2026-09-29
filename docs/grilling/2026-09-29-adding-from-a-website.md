@@ -260,16 +260,42 @@ How adding a manga from a reading website works today, and the gaps to settle. T
 ❓ **Q1** - **"The first time" for whom?**: The link between a website's address and a manga is shared by everyone. Say user A reads "Reborn" on a new website first, and Kollect links it. When user B later reads it there, Kollect matches it by address, so no link is made and, by the round 4 rule, B sees no note.
 
 - [ ] (a) The note shows only when Kollect makes the link, so only user A sees it.
-- [ ] (b) The note shows the first time each user reads that manga on that website, even if someone else made the link.
+- [x] (b) The note shows the first time each user reads that manga on that website, even if someone else made the link.
 
 ➡️ (b). User B needs the note and the "Not this manga?" button as much as user A does.
+
+**Answer:** (b) The first time each user reads that manga on that website.
 
 ---
 
 ❓ **Q2** - **What "Not this manga?" undoes when others use the link**: User B presses "Not this manga?", but user A has been reading the same series there, linked to that manga, for weeks.
 
 - [ ] (a) It removes the link for everyone.
-- [ ] (b) It stops tracking only for B. Kollect remembers B said no, and B presses Add to pick the right manga. The link stays for everyone else.
+- [x] (b) It stops tracking only for B. Kollect remembers B said no, and B presses Add to pick the right manga. The link stays for everyone else.
 - [ ] (c) It removes the link for everyone only if nobody else has read that manga on that website. Otherwise it works like (b).
 
 ➡️ (c). One person can fix a fresh wrong match for everyone, but nobody can break tracking that someone else has been relying on.
+
+**Answer:** (b) It stops tracking only for the user who pressed it. Everyone else keeps the link.
+
+## Settled
+
+Waiting for your confirmation before any of this is built.
+
+- A title counts as close when one title contains the other, the two share most of their words, or it matches an alternative title.
+- Add asks "Is it one of these?" in the check box when the only match is by title from another website, or when titles are close. "No, it's new" creates a new manga.
+- Add also asks when the same title is already on the same website at a different address.
+- Each choice in the list shows the cover, title, latest chapter and the websites it's on. A manga already in your library has an "On Reading" style badge. Picking it links this website to it, and it stays on its page.
+- Picking a match saves this website's title as an alternative title, from any website, own websites included.
+- A private manga is hidden only from other people's Add Manga search. It still shows in "Is it one of these?" and still matches.
+- When a private manga goes public, its title stays the main title. The built-in website's title is saved as an alternative title.
+- Typos in a main title are fixed by the admin from the Convex dashboard. Giving a manga your own title goes under "For the future".
+- On a known website, Add still waits for the Scroll Threshold before a chapter becomes current.
+- A chapter typed in the check box for a manga already in your library follows the import rule: the bigger number becomes current, and the smaller one goes into reading history.
+- The note after Add says what happened to the chapter, for example "Already on Reading. Now on chapter 55".
+- On built-in websites, and own websites that learned their chapter addresses, Add on a page that isn't a manga says "This isn't a manga page" with an "Add anyway" link. Other websites open the check box.
+- Reading a manga on another website where the title exactly matches one in your library is tracked without asking. A note says Kollect matched it and is tracking it, the first time each user reads that manga on that website.
+- The note has a "Not this manga?" button. It stops tracking there for you only, removes the chapter it just saved, and remembers your answer. Everyone else keeps the link. You then press Add to pick the right manga.
+- Follows from the last point, to confirm: what you pick after "Not this manga?" applies only to you. Other users on that website still get the original manga.
+
+No ADRs: none of these are hard to undo later.
