@@ -35,6 +35,7 @@ export function CardMenu({
   favouriteId,
   sites,
   onClose,
+  onNote,
   onDelete
 }: {
   item: GridItem
@@ -42,6 +43,8 @@ export function CardMenu({
   favouriteId: Id<"userTags"> | undefined
   sites: Map<Id<"sites">, Doc<"sites">>
   onClose: () => void
+  /** Shows a short note in the popup, such as "Updated … from MangaDex". */
+  onNote: (message: string) => void
   onDelete: () => void
 }) {
   const { userManga } = item
@@ -126,7 +129,15 @@ export function CardMenu({
         label="Update Details"
         submenu={
           <Menu className="w-[130px]">
-            <MenuItem icon={RiSearchLine} label="MangaDex" submenu={<MangaDexPicker item={item} onDone={onClose} />} />
+            <MenuItem icon={RiSearchLine} label="MangaDex" submenu={
+                <MangaDexPicker
+                  item={item}
+                  onDone={(title) => {
+                    onClose()
+                    onNote(`Updated ${title} from MangaDex`)
+                  }}
+                />
+              } />
           </Menu>
         }
       />

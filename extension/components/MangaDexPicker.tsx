@@ -29,7 +29,7 @@ const STATUS_LABELS: Record<string, string> = {
  * to it: the cover, other titles, latest chapter and status change for
  * everyone, and its title becomes your own title.
  */
-export function MangaDexPicker({ item, onDone }: { item: GridItem; onDone: () => void }) {
+export function MangaDexPicker({ item, onDone }: { item: GridItem; onDone: (title: string) => void }) {
   const search = useA(api.mangadex.search)
   const pick = useA(api.mangadex.pick)
   const [text, setText] = useState(titleOf(item))
@@ -63,7 +63,7 @@ export function MangaDexPicker({ item, onDone }: { item: GridItem; onDone: () =>
     setPicking(result.mangadexId)
     try {
       await pick({ userMangaId: item.userManga._id, mangadexId: result.mangadexId })
-      onDone()
+      onDone(result.title)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setPicking(null)

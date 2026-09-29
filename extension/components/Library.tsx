@@ -61,17 +61,22 @@ export function Library({
   const once = useOnce()
   const [note, setNote] = useState<string | null>(null)
 
+  /** A short note at the bottom of the popup, gone after a few seconds. */
+  const showNote = (message: string, ms = 3000) => {
+    setNote(message)
+    window.setTimeout(() => setNote((current) => (current === message ? null : current)), ms)
+  }
+
   /** Opens a card's manga: the chapter you're on, or the series page on a
       website (see library:cardLink). Says so when Kollect has no link. */
   const openCard = async (item: GridItem) => {
     try {
       const url = await once(api.library.cardLink, { userMangaId: item.userManga._id })
       if (url) return openLink(url)
-      setNote("Kollect doesn't have a link for this manga yet. Open it from its website and press Add.")
+      showNote("Kollect doesn't have a link for this manga yet. Open it from its website and press Add.", 4000)
     } catch (error) {
-      setNote(error instanceof Error ? error.message : String(error))
+      showNote(error instanceof Error ? error.message : String(error), 4000)
     }
-    window.setTimeout(() => setNote(null), 4000)
   }
 
   const [menu, setMenu] = useState<{ id: Id<"userMangas">; anchor: DOMRect } | null>(null)
@@ -169,6 +174,7 @@ export function Library({
             favouriteId={favouriteId}
             sites={sites}
             onClose={() => setMenu(null)}
+            onNote={showNote}
             onDelete={() => {
               setConfirm(menuItem)
               setMenu(null)

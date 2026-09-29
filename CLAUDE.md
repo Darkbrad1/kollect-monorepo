@@ -162,7 +162,7 @@ These were settled with me, so don't reopen them without asking.
 - **Details from MangaDex** (`convex/mangadex.ts`, `convex/lib/mangadex.ts`):
   - Each manga is looked up when it's first added to the shared list, and again by a weekly job (Sunday 03:00 UTC), which also covers older manga.
   - It's found by searching its title and taking the first result. The admin can relink one by hand with `mangadex:lookup` and a `mangadexId`.
-  - **Update Details → MangaDex** in the card menu (not in the trash): a search box filled in with the title you see, results as you type (cover, title, type, year, status), and a "Linked now" badge on the current entry. Picking one changes the cover, other titles, latest chapter and status for everyone, and makes MangaDex's title your own title only. Update Details is a submenu so other places to get details from can be added later.
+  - **Update Details → MangaDex** in the card menu (not in the trash): a search box filled in with the title you see, results as you type (cover, title, type, year, status), and a "Linked now" badge on the current entry. Picking one changes the cover, other titles, latest chapter and status for everyone, and makes MangaDex's title your own title only. Update Details is a submenu so other places to get details from can be added later. After a pick, the menu closes and a note at the bottom of the popup says "Updated <title> from MangaDex" for 3 seconds.
   - Relinking removes the old entry's alternative titles first; titles saved from reading websites stay.
   - The card's Details panel has a "Details from MangaDex" link to the linked entry.
   - Covers load without sending the page address (`referrerPolicy="no-referrer"`), because MangaDex refuses covers asked for from other websites.
