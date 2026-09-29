@@ -98,6 +98,15 @@ pnpm --filter app exec convex run admin:deleteUser '{"userId": "<id>"}'
 
 This removes their library, reading history, pages, tags, settings and any websites they added. Manga in the shared list stay. Their Clerk login isn't touched: if they sign in again they get a fresh, empty account, so delete them in the Clerk dashboard too if needed. You can also run both from the Convex dashboard (Functions → `admin`).
 
+## Claude Code skills
+
+The repo has two skills for Claude Code, in `.claude/skills/`. Type the name to run one:
+
+- `/grill-with-docs` talks a plan through with you before building it, and keeps a glossary (`CONTEXT.md`) and decision records (`docs/adr/`) up to date as you go.
+- `/unslop` tidies a piece of writing so it doesn't read like AI wrote it.
+
+To add your own, make a folder `.claude/skills/<name>/` with a `SKILL.md` in it: a short header (`name`, and a `description` of when to use it) and then the instructions.
+
 ## Running the tests
 
 ```bash

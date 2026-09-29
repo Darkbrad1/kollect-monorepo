@@ -32,6 +32,13 @@ Useful commands:
 - `pnpm --filter app exec convex run sites:seed`: copies the supported reading websites into the database right away. Normally not needed: it happens automatically each time the popup opens.
 - `pnpm --filter extension icons`: rewrites `extension/lib/icons.tsx` with every Remix icon the extension uses. Run it after using a new icon.
 
+## Project skills
+
+Skills live in `.claude/skills/<name>/SKILL.md`. Both of these run only when typed:
+
+- `/grill-with-docs`: interviews me about a plan one round of questions at a time, writes settled terms into `CONTEXT.md` (a glossary) as they settle, and records hard-to-reverse decisions as ADRs in `docs/adr/`. Background in `.claude/skills/grill-with-docs/reference.md`.
+- `/unslop`: edits a piece of writing to remove AI-sounding patterns (filler, fancy words, em dashes and so on).
+
 ## Extension code conventions
 
 - Import icons from `~lib/icons`, never from `@remixicon/react` directly (the full package is 3 MB). Then run `pnpm --filter extension icons`.
