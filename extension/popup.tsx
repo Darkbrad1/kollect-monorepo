@@ -96,6 +96,7 @@ function IndexPopup() {
       syncHost={SYNC_HOST}
       // Without this, signing out sends the popup to the extension's "/",
       // which doesn't exist, and Chrome shows ERR_FILE_NOT_FOUND.
+      // new commnet
       afterSignOutUrl={POPUP_URL}>
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <SignedOut>
