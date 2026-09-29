@@ -321,6 +321,10 @@ function query(s: SampleStore, name: string, a: Args): unknown {
         items: items(s, live).filter(({ manga }) => normalizeTitle(manga.title).includes(needle))
       }
     }
+    case "library:cardLink": {
+      const row = s.library.find((r) => r._id === a.userMangaId)!
+      return row.currentChapterUrl ?? null
+    }
     case "library:sourcesFor": {
       const row = s.library.find((r) => r._id === a.userMangaId)!
       const ids = new Set([...(row.readSiteIds ?? []), ...(row.currentSiteId ? [row.currentSiteId] : [])])

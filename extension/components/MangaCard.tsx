@@ -51,7 +51,7 @@ export function Cover({ src, className }: { src: string; className?: string }) {
 /**
  * One manga in the grid: cover, title, chapter progress with the site
  * favicon, and a time on the right. Hovering shows the ⋯ button that
- * opens the card menu; clicking the cover continues reading.
+ * opens the card menu; clicking anywhere else on the card opens the manga.
  */
 export function MangaCard({
   item,
@@ -73,16 +73,26 @@ export function MangaCard({
   const { userManga, manga } = item
   const BadgeIcon = badge?.icon
   return (
-    <div className="group relative flex flex-col" style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}>
-      <button
-        type="button"
-        onClick={onOpen}
-        onContextMenu={(e) => {
+    // The whole card opens the manga; the ⋯ button and right-click open the menu.
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${manga.title}`}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return
+        if (e.key === "Enter" || e.key === " ") {
           e.preventDefault()
-          onMenu(new DOMRect(e.clientX, e.clientY, 0, 0))
-        }}
-        aria-label={`Open ${manga.title}`}
-        className="relative overflow-hidden rounded-xl">
+          onOpen()
+        }
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        onMenu(new DOMRect(e.clientX, e.clientY, 0, 0))
+      }}
+      className="group relative flex cursor-pointer flex-col"
+      style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}>
+      <div className="relative overflow-hidden rounded-xl">
         <Cover
           src={manga.image}
           className="h-[216px] w-full transition-transform duration-200 group-hover:scale-[1.03]"
@@ -93,12 +103,15 @@ export function MangaCard({
             {badge.label}
           </span>
         )}
-      </button>
+      </div>
 
       <button
         type="button"
         aria-label={`Options for ${manga.title}`}
-        onClick={(e) => onMenu(e.currentTarget.getBoundingClientRect())}
+        onClick={(e) => {
+          e.stopPropagation()
+          onMenu(e.currentTarget.getBoundingClientRect())
+        }}
         className={cx(
           "absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white transition-opacity",
           menuOpen ? "opacity-100" : "opacity-0 focus:opacity-100 group-hover:opacity-100"

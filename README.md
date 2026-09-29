@@ -62,7 +62,7 @@ The extension has a **preview page** that shows every screen filled with made-up
 2. On `chrome://extensions`, copy the Kollect extension's ID.
 3. Open `chrome-extension://<the ID>/tabs/preview.html`.
 
-Add `#sign-in` to the end of that address to see the signed-out screen, or `#reading-page` to see the Kollect button and progress bar on a pretend chapter.
+Add `#sign-in` to the end of that address to see the signed-out screen, or `#reading-page` to see the Kollect button and progress bar on a pretend chapter (Add there shows the check box, then "Is it one of these?").
 
 The made-up data lives in `extension/lib/sample.ts`.
 
@@ -132,10 +132,10 @@ The popup is 800 × 600 pixels. When you're signed out it shows the sign-in scre
 | `lib/messages.ts` | The messages reading pages and the background worker send each other. |
 | `components/App.tsx` | Chooses between the library and the Settings screen, and remembers which page you were on. |
 | `components/ControlsBar.tsx` | The top bar: page tabs, the "all pages" dropdown, Search, Filter, Sort, Add Manga (+) and the Settings button. |
-| `components/AddManga.tsx` | The Add Manga panel: search every manga people have added to Kollect and add one to the page you're on. |
+| `components/AddManga.tsx` | The Add Manga panel: search every manga people have added to Kollect (by title or alternative title, leaving out other people's private manga) and add one to the page you're on. |
 | `components/Library.tsx` | Loads the manga for the page (or the trash, or your search), filters and sorts them, and shows the grid. |
 | `components/CardGrid.tsx` | The grid itself. It only draws the rows you can see, plus 10 manga above and 10 below, so big libraries stay fast. |
-| `components/MangaCard.tsx` | One card: cover, title, site icon, chapter and how long ago you read it. |
+| `components/MangaCard.tsx` | One card: cover, title, site icon, chapter and how long ago you read it. Clicking it opens the chapter you're on, or the series' page on a website (`library:cardLink` picks which). |
 | `components/CardMenu.tsx` | The ⋯ menu on a card, and the Add Tags panel. |
 | `components/CardDetails.tsx` | The Details panel: chapter, last read, the site and chapter dropdowns, and the progress bar. |
 | `components/PagePopups.tsx` | The Filter and Sort popups. Changes save on their own a moment after you stop clicking. |
@@ -196,8 +196,12 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 - **Re-reading an earlier chapter** saves it to your history, but your current chapter stays at the furthest one.
 - **On your current chapter**, the percentage goes up as you read and doesn't drop if you scroll back up.
 - **Auto Complete On Finish** moves a manga to Completed when you finish the newest chapter and the site says the series has ended.
-- **Every visit** updates the series' latest chapter, even for manga you haven't added.
-- **Adding from a page** creates the manga in the shared manga list if nobody has added it before. It's matched by its address on that site first, then by title.
+- **Every visit** updates the series' latest chapter, even for manga you haven't added, as long as Kollect already knows that address.
+- **Adding from a page** creates the manga in the shared manga list if nobody has added it before. Kollect goes by the page's address first. If the address doesn't settle it but a manga with the same or a close title exists, the check box asks **"Is it one of these?"** instead of guessing. Each choice shows its cover, title, latest chapter and websites, with an "On Reading" style badge if it's in your library. "No, it's new" adds a separate manga. Picking one links this website to it and saves this page's title as an alternative title. A title counts as close when one contains the other, when they share most of their words, or when it matches an alternative title (`convex/lib/matching.ts`).
+- **Pressing Add on a page that isn't a manga**, on a built-in website or one of yours that has learned its chapter addresses, says "This isn't a manga page" with an **Add anyway** button that opens the check box.
+- **A chapter typed in the check box** follows the import rule when you already have a current chapter: the bigger one becomes current and the smaller one goes into your reading history. The note after Add says which, for example "Already on Reading. Now on chapter 55".
+- **Reading on another website:** if the page's title exactly matches a manga in your library (main or alternative title), Kollect tracks it there without asking. The first time you read it on that website, a note says it matched, with a **Not this manga?** button. That button is only for you: it takes back what Kollect saved there since the match, stops tracking it there, and leaves that manga out when you then press Add. Other people keep the link. Your own links to websites are in the `userSourceLinks` table.
+- **Private manga** are ones only on websites people added for themselves. They don't show in other people's Add Manga search until someone adds them from a built-in website.
 - **Adding on a website Kollect doesn't know** adds the website too, for you only. From a series page (or any page it can't read), you check the details in a box and can type the chapter you're on; the site's chapter addresses are learned the first time you open a chapter there, and tracking starts then. Kollect works out the site's chapter addresses from that page (`learnPattern` in `convex/lib/pageMatch.ts`). It understands `/‹series›/chapter/12`-style addresses, `/‹series›-chapter-12` (series and chapter in one part), and addresses with a code instead of a chapter number when the page title says which chapter it is. If it can't tell, Add still works through the check box, and the page's console (right-click → Inspect → Console) says what Kollect made of the page. Built-in websites are everyone's and win when both exist for the same address.
 
 Each site's page-reading rules live in `convex/lib/siteConfigs.ts`: the shape of its chapter addresses (for Asura Scans, `/comics/:slug/chapter/:chapter`) and, if needed, where the title and chapter name are on the page. Without those, the title comes from the page's `og:title` tag and the chapter number from the address.
@@ -285,7 +289,6 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 
 Ideas saved for later are listed in CLAUDE.md under "For the future".
 
-- **Bug: clicking a card doesn't open the manga.** It only opens the chapter you're on, and many manga don't have one yet (see "Known bugs to fix" in CLAUDE.md).
 
 - **Checking Asura Scans against the real site.** Its address (`asurascans.com/comics/<series>/chapter/<n>`) is checked, but the title still comes from the page's `og:title` tag, which hasn't been checked. It may also need selectors for the newest chapter and whether the series has ended.
 - **More built-in reading websites.** Only Asura Scans so far; others can be added by users for themselves. There's no screen yet to see, rename or remove the websites you've added.

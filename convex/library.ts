@@ -232,3 +232,54 @@ export const switchSource = mutation({
     });
   },
 });
+
+/**
+ * The link a card opens when you click it, or null when Kollect has none.
+ *
+ * 1. The chapter you're on.
+ * 2. Otherwise the series' page on a website: the one you last read it
+ *    on, then the one you added it from, then any built-in website.
+ *
+ * Works for manga in the trash too.
+ */
+export const cardLink = query({
+  args: { userMangaId: v.id("userMangas") },
+  handler: async (ctx, { userMangaId }) => {
+    const user = await requireUser(ctx);
+    const userManga = await requireOwnedManga(ctx, user._id, userMangaId);
+    if (userManga.currentChapterUrl) return userManga.currentChapterUrl;
+
+    const sources = await ctx.db
+      .query("mangaSources")
+      .withIndex("by_manga", (q) => q.eq("mangaId", userManga.mangaId))
+      .collect();
+    const seriesPage = (siteId: Id<"sites"> | undefined) => sources.find((s) => s.siteId === siteId)?.url;
+
+    // The website you last read it on.
+    const history = await ctx.db
+      .query("readChapters")
+      .withIndex("by_userManga_number", (q) => q.eq("userMangaId", userMangaId))
+      .collect();
+    const lastRead = history.sort((a, b) => b.readAt - a.readAt)[0];
+    const fromHistory = seriesPage(userManga.currentSiteId ?? lastRead?.siteId);
+    if (fromHistory) return fromHistory;
+
+    // The website you added it from.
+    const links = await ctx.db
+      .query("userSourceLinks")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const link of links) {
+      if (link.mangaId !== userManga.mangaId || link.how !== "added") continue;
+      const url = seriesPage(link.siteId);
+      if (url) return url;
+    }
+
+    // Any built-in website it's on.
+    for (const source of sources) {
+      const site = await ctx.db.get(source.siteId);
+      if (site !== null && site.addedBy === undefined) return source.url;
+    }
+    return null;
+  },
+});

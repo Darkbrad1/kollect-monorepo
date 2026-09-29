@@ -87,16 +87,16 @@ describe("adding from a reading page", () => {
     ).rejects.toThrow(/doesn't know this website/);
   });
 
-  test("a manga found by title picks up the site's new address for it", async () => {
+  test("reading it at a new address on the same site links that address too", async () => {
     const { t, me, chapterPage } = await setup();
     await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
-    await me.query(api.reading.pageState, { page: chapterPage(6, { slug: "solo-leveling-9f3a" }) });
-    await me.mutation(api.reading.recordProgress, {
+    const result = await me.mutation(api.reading.recordProgress, {
       page: chapterPage(6, { slug: "solo-leveling-9f3a" }),
       percentage: 10,
     });
+    expect(result).toMatchObject({ tracked: true, matched: { title: "Solo Leveling" } });
     const sources = await t.run(async (ctx) => await ctx.db.query("mangaSources").collect());
-    expect(sources.map((s) => s.slug)).toEqual(["solo-leveling-9f3a"]);
+    expect(sources.map((s) => s.slug).sort()).toEqual(["solo-leveling", "solo-leveling-9f3a"]);
   });
 });
 
@@ -299,15 +299,30 @@ describe("adding on a page Kollect can't read", () => {
     expect((await entry())!.currentChapterNumber).toBeUndefined();
   });
 
-  test("a typed chapter doesn't replace one you already have", async () => {
-    const { me, chapterPage, entry } = await setup();
+  test("a smaller typed chapter goes into your history, and your current one stays", async () => {
+    const { me, chapterPage, entry, history } = await setup();
     await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
     await me.mutation(api.reading.recordProgress, { page: chapterPage(5), percentage: 100 });
-    await me.mutation(api.reading.addFromPage, {
+    const result = await me.mutation(api.reading.addFromPage, {
       page: { ...chapterPage(5), chapter: undefined },
       currentChapter: { number: 1, label: "Chapter 1" },
     });
+    expect(result).toMatchObject({ action: "noop", chapter: { result: "history", number: 1 } });
     expect((await entry())!.currentChapterNumber).toBe(5);
+    expect(await history()).toEqual([1]);
+  });
+
+  test("a bigger typed chapter becomes current, and the old one goes into your history", async () => {
+    const { me, chapterPage, entry, history } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    await me.mutation(api.reading.recordProgress, { page: chapterPage(5), percentage: 100 });
+    const result = await me.mutation(api.reading.addFromPage, {
+      page: { ...chapterPage(5), chapter: undefined },
+      currentChapter: { number: 55, label: "Chapter 55" },
+    });
+    expect(result).toMatchObject({ chapter: { result: "current", number: 55 } });
+    expect(await entry()).toMatchObject({ currentChapterNumber: 55, currentPercentage: 0 });
+    expect(await history()).toEqual([5]);
   });
 
   test("the first chapter page teaches Kollect the addresses, and tracking starts", async () => {
@@ -410,5 +425,317 @@ describe("Add Manga in the popup", () => {
     await me.mutation(api.library.addManga, { mangaId: newbie, progressKey: "planned" });
     const after = await me.query(api.catalogue.search, { text: "newbie" });
     expect(after[0].status).toBe("planned");
+  });
+});
+
+/* ── which manga a page is ───────────────────────────────────────── */
+
+/** A second built-in site, so two users can share its addresses. */
+async function addReaper(t: ReturnType<typeof convexTest>) {
+  await t.run(async (ctx) => {
+    await ctx.db.insert("sites", {
+      domain: "reaperscans.com",
+      title: "Reaper Scans",
+      link: "https://reaperscans.com",
+      icon: "",
+      slugPattern: "/series/:slug/:chapter",
+      chapterInUrl: true,
+      caseSensitive: false,
+      configVersion: 1,
+    });
+  });
+}
+
+const reaperPage = (number: number, slug = "solo-leveling", title = "Solo Leveling") => ({
+  domain: "reaperscans.com",
+  url: `https://reaperscans.com/series/${slug}/${number}`,
+  slug,
+  title,
+  chapter: { number, label: `Chapter ${number}` },
+});
+
+describe("Is it one of these?", () => {
+  test("a title already on another website asks first, and saves nothing", async () => {
+    const { t, me, chapterPage } = await setup();
+    await addReaper(t);
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+
+    const result = await me.mutation(api.reading.addFromPage, { page: reaperPage(7) });
+    expect(result).toMatchObject({
+      action: "choose",
+      candidates: [{ title: "Solo Leveling", sites: ["Asura Scans"], progressKey: "reading", latestChapter: 5 }],
+    });
+    const sources = await t.run(async (ctx) => await ctx.db.query("mangaSources").collect());
+    expect(sources).toHaveLength(1);
+  });
+
+  test("picking one links the website to it, and it stays on its page", async () => {
+    const { t, me, chapterPage } = await setup();
+    await addReaper(t);
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5), progressKey: "paused" });
+    const ask = await me.mutation(api.reading.addFromPage, { page: reaperPage(7) });
+    const mangaId = ask.action === "choose" ? ask.candidates[0].mangaId : undefined;
+
+    const result = await me.mutation(api.reading.addFromPage, { page: reaperPage(7), choice: mangaId });
+    expect(result.action).toBe("noop");
+    expect(await me.query(api.reading.pageState, { page: reaperPage(7) })).toMatchObject({
+      inLibrary: true,
+      progressKey: "paused",
+    });
+    const sources = await t.run(async (ctx) => await ctx.db.query("mangaSources").collect());
+    expect(sources.map((s) => s.slug)).toEqual(["solo-leveling", "solo-leveling"]);
+  });
+
+  test("a close title asks, and picking it saves the title as another name", async () => {
+    const { t, me, chapterPage } = await setup();
+    await addReaper(t);
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    const page = reaperPage(7, "solo-leveling-manhwa", "Solo Leveling Manhwa");
+
+    const ask = await me.mutation(api.reading.addFromPage, { page });
+    expect(ask.action).toBe("choose");
+    const mangaId = ask.action === "choose" ? ask.candidates[0].mangaId : undefined;
+    await me.mutation(api.reading.addFromPage, { page, choice: mangaId });
+
+    const manga = await t.run(async (ctx) => (await ctx.db.query("mangas").collect())[0]);
+    expect(manga.altTitles).toEqual(["Solo Leveling Manhwa"]);
+    // Add Manga finds it by that name too.
+    const found = await me.query(api.catalogue.search, { text: "manhwa" });
+    expect(found.map((r) => r.manga.title)).toEqual(["Solo Leveling"]);
+  });
+
+  test("another name is matched later, on any website", async () => {
+    const { t, me, chapterPage } = await setup();
+    await addReaper(t);
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    const renamed = reaperPage(7, "only-i-level-up", "Only I Level Up");
+    // Not close at all: a new manga, unless you pick one. Here Kollect
+    // can't know, so it adds a new one.
+    const first = await me.mutation(api.reading.addFromPage, { page: renamed });
+    expect(first.action).toBe("created");
+
+    // Someone ties the two names together by picking.
+    await t.run(async (ctx) => {
+      const solo = (await ctx.db.query("mangas").collect()).find((m) => m.title === "Solo Leveling")!;
+      await ctx.db.patch(solo._id, { altTitles: ["Only I Level Up"] });
+      await ctx.db.insert("mangaAltTitles", { mangaId: solo._id, normalizedTitle: "only i level up" });
+    });
+    const ask = await me.mutation(api.reading.addFromPage, {
+      page: { ...chapterPage(1), slug: "only-i-level-up", title: "Only I Level Up" },
+    });
+    expect(ask.action).toBe("choose");
+    const titles = ask.action === "choose" ? ask.candidates.map((c) => c.title).sort() : [];
+    expect(titles).toEqual(["Only I Level Up", "Solo Leveling"]);
+  });
+
+  test("No, it's new makes a separate manga with the same title", async () => {
+    const { t, me, chapterPage } = await setup();
+    await addReaper(t);
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    const result = await me.mutation(api.reading.addFromPage, { page: reaperPage(7), choice: "new" });
+    expect(result.action).toBe("created");
+    const mangas = await t.run(async (ctx) => await ctx.db.query("mangas").collect());
+    expect(mangas.map((m) => m.title)).toEqual(["Solo Leveling", "Solo Leveling"]);
+  });
+
+  test("the same title at a different address on the same website asks", async () => {
+    const { me, chapterPage } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    const result = await me.mutation(api.reading.addFromPage, { page: chapterPage(1, { slug: "solo-leveling-2" }) });
+    expect(result.action).toBe("choose");
+  });
+
+  test("a title nothing like any other is added without asking", async () => {
+    const { me, chapterPage } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    const result = await me.mutation(api.reading.addFromPage, {
+      page: chapterPage(1, { slug: "tower-of-god", title: "Tower of God" }),
+    });
+    expect(result.action).toBe("created");
+  });
+});
+
+describe("private manga", () => {
+  const flame = {
+    domain: "flamecomics.xyz",
+    url: "https://flamecomics.xyz/series/omniscient-reader/3",
+    slug: "omniscient-reader",
+    title: "Omniscient Reader",
+    chapter: { number: 3, label: "Chapter 3" },
+  };
+
+  test("are left out of other people's Add Manga search until they're on a built-in website", async () => {
+    const { t, me, chapterPage } = await setup();
+    await me.mutation(api.reading.addFromPage, {
+      page: flame,
+      newSite: { title: "Flame", slugPattern: "/series/:slug/:chapter" },
+    });
+    const other = t.withIdentity({ tokenIdentifier: "test|other", name: "Other" });
+    await other.mutation(api.users.createUser, {});
+
+    expect((await me.query(api.catalogue.search, { text: "omniscient" })).map((r) => r.status)).toEqual(["reading"]);
+    expect(await other.query(api.catalogue.search, { text: "omniscient" })).toEqual([]);
+
+    // Someone adds it from a built-in website and picks the same manga.
+    const page = chapterPage(3, { slug: "omniscient-reader", title: "Omniscient Reader" });
+    const ask = await other.mutation(api.reading.addFromPage, { page });
+    const mangaId = ask.action === "choose" ? ask.candidates[0].mangaId : undefined;
+    await other.mutation(api.reading.addFromPage, { page, choice: mangaId });
+
+    const third = t.withIdentity({ tokenIdentifier: "test|third", name: "Third" });
+    await third.mutation(api.users.createUser, {});
+    expect((await third.query(api.catalogue.search, { text: "omniscient" })).map((r) => r.manga.title)).toEqual([
+      "Omniscient Reader",
+    ]);
+  });
+});
+
+describe("matching while you read", () => {
+  async function readingOnTwoSites() {
+    const s = await setup();
+    await addReaper(s.t);
+    await s.me.mutation(api.reading.addFromPage, { page: s.chapterPage(5) });
+    await s.me.mutation(api.reading.recordProgress, { page: s.chapterPage(5), percentage: 100 });
+    return s;
+  }
+
+  test("an exact title in your library is tracked on another website, with a note the first time", async () => {
+    const { me, entry } = await readingOnTwoSites();
+    const first = await me.mutation(api.reading.recordProgress, { page: reaperPage(12), percentage: 100 });
+    expect(first).toEqual({ tracked: true, counted: true, matched: { title: "Solo Leveling" } });
+    expect((await entry())!.currentChapterNumber).toBe(12);
+
+    const next = await me.mutation(api.reading.recordProgress, { page: reaperPage(13), percentage: 100 });
+    expect(next).toEqual({ tracked: true, counted: true });
+  });
+
+  test("no note on the website you added it from", async () => {
+    const { me, chapterPage } = await readingOnTwoSites();
+    const result = await me.mutation(api.reading.recordProgress, { page: chapterPage(6), percentage: 100 });
+    expect(result).toEqual({ tracked: true, counted: true });
+  });
+
+  test("each person gets the note the first time, even if someone else made the link", async () => {
+    const { t, me } = await readingOnTwoSites();
+    await me.mutation(api.reading.recordProgress, { page: reaperPage(12), percentage: 100 });
+
+    const other = t.withIdentity({ tokenIdentifier: "test|other", name: "Other" });
+    await other.mutation(api.users.createUser, {});
+    const manga = await t.run(async (ctx) => (await ctx.db.query("mangas").collect())[0]);
+    await other.mutation(api.library.addManga, { mangaId: manga._id, progressKey: "reading" });
+
+    const result = await other.mutation(api.reading.recordProgress, { page: reaperPage(3), percentage: 100 });
+    expect(result).toMatchObject({ tracked: true, matched: { title: "Solo Leveling" } });
+  });
+
+  test("Not this manga? takes back what was saved, for you only", async () => {
+    const { t, me, entry, history } = await readingOnTwoSites();
+    await me.mutation(api.reading.recordProgress, { page: reaperPage(12), percentage: 100 });
+    await me.mutation(api.reading.recordProgress, { page: reaperPage(13), percentage: 100 });
+    expect(await history()).toEqual([5, 12]);
+
+    expect(await me.mutation(api.reading.rejectMatch, { page: reaperPage(13) })).toBe(true);
+    const after = (await entry())!;
+    expect(after).toMatchObject({ currentChapterNumber: 5, currentPercentage: 100 });
+    expect(await history()).toEqual([]);
+    const reaper = await t.run(async (ctx) => (await ctx.db.query("sites").collect()).find((s) => s.domain === "reaperscans.com")!);
+    expect(after.readSiteIds).not.toContain(reaper._id);
+
+    // Not tracked there any more, for you.
+    expect(await me.mutation(api.reading.recordProgress, { page: reaperPage(14), percentage: 100 })).toEqual({
+      tracked: false,
+    });
+    expect((await me.query(api.reading.pageState, { page: reaperPage(14) }))!.inLibrary).toBe(false);
+
+    // Everyone else keeps the link.
+    const other = t.withIdentity({ tokenIdentifier: "test|other", name: "Other" });
+    await other.mutation(api.users.createUser, {});
+    const manga = await t.run(async (ctx) => (await ctx.db.query("mangas").collect())[0]);
+    await other.mutation(api.library.addManga, { mangaId: manga._id, progressKey: "reading" });
+    expect(await other.mutation(api.reading.recordProgress, { page: reaperPage(3), percentage: 100 })).toMatchObject({
+      tracked: true,
+    });
+  });
+
+  test("after Not this manga?, Add leaves that manga out, and your pick is only yours", async () => {
+    const { t, me } = await readingOnTwoSites();
+    await me.mutation(api.reading.recordProgress, { page: reaperPage(12), percentage: 100 });
+    await me.mutation(api.reading.rejectMatch, { page: reaperPage(12) });
+
+    const result = await me.mutation(api.reading.addFromPage, { page: reaperPage(12) });
+    expect(result.action).toBe("created");
+    expect(await me.mutation(api.reading.recordProgress, { page: reaperPage(13), percentage: 100 })).toEqual({
+      tracked: true,
+      counted: true,
+    });
+    const [original, mine] = await t.run(async (ctx) => await ctx.db.query("userMangas").collect());
+    expect(original.currentChapterNumber).toBe(5);
+    expect(mine.currentChapterNumber).toBe(13);
+
+    // The shared link still points at the original.
+    const sources = await t.run(async (ctx) => await ctx.db.query("mangaSources").collect());
+    expect(sources.filter((s) => s.slug === "solo-leveling")).toHaveLength(2);
+    expect(new Set(sources.map((s) => s.mangaId)).size).toBe(1);
+  });
+
+  test("a title that's only close isn't tracked without asking", async () => {
+    const { me } = await readingOnTwoSites();
+    const result = await me.mutation(api.reading.recordProgress, {
+      page: reaperPage(12, "solo-leveling-manhwa", "Solo Leveling Manhwa"),
+      percentage: 100,
+    });
+    expect(result).toEqual({ tracked: false });
+  });
+});
+
+describe("clicking a card", () => {
+  const link = async (me: ReturnType<ReturnType<typeof convexTest>["withIdentity"]>, t: ReturnType<typeof convexTest>) => {
+    const row = await t.run(async (ctx) => (await ctx.db.query("userMangas").collect())[0]);
+    return await me.query(api.library.cardLink, { userMangaId: row._id });
+  };
+
+  test("opens the chapter you're on", async () => {
+    const { t, me, chapterPage } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    await me.mutation(api.reading.recordProgress, { page: chapterPage(5), percentage: 100 });
+    expect(await link(me, t)).toBe(`https://${SITE}/comics/solo-leveling/chapter/5`);
+  });
+
+  test("without one, opens the series page on the website you added it from", async () => {
+    const { t, me, chapterPage } = await setup();
+    await addReaper(t);
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    // Also on another website, which you didn't add it from.
+    const manga = await t.run(async (ctx) => (await ctx.db.query("mangas").collect())[0]);
+    const reaper = await t.run(async (ctx) => (await ctx.db.query("sites").collect()).find((s) => s.domain === "reaperscans.com")!);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("mangaSources", { mangaId: manga._id, siteId: reaper._id, slug: "x", url: "https://reaperscans.com/series/x" });
+    });
+    expect(await link(me, t)).toBe(`https://${SITE}/comics/solo-leveling`);
+  });
+
+  test("otherwise a built-in website it's on, and in the trash too", async () => {
+    const { t, me, chapterPage } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("userSourceLinks").collect()) await ctx.db.delete(row._id);
+    });
+    const row = await t.run(async (ctx) => (await ctx.db.query("userMangas").collect())[0]);
+    await me.mutation(api.trash.softDelete, { userMangaId: row._id });
+    expect(await link(me, t)).toBe(`https://${SITE}/comics/solo-leveling`);
+  });
+
+  test("null when Kollect has no link", async () => {
+    const { t, me } = await setup();
+    await t.run(async (ctx) => {
+      const mangaId = await ctx.db.insert("mangas", {
+        title: "Imported", normalizedTitle: "imported", altTitles: [], image: "", type: "other", authors: [], tags: [],
+      });
+      const user = (await ctx.db.query("users").collect())[0];
+      await ctx.db.insert("userMangas", {
+        userId: user._id, mangaId, addedAt: 0, progressKey: "reading", tagIds: [], isDeleted: false,
+      });
+    });
+    expect(await link(me, t)).toBeNull();
   });
 });

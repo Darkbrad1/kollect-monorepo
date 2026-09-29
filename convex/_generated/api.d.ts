@@ -16,6 +16,7 @@ import type * as lib_catalogue from "../lib/catalogue.js";
 import type * as lib_constants from "../lib/constants.js";
 import type * as lib_filters from "../lib/filters.js";
 import type * as lib_library from "../lib/library.js";
+import type * as lib_matching from "../lib/matching.js";
 import type * as lib_pageMatch from "../lib/pageMatch.js";
 import type * as lib_pageRead from "../lib/pageRead.js";
 import type * as lib_pages from "../lib/pages.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   "lib/constants": typeof lib_constants;
   "lib/filters": typeof lib_filters;
   "lib/library": typeof lib_library;
+  "lib/matching": typeof lib_matching;
   "lib/pageMatch": typeof lib_pageMatch;
   "lib/pageRead": typeof lib_pageRead;
   "lib/pages": typeof lib_pages;

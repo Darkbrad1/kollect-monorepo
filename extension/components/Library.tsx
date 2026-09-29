@@ -5,7 +5,7 @@ import { matchesAllFilters, toFilterable } from "../../convex/lib/filters"
 import { sortMangas } from "../../convex/lib/sort"
 import { api } from "../../convex/_generated/api"
 import type { Doc, Id } from "../../convex/_generated/dataModel"
-import { useM, useQ } from "~lib/data"
+import { useM, useOnce, useQ } from "~lib/data"
 import { daysAgo, daysLeft } from "~lib/format"
 import { PAGE_ICONS, PROGRESS_PAGES, TRASH_ICON } from "~lib/pages"
 
@@ -58,6 +58,21 @@ export function Library({
   const searchData = useQ(api.pages.searchLibrary, searching ? { text } : "skip")
   const siteList = useQ(api.sites.list, {})
   const hardDelete = useM(api.trash.hardDelete)
+  const once = useOnce()
+  const [note, setNote] = useState<string | null>(null)
+
+  /** Opens a card's manga: the chapter you're on, or the series page on a
+      website (see library:cardLink). Says so when Kollect has no link. */
+  const openCard = async (item: GridItem) => {
+    try {
+      const url = await once(api.library.cardLink, { userMangaId: item.userManga._id })
+      if (url) return openLink(url)
+      setNote("Kollect doesn't have a link for this manga yet. Open it from its website and press Add.")
+    } catch (error) {
+      setNote(error instanceof Error ? error.message : String(error))
+    }
+    window.setTimeout(() => setNote(null), 4000)
+  }
 
   const [menu, setMenu] = useState<{ id: Id<"userMangas">; anchor: DOMRect } | null>(null)
   const [confirm, setConfirm] = useState<GridItem | null>(null)
@@ -140,10 +155,7 @@ export function Library({
               }
               menuOpen={menu?.id === item.userManga._id}
               onMenu={(anchor) => setMenu({ id: item.userManga._id, anchor })}
-              onOpen={() => {
-                const link = item.userManga.currentChapterUrl
-                if (link && !inTrash) openLink(link)
-              }}
+              onOpen={() => void openCard(item)}
             />
           )
         }}
@@ -175,6 +187,14 @@ export function Library({
             setConfirm(null)
           }}
         />
+      )}
+
+      {note && (
+        <div
+          role="status"
+          className="fixed bottom-4 left-1/2 z-50 max-w-[360px] -translate-x-1/2 rounded-lg bg-surface px-3 py-2 text-xs leading-4 shadow-pop">
+          {note}
+        </div>
       )}
     </>
   )

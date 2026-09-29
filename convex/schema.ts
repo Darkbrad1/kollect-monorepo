@@ -176,6 +176,8 @@ export default defineSchema({
     // lowercased, punctuation stripped, whitespace collapsed.
     // This is what scraped titles get matched against.
     normalizedTitle: v.string(),
+    // Other names it's known by. Titles saved from pages are also in
+    // mangaAltTitles, so matching can look them up.
     altTitles: v.array(v.string()),
 
     image: v.string(),
@@ -203,6 +205,16 @@ export default defineSchema({
       searchField: "normalizedTitle",
     }),
 
+  // One row per alternative title saved from a page, normalized, so
+  // matching and Add Manga can look them up (an index can't look inside
+  // mangas.altTitles, which is an array).
+  mangaAltTitles: defineTable({
+    mangaId: v.id("mangas"),
+    normalizedTitle: v.string(),
+  })
+    .index("by_normalizedTitle", ["normalizedTitle"])
+    .searchIndex("search_title", { searchField: "normalizedTitle" }),
+
   // Replaces the old mangas.sites array — Convex can't index
   // inside an array, so "which manga is this URL?" would have
   // been a full scan on every page load.
@@ -222,6 +234,40 @@ export default defineSchema({
   })
     .index("by_manga", ["mangaId"])
     .index("by_site_slug", ["siteId", "slug"]), // THE lookup
+
+  // One user's own link between a series on a website and a manga.
+  // mangaSources is shared by everyone; this row is only this user's, and
+  // wins over it. It records:
+  // - that you added the manga from this website, or that Kollect matched
+  //   it by title while you read (so the "matched" note shows only once);
+  // - "Not this manga?": mangaId goes null and the manga is remembered in
+  //   rejectedMangaIds, so it isn't matched for you here again;
+  // - the manga you picked instead, when the shared link points elsewhere.
+  userSourceLinks: defineTable({
+    userId: v.id("users"),
+    siteId: v.id("sites"),
+    // The series' slug on the site, or "title:<normalized title>" on
+    // sites whose addresses don't name the series.
+    key: v.string(),
+    mangaId: v.union(v.id("mangas"), v.null()),
+    rejectedMangaIds: v.array(v.id("mangas")),
+    how: v.union(v.literal("added"), v.literal("matched")),
+    linkedAt: v.number(),
+    // For a title match: your progress just before it, so "Not this
+    // manga?" can put it back. Cleared once used.
+    before: v.optional(
+      v.object({
+        currentChapterNumber: v.optional(v.number()),
+        currentChapterLabel: v.optional(v.string()),
+        currentChapterUrl: v.optional(v.string()),
+        currentSiteId: v.optional(v.id("sites")),
+        currentPercentage: v.optional(v.number()),
+        lastReadAt: v.optional(v.number()),
+      }),
+    ),
+  })
+    .index("by_user_site_key", ["userId", "siteId", "key"])
+    .index("by_user", ["userId"]),
 
   sites: defineTable({
     domain: v.string(), // "asurascans.com" — matched against tabs
