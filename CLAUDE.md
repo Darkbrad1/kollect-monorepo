@@ -159,3 +159,11 @@ These were settled with me, so don't reopen them without asking.
 - **Brand:** the logo green is `#0DCF87` (`brand` in Tailwind). It's used for the logo and the signed-out screen, and doesn't change with the theme. The logo is traced as an SVG in `components/Logo.tsx`; the extension icon (`extension/assets/icon.png`) is made from it.
 - **Signed-out screen:** a picture of the app on the left; the logo, "Kollect and save your favourite manga's", **Sign In** and **Sign Up** on the right. Both buttons open the sign-in website (`/sign-in` and `/sign-up`).
 - **The latest chapter** for each manga is stored on the manga itself, refreshed by page visits and a weekly job.
+- **Details from MangaDex** (`convex/mangadex.ts`, `convex/lib/mangadex.ts`):
+  - Each manga is looked up when it's first added to the shared list, and again by a weekly job (Sunday 03:00 UTC), which also covers older manga.
+  - It's found by searching its title and taking the first result. The admin can relink one by hand with `mangadex:lookup` and a `mangadexId`.
+  - The MangaDex cover always replaces the website's.
+  - Alternative titles saved: English, ones in the Latin alphabet (like "Na Honjaman Level Up"), and the original-language title.
+  - Its latest chapter counts like one more website: the highest number wins.
+  - Its series status is used when no reading website has given one; a website's status wins.
+  - Still to build: a "Find on MangaDex" item in the card menu to search and pick the entry by hand (details being settled), and a "Details from MangaDex" credit link in the card's Details panel.

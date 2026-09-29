@@ -285,14 +285,21 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 - Settings are only imported with All Settings.
 - Manga the app doesn't recognise are skipped and listed in the import report.
 
+### Details from MangaDex
+
+When a manga is first added to the shared list, and every Sunday for all manga, Kollect looks it up on [MangaDex](https://mangadex.org) (`convex/mangadex.ts`). It takes the first search result and saves its cover (replacing the website's), its English, Latin-alphabet and original-language titles as alternative titles, its latest chapter (counted like one more website, so the highest number wins) and its series status (only when no reading website gave one). The lookups are spaced out to stay under MangaDex's limit of about 5 requests a second. The code that reads MangaDex's answers is in `convex/lib/mangadex.ts`, with tests.
+
 ### Scheduled jobs
 
 | When | What |
 |---|---|
+| Every Sunday, 03:00 UTC | Look every manga up on MangaDex again (cover, titles, latest chapter, status). |
 | Every Sunday, 04:00 UTC | Refresh each manga's latest chapter number. |
 | Every day, 05:00 UTC | Permanently delete trash that has passed its "Clear Trash Time". Skipped for anyone who has Auto Clear Trash turned off. |
 
 ## What's not built yet
+
+- **Picking a MangaDex entry by hand.** Kollect links each manga to the first MangaDex search result (`convex/mangadex.ts`). A card-menu button to search MangaDex and pick the right entry, and a "Details from MangaDex" credit in the Details panel, are still to come. Until then, relink one with `pnpm --filter app exec convex run mangadex:lookup '{"mangaId": "<id>", "mangadexId": "<id>"}'`.
 
 Ideas saved for later are listed in CLAUDE.md under "For the future".
 

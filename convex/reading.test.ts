@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -737,5 +737,43 @@ describe("clicking a card", () => {
       });
     });
     expect(await link(me, t)).toBeNull();
+  });
+});
+
+describe("details from MangaDex", () => {
+  test("replace the cover, add titles, and count its latest chapter and status", async () => {
+    const { t, me, chapterPage } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5, { latestChapter: 150 }) });
+    const manga = await t.run(async (ctx) => (await ctx.db.query("mangas").collect())[0]);
+
+    await t.mutation(internal.mangadex.apply, {
+      mangaId: manga._id,
+      mangadexId: "32d76d19",
+      altTitles: ["Solo Leveling", "Only I Level Up"],
+      cover: "https://uploads.mangadex.org/covers/32d76d19/cover.jpg.512.jpg",
+      status: "completed",
+      latestChapter: 200,
+    });
+    const after = await t.run(async (ctx) => (await ctx.db.get(manga._id))!);
+    expect(after).toMatchObject({
+      image: "https://uploads.mangadex.org/covers/32d76d19/cover.jpg.512.jpg",
+      altTitles: ["Only I Level Up"],
+      status: "completed",
+      statusSource: "mangadex",
+      latestChapter: 200,
+      mangadexId: "32d76d19",
+    });
+
+    // A reading website's status wins over MangaDex's.
+    await me.mutation(api.reading.recordProgress, { page: chapterPage(6, { status: "ongoing" }), percentage: 10 });
+    expect(await t.run(async (ctx) => (await ctx.db.get(manga._id))!.status)).toBe("ongoing");
+  });
+
+  test("a lower MangaDex latest chapter doesn't pull the figure down", async () => {
+    const { t, me, chapterPage } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5, { latestChapter: 150 }) });
+    const manga = await t.run(async (ctx) => (await ctx.db.query("mangas").collect())[0]);
+    await t.mutation(internal.mangadex.apply, { mangaId: manga._id, mangadexId: "x", altTitles: [], latestChapter: 20 });
+    expect(await t.run(async (ctx) => (await ctx.db.get(manga._id))!.latestChapter)).toBe(150);
   });
 });

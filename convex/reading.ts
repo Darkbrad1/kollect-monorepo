@@ -1,10 +1,11 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { getCurrentUser, requireSettings, requireUser } from "./lib/auth";
-import { refreshMangaLatest } from "./lib/catalogue";
+import { addAltTitle, refreshMangaLatest } from "./lib/catalogue";
 import { addToLibrary, recordHistory } from "./lib/library";
-import { compareTitle, namesOf } from "./lib/matching";
+import { compareTitle } from "./lib/matching";
 import { setProgressPage } from "./lib/pages";
 import { siteForDomain } from "./lib/sites";
 import { favouriteTag, addTagTo } from "./lib/tags";
@@ -199,16 +200,9 @@ async function createManga(ctx: MutationCtx, page: PageInfo): Promise<Doc<"manga
     authors: [],
     tags: [],
   });
+  // Fill in the cover, other titles and latest chapter from MangaDex.
+  await ctx.scheduler.runAfter(0, internal.mangadex.lookup, { mangaId });
   return (await ctx.db.get(mangaId))!;
-}
-
-/** Saves a title as another name for the manga, unless it already has it. */
-async function addAltTitle(ctx: MutationCtx, manga: Doc<"mangas">, title: string): Promise<void> {
-  const clean = title.trim();
-  const normalized = normalizeTitle(clean);
-  if (normalized === "" || namesOf(manga).includes(normalized)) return;
-  await ctx.db.patch(manga._id, { altTitles: [...manga.altTitles, clean] });
-  await ctx.db.insert("mangaAltTitles", { mangaId: manga._id, normalizedTitle: normalized });
 }
 
 /**
@@ -245,7 +239,10 @@ async function noteSource(
 
   const fresh = (await ctx.db.get(manga._id))!;
   const patch: Partial<Doc<"mangas">> = {};
-  if (page.status !== undefined && page.status !== fresh.status) patch.status = page.status;
+  if (page.status !== undefined && (page.status !== fresh.status || fresh.statusSource === "mangadex")) {
+    patch.status = page.status;
+    patch.statusSource = "site";
+  }
   if (fresh.image === "" && page.image) patch.image = page.image;
   if (Object.keys(patch).length > 0) await ctx.db.patch(manga._id, patch);
 }

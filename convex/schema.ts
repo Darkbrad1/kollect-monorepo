@@ -195,6 +195,11 @@ export default defineSchema({
     // "hiatus" here means the publisher stopped; the user-side
     // equivalent is the "paused" page.
     status: v.optional(mangaStatus),
+    // Where status came from: a reading website's page, or MangaDex. A
+    // website's wins. Missing on older rows, which count as "site".
+    statusSource: v.optional(v.union(v.literal("site"), v.literal("mangadex"))),
+    // The MangaDex entry this manga is linked to (convex/mangadex.ts).
+    mangadexId: v.optional(v.string()),
     year: v.optional(v.number()),
     tags: v.array(v.string()),
   })
