@@ -226,25 +226,50 @@ How adding a manga from a reading website works today, and the gaps to settle. T
 
 ❓ **Q1** - **When the "we matched this" note shows**: In round 3 you chose that reading tracks an exact title match on another website without asking, and a note on screen says so. After the first match, Kollect remembers this website's address for that manga, so every later chapter there matches by address.
 
-- [ ] (a) Only the first time, when Kollect links this website to the manga.
+- [x] (a) Only the first time, when Kollect links this website to the manga.
 - [ ] (b) Every time you open a chapter of it on this website.
 
 ➡️ (a). After the first time you already know, and a note on every chapter gets in the way of reading.
+
+**Answer:** (a) Only the first time, when Kollect links this website to the manga.
 
 ---
 
 ❓ **Q2** - **Undoing a wrong match**: Two different series called "Reborn" would still get matched. The note could let you undo it.
 
 - [ ] (a) The note only tells you. There's no undo.
-- [ ] (b) The note has a "Not this manga?" button. It removes the link to this website and the chapter it just saved, and stops tracking here. You can then press Add, which asks "Is it one of these?" as agreed.
+- [x] (b) The note has a "Not this manga?" button. It removes the link to this website and the chapter it just saved, and stops tracking here. You can then press Add, which asks "Is it one of these?" as agreed.
 
 ➡️ (b). Without it, a wrong match keeps saving chapters to the wrong manga, and you can't fix it from the extension.
+
+**Answer:** (b) A "Not this manga?" button on the note undoes the match.
 
 ---
 
 ❓ **Q3** - **Own titles: now or later?**: In round 3 Q3 you ticked (a) and (c). I read that as: for now you fix typos from the Convex dashboard, and "anyone can give a manga their own title" goes under "For the future" in `CLAUDE.md`.
 
-- [ ] (a) Yes. Dashboard now, own titles later.
+- [x] (a) Yes. Dashboard now, own titles later.
 - [ ] (b) Build own titles now, as part of this work.
 
 ➡️ (a). This work already covers a lot, and own titles change every card, so they deserve their own round of questions.
+
+**Answer:** (a) Dashboard now. Your own titles go under "For the future".
+
+## Round 5
+
+❓ **Q1** - **"The first time" for whom?**: The link between a website's address and a manga is shared by everyone. Say user A reads "Reborn" on a new website first, and Kollect links it. When user B later reads it there, Kollect matches it by address, so no link is made and, by the round 4 rule, B sees no note.
+
+- [ ] (a) The note shows only when Kollect makes the link, so only user A sees it.
+- [ ] (b) The note shows the first time each user reads that manga on that website, even if someone else made the link.
+
+➡️ (b). User B needs the note and the "Not this manga?" button as much as user A does.
+
+---
+
+❓ **Q2** - **What "Not this manga?" undoes when others use the link**: User B presses "Not this manga?", but user A has been reading the same series there, linked to that manga, for weeks.
+
+- [ ] (a) It removes the link for everyone.
+- [ ] (b) It stops tracking only for B. Kollect remembers B said no, and B presses Add to pick the right manga. The link stays for everyone else.
+- [ ] (c) It removes the link for everyone only if nobody else has read that manga on that website. Otherwise it works like (b).
+
+➡️ (c). One person can fix a fresh wrong match for everyone, but nobody can break tracking that someone else has been relying on.
