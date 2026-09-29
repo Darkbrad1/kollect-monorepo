@@ -34,10 +34,17 @@ Useful commands:
 
 ## Project skills
 
-Skills live in `.claude/skills/<name>/SKILL.md`. Both of these run only when typed:
+Skills live in `.claude/skills/<name>/SKILL.md`. The grilling skills come from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT licence, copied unchanged; see `.claude/skills/LICENSE-mattpocock-skills`).
 
-- `/grill-with-docs`: interviews me about a plan one round of questions at a time, writes settled terms into `CONTEXT.md` (a glossary) as they settle, and records hard-to-reverse decisions as ADRs in `docs/adr/`. Background in `.claude/skills/grill-with-docs/reference.md`.
-- `/unslop`: edits a piece of writing to remove AI-sounding patterns (filler, fancy words, em dashes and so on).
+- `/grill-with-docs` (only when typed): interviews me about a plan and writes the docs as it goes. It works by loading the two skills below, so keep all three.
+  - `grilling`: the interview. Questions come in numbered rounds, each with a recommended answer; it looks up facts itself and leaves decisions to me.
+  - `domain-modeling`: the paper trail. Settled terms go into `CONTEXT.md` (a glossary, format in `domain-modeling/CONTEXT-FORMAT.md`), and hard-to-reverse decisions become ADRs in `docs/adr/` (format in `domain-modeling/ADR-FORMAT.md`).
+  - Background in `.claude/skills/grill-with-docs/reference.md`. The `agents/openai.yaml` files are for other AI tools and don't affect Claude Code.
+- `/unslop` (only when typed): edits a piece of writing to remove AI-sounding patterns (filler, fancy words, em dashes and so on).
+
+## Known bugs to fix
+
+- **Clicking a card doesn't open the manga in a new tab.** The click is wired to the cover only (`components/MangaCard.tsx`) and opens the manga's current chapter link (`currentChapterUrl`, via `openLink` in `components/Library.tsx`). Many manga don't have one: anything added with the + button or from a series page, and anything not yet read past the Scroll Threshold, so the click silently does nothing. Needs fixing; what a card should open when there's no current chapter (for example the series page) is a product decision to ask about.
 
 ## Extension code conventions
 

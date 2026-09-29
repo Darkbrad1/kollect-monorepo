@@ -102,7 +102,7 @@ This removes their library, reading history, pages, tags, settings and any websi
 
 The repo has two skills for Claude Code, in `.claude/skills/`. Type the name to run one:
 
-- `/grill-with-docs` talks a plan through with you before building it, and keeps a glossary (`CONTEXT.md`) and decision records (`docs/adr/`) up to date as you go.
+- `/grill-with-docs` talks a plan through with you before building it, and keeps a glossary (`CONTEXT.md`) and decision records (`docs/adr/`) up to date as you go. It loads two helper skills, `grilling` and `domain-modeling`, which are in the same folder. All three come from [mattpocock/skills](https://github.com/mattpocock/skills).
 - `/unslop` tidies a piece of writing so it doesn't read like AI wrote it.
 
 To add your own, make a folder `.claude/skills/<name>/` with a `SKILL.md` in it: a short header (`name`, and a `description` of when to use it) and then the instructions.
@@ -284,6 +284,8 @@ Every step is safe to run twice, so an import that gets cut off can simply be st
 ## What's not built yet
 
 Ideas saved for later are listed in CLAUDE.md under "For the future".
+
+- **Bug: clicking a card doesn't open the manga.** It only opens the chapter you're on, and many manga don't have one yet (see "Known bugs to fix" in CLAUDE.md).
 
 - **Checking Asura Scans against the real site.** Its address (`asurascans.com/comics/<series>/chapter/<n>`) is checked, but the title still comes from the page's `og:title` tag, which hasn't been checked. It may also need selectors for the newest chapter and whether the series has ended.
 - **More built-in reading websites.** Only Asura Scans so far; others can be added by users for themselves. There's no screen yet to see, rename or remove the websites you've added.
