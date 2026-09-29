@@ -1,7 +1,7 @@
 import type { FunctionReturnType } from "convex/server"
 
 import type { api } from "../../convex/_generated/api"
-import type { Doc } from "../../convex/_generated/dataModel"
+import type { Doc, Id } from "../../convex/_generated/dataModel"
 import type { PageInfo } from "../../convex/lib/pageRead"
 import { PROGRESS_PAGES, type ProgressKey } from "~lib/pages"
 
@@ -11,6 +11,9 @@ import { PROGRESS_PAGES, type ProgressKey } from "~lib/pages"
 
 export type PageState = FunctionReturnType<typeof api.reading.pageState>
 export type AddResult = FunctionReturnType<typeof api.reading.addFromPage>
+/** What Add did, when it didn't stop to ask "Is it one of these?". */
+export type Added = Exclude<AddResult, { action: "choose" }>
+export type ProgressResult = FunctionReturnType<typeof api.reading.recordProgress>
 
 export type SettingsPatch = {
   scrollThreshold?: number
@@ -30,9 +33,13 @@ export type Request =
       newSite?: { title: string; slugPattern?: string; icon?: string }
       /** The chapter typed in the check box on a page Kollect can't read. */
       currentChapter?: { number: number; label: string }
+      /** The answer to "Is it one of these?": a manga, or a new one. */
+      choice?: Id<"mangas"> | "new"
     }
   | { type: "learn"; domain: string; slugPattern: string }
   | { type: "progress"; page: PageInfo; percentage: number }
+  /** "Not this manga?" on the note after a title match. */
+  | { type: "reject"; page: PageInfo }
   | { type: "settings"; patch: SettingsPatch }
 
 export type Response<R extends Request> = R extends { type: "sites" }
@@ -41,9 +48,11 @@ export type Response<R extends Request> = R extends { type: "sites" }
     ? PageState
     : R extends { type: "add" }
       ? AddResult
-      : R extends { type: "learn" }
+      : R extends { type: "learn" | "reject" }
         ? boolean
-        : void
+        : R extends { type: "progress" }
+          ? ProgressResult
+          : void
 
 /** Background → reading page: the right-click menu or the shortcut was
     used, so add the manga on this page. */
@@ -60,15 +69,26 @@ export async function ask<R extends Request>(request: R): Promise<Response<R>> {
   return reply.value
 }
 
-/** The note shown on the page after adding: "Added to Reading" and so on. */
+/** The note shown on the page after adding: "Added to Reading" and so
+    on, plus what happened to a chapter typed in the check box. */
 export function addedMessage(
-  action: AddResult["action"],
+  action: Added["action"],
   progressKey: ProgressKey | null,
-  favourite?: boolean
+  favourite?: boolean,
+  chapter?: Added["chapter"]
 ): string {
   const where = PROGRESS_PAGES.find((p) => p.key === progressKey)?.label ?? "your library"
-  if (favourite) return action === "created" ? `Added to ${where} and favourited` : "Favourited"
-  if (action === "created") return `Added to ${where}`
-  if (action === "restored") return `Restored to ${where}`
-  return `Already on ${where}`
+  const base = favourite
+    ? action === "created"
+      ? `Added to ${where} and favourited`
+      : "Favourited"
+    : action === "created"
+      ? `Added to ${where}`
+      : action === "restored"
+        ? `Restored to ${where}`
+        : `Already on ${where}`
+  if (!chapter) return base
+  if (chapter.result === "current") return `${base}. Now on chapter ${chapter.number}`
+  if (chapter.result === "history") return `${base}. Chapter ${chapter.number} saved to history`
+  return `${base}. Already on chapter ${chapter.number}`
 }

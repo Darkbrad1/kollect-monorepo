@@ -74,7 +74,8 @@ export const deleteUser = internalMutation({
       return `Removing ${user.name}: working through their library; it will finish by itself.`;
     }
 
-    // 2. Pages, tags and settings: a handful of rows each.
+    // 2. Pages, tags, settings and their own links to websites: a
+    //    handful of rows each.
     const pages = await ctx.db
       .query("userPages")
       .withIndex("by_user_order", (q) => q.eq("userId", userId))
@@ -87,7 +88,11 @@ export const deleteUser = internalMutation({
       .query("settings")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-    for (const doc of [...pages, ...tags, ...settings]) await ctx.db.delete(doc._id);
+    const links = await ctx.db
+      .query("userSourceLinks")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const doc of [...pages, ...tags, ...settings, ...links]) await ctx.db.delete(doc._id);
 
     // 3. Websites they added for themselves, and the manga links to them.
     const sites = (await ctx.db.query("sites").collect()).filter((s) => s.addedBy === userId);

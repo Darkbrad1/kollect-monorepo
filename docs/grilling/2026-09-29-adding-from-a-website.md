@@ -280,7 +280,7 @@ How adding a manga from a reading website works today, and the gaps to settle. T
 
 ## Settled
 
-Waiting for your confirmation before any of this is built.
+Confirmed and built: `convex/reading.ts`, `convex/lib/matching.ts`, `extension/contents/reader.tsx` and `extension/components/Overlay.tsx`, with tests in `convex/reading.test.ts` and `convex/lib/matching.test.ts`.
 
 - A title counts as close when one title contains the other, the two share most of their words, or it matches an alternative title.
 - Add asks "Is it one of these?" in the check box when the only match is by title from another website, or when titles are close. "No, it's new" creates a new manga.
@@ -296,6 +296,6 @@ Waiting for your confirmation before any of this is built.
 - On built-in websites, and own websites that learned their chapter addresses, Add on a page that isn't a manga says "This isn't a manga page" with an "Add anyway" link. Other websites open the check box.
 - Reading a manga on another website where the title exactly matches one in your library is tracked without asking. A note says Kollect matched it and is tracking it, the first time each user reads that manga on that website.
 - The note has a "Not this manga?" button. It stops tracking there for you only, removes the chapter it just saved, and remembers your answer. Everyone else keeps the link. You then press Add to pick the right manga.
-- Follows from the last point, to confirm: what you pick after "Not this manga?" applies only to you. Other users on that website still get the original manga.
+- What you pick after "Not this manga?" applies only to you. Other users on that website still get the original manga.
 
 No ADRs: none of these are hard to undo later.

@@ -3,7 +3,7 @@ import "../styles.css"
 import { useEffect, useMemo, useState } from "react"
 
 import { App } from "~components/App"
-import { AddSiteBox, Overlay, ProgressBar, Toast } from "~components/Overlay"
+import { AddSiteBox, ChooseBox, Overlay, ProgressBar, Toast, type Candidate } from "~components/Overlay"
 import { SignInScreen } from "~components/SignInScreen"
 import { SampleDataProvider } from "~lib/data"
 import type { ProgressKey } from "~lib/pages"
@@ -43,15 +43,22 @@ function PopupPreview() {
   )
 }
 
+/** Made-up answers for "Is it one of these?". */
+const SAMPLE_CANDIDATES: Candidate[] = [
+  { mangaId: "a", title: "Omniscient Reader", image: "", latestChapter: 245, sites: ["Asura Scans"], progressKey: "reading" },
+  { mangaId: "b", title: "Omniscient Reader's Viewpoint", image: "", latestChapter: 201, sites: ["Reaper Scans"], progressKey: null }
+]
+
 /**
  * A pretend chapter page with the overlay and progress bar on top. It
  * acts like a website Kollect doesn't know yet: the first Add opens the
- * "add this website" box.
+ * "add this website" box, then "Is it one of these?".
  */
 function ReadingPagePreview() {
   const [progressKey, setProgressKey] = useState<ProgressKey | undefined>(undefined)
   const [known, setKnown] = useState(false)
   const [adding, setAdding] = useState<ProgressKey | null>(null)
+  const [choosing, setChoosing] = useState<ProgressKey | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [showBar, setShowBar] = useState(true)
   const [threshold, setThreshold] = useState(80)
@@ -90,22 +97,38 @@ function ReadingPagePreview() {
         progressKey={progressKey}
         onPick={(key) => (known ? setProgressKey(key) : setAdding(key))}
         panel={
-          adding && (
+          adding ? (
             <AddSiteBox
               heading={`Add to ${adding[0].toUpperCase()}${adding.slice(1)}`}
               draft={{ siteName: "Flame Comics", title: "Omniscient Reader", chapter: 201 }}
               pattern="/series/:slug/:chapter"
               askSite
               onConfirm={() => {
-                setKnown(true)
-                setProgressKey(adding)
+                setChoosing(adding)
                 setAdding(null)
-                setToast(`Added to ${adding[0].toUpperCase()}${adding.slice(1)}`)
-                window.setTimeout(() => setToast(null), 3000)
               }}
               onCancel={() => setAdding(null)}
             />
-          )
+          ) : choosing ? (
+            <ChooseBox
+              candidates={SAMPLE_CANDIDATES}
+              onPick={() => {
+                setKnown(true)
+                setProgressKey("reading")
+                setChoosing(null)
+                setToast("Already on Reading")
+                window.setTimeout(() => setToast(null), 3000)
+              }}
+              onNew={() => {
+                setKnown(true)
+                setProgressKey(choosing)
+                setChoosing(null)
+                setToast(`Added to ${choosing[0].toUpperCase()}${choosing.slice(1)}`)
+                window.setTimeout(() => setToast(null), 3000)
+              }}
+              onCancel={() => setChoosing(null)}
+            />
+          ) : null
         }
         showProgressBar={showBar}
         onShowProgressBar={setShowBar}

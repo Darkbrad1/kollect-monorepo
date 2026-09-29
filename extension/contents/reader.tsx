@@ -2,7 +2,7 @@ import cssText from "data-text:~styles.css"
 import type { PlasmoCSConfig } from "plasmo"
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import type { Doc } from "../../convex/_generated/dataModel"
+import type { Doc, Id } from "../../convex/_generated/dataModel"
 import { labelledChapterNumber } from "../../convex/lib/pageMatch"
 import {
   cleanTitle,
@@ -13,8 +13,15 @@ import {
   type PageInfo,
   type PageSource
 } from "../../convex/lib/pageRead"
-import { AddSiteBox, Overlay, ProgressBar, Toast, type NewSiteDraft } from "~components/Overlay"
-import { addedMessage, ask, type PageState, type SettingsPatch, type TabMessage } from "~lib/messages"
+import { AddSiteBox, ChooseBox, Overlay, ProgressBar, Toast, type Candidate, type NewSiteDraft } from "~components/Overlay"
+import {
+  addedMessage,
+  ask,
+  type PageState,
+  type Request,
+  type SettingsPatch,
+  type TabMessage
+} from "~lib/messages"
 import { PROGRESS_PAGES, type ProgressKey } from "~lib/pages"
 import { FALLBACK_THEME, themeStyle } from "~lib/theme"
 
@@ -126,6 +133,14 @@ function pageBasics(site?: Doc<"sites">): { page: PageInfo; siteName: string; ch
   }
 }
 
+type AddRequest = Extract<Request, { type: "add" }>
+
+/** A note beside the Kollect button. One with a button stays until it's used or closed. */
+type Note = { message: string; error?: boolean; action?: { label: string; run: () => void } }
+
+/** "Is it one of these?" while it's open: the Add to send again with the answer. */
+type Choosing = { request: AddRequest; candidates: Candidate[]; reloadSites: boolean }
+
 /** The check box's contents while it's open. */
 type Adding = {
   progressKey: ProgressKey
@@ -146,7 +161,8 @@ export default function Reader() {
   const [state, setState] = useState<PageState | undefined>(undefined)
   const [percent, setPercent] = useState(scrolledPercent)
   const [adding, setAdding] = useState<Adding | null>(null)
-  const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null)
+  const [choosing, setChoosing] = useState<Choosing | null>(null)
+  const [toast, setToast] = useState<Note | null>(null)
 
   // The newest values, for listeners set up once.
   const readingRef = useRef(reading)
@@ -160,6 +176,7 @@ export default function Reader() {
     window.setTimeout(() => setToast((t) => (t?.message === message ? null : t)), 3000)
   }, [])
   const sayError = useCallback((error: unknown) => say(error instanceof Error ? error.message : String(error), true), [say])
+  const note = useCallback((message: string, action: Note["action"]) => setToast({ message, action }), [])
 
   const loadSites = useCallback(async () => {
     try {
@@ -189,6 +206,7 @@ export default function Reader() {
     const timer = window.setTimeout(() => {
       setReading(readThisPage(sites))
       setAdding(null)
+      setChoosing(null)
       setPercent(scrolledPercent())
     }, 500)
     return () => window.clearTimeout(timer)
@@ -213,6 +231,7 @@ export default function Reader() {
   /* ── progress (only on sites Kollect knows) ── */
 
   const lastSent = useRef<{ url: string; percent: number } | null>(null)
+  const rejectRef = useRef<(page: PageInfo) => void>(() => {})
 
   const send = useCallback((force = false) => {
     const current = readingRef.current
@@ -229,8 +248,19 @@ export default function Reader() {
       if (!crossed && now < last + 5 && !(now === 100 && last < 100)) return
     }
     lastSent.current = { url: current.page.url, percent: now }
-    void ask({ type: "progress", page: current.page, percentage: now }).catch(() => {})
-  }, [])
+    const page = current.page
+    ask({ type: "progress", page, percentage: now })
+      .then((result) => {
+        // Matched by title to a manga in your library, the first time on this website.
+        if (result.matched) {
+          note(`Matched to ${result.matched.title} in your library. Kollect is tracking it here.`, {
+            label: "Not this manga?",
+            run: () => rejectRef.current(page)
+          })
+        }
+      })
+      .catch(() => {})
+  }, [note])
 
   useEffect(() => {
     const onScroll = () => setPercent(scrolledPercent())
@@ -252,6 +282,50 @@ export default function Reader() {
 
   /* ── adding ── */
 
+  /** Sends an Add. If Kollect needs you to say which manga it is, opens
+      "Is it one of these?" instead, which sends it again with the answer. */
+  const runAdd = useCallback(
+    async (request: AddRequest, reloadSites: boolean) => {
+      try {
+        const result = await ask(request)
+        setAdding(null)
+        if (result.action === "choose") {
+          setChoosing({ request, candidates: result.candidates, reloadSites })
+          return
+        }
+        setChoosing(null)
+        // The website may be new: reload the list so this page is tracked.
+        if (reloadSites) await loadSites()
+        await refresh()
+        const where = stateRef.current?.progressKey ?? request.progressKey ?? "reading"
+        const moved = result.action === "noop" && request.progressKey !== undefined && !result.chapter
+        say(
+          moved
+            ? `Moved to ${label(request.progressKey!)}`
+            : addedMessage(result.action, where, request.favourite, result.chapter)
+        )
+        send(true)
+      } catch (error) {
+        sayError(error)
+      }
+    },
+    [loadSites, refresh, say, sayError, send]
+  )
+
+  /** Opens the check box on a page Kollect can't read: it fills in what it can, you check the rest. */
+  const openCheckBox = useCallback((site: Doc<"sites"> | undefined, progressKey: ProgressKey, favourite?: boolean) => {
+    const basics = pageBasics(site)
+    setChoosing(null)
+    setAdding({
+      progressKey,
+      favourite,
+      page: basics.page,
+      draft: { siteName: basics.siteName, title: basics.page.title, chapter: basics.chapter },
+      newSite: site === undefined,
+      icon: basics.icon
+    })
+  }, [])
+
   /** Add To <page> in the menu, the right-click menu, or the shortcut. */
   const add = useCallback(
     async (opts: { progressKey?: ProgressKey; favourite?: boolean }) => {
@@ -260,6 +334,7 @@ export default function Reader() {
       if (current.kind === "new") {
         // A website Kollect doesn't know: check what it found first.
         const { guess } = current
+        setChoosing(null)
         setAdding({
           progressKey,
           favourite: opts.favourite,
@@ -272,31 +347,26 @@ export default function Reader() {
         return
       }
       if (current.kind === "none") {
-        // A page Kollect can't read: fill in what it can, you check the rest.
-        const basics = pageBasics(current.site)
-        setAdding({
-          progressKey,
-          favourite: opts.favourite,
-          page: basics.page,
-          draft: { siteName: basics.siteName, title: basics.page.title, chapter: basics.chapter },
-          newSite: current.site === undefined,
-          icon: basics.icon
-        })
+        // On a website where Kollect knows the address shapes, this page
+        // isn't a series or chapter. "Add anyway" is for when it's wrong.
+        const site = current.site
+        if (site?.slugPattern !== undefined) {
+          note("This isn't a manga page. Open a series or a chapter, then press Add.", {
+            label: "Add anyway",
+            run: () => {
+              setToast(null)
+              openCheckBox(site, progressKey, opts.favourite)
+            }
+          })
+          return
+        }
+        openCheckBox(site, progressKey, opts.favourite)
         return
       }
       const known = current.kind === "known" ? current.page : current.guess.page
-      try {
-        const { action } = await ask({ type: "add", page: known, ...opts })
-        await refresh()
-        const where = stateRef.current?.progressKey ?? opts.progressKey ?? null
-        const moved = action === "noop" && opts.progressKey !== undefined
-        say(moved ? `Moved to ${label(opts.progressKey!)}` : addedMessage(action, where, opts.favourite))
-        send(true)
-      } catch (error) {
-        sayError(error)
-      }
+      await runAdd({ type: "add", page: known, progressKey: opts.progressKey, favourite: opts.favourite }, false)
     },
-    [refresh, say, sayError, send]
+    [note, openCheckBox, runAdd]
   )
 
   /** "Add" in the check box. */
@@ -304,8 +374,8 @@ export default function Reader() {
     if (!adding) return
     const { page: base, progressKey, favourite, pattern, newSite, icon } = adding
     const typed = draft.chapter !== undefined ? { number: draft.chapter, label: `Chapter ${draft.chapter}` } : undefined
-    try {
-      const { action } = await ask({
+    await runAdd(
+      {
         type: "add",
         // With a learned pattern, tracking takes over from here; without
         // one, the chapter you typed becomes your current chapter.
@@ -314,14 +384,20 @@ export default function Reader() {
         favourite,
         newSite: newSite ? { title: draft.siteName, slugPattern: pattern, icon } : undefined,
         currentChapter: pattern ? undefined : typed
+      },
+      true
+    )
+  }
+
+  /** "Not this manga?" on the note after a title match. */
+  rejectRef.current = (page: PageInfo) => {
+    setToast(null)
+    ask({ type: "reject", page })
+      .then(async () => {
+        await refresh()
+        say("Kollect stopped tracking it here. Press Add to pick the right manga.")
       })
-      setAdding(null)
-      say(addedMessage(action, progressKey, favourite))
-      // The website may be new: reload the list so this page is tracked.
-      await loadSites()
-    } catch (error) {
-      sayError(error)
-    }
+      .catch(sayError)
   }
 
   // A chapter page on a website you added from a page where Kollect
@@ -376,9 +452,18 @@ export default function Reader() {
   }
 
   // Signed out, or still loading: nothing to show.
-  if (!state) return toast ? <Toast {...toast} /> : null
+  const noteView = toast && (
+    <Toast
+      message={toast.message}
+      error={toast.error}
+      action={toast.action}
+      onClose={toast.action ? () => setToast(null) : undefined}
+    />
+  )
 
-  const addBox = adding && (
+  if (!state) return noteView || null
+
+  const panel = adding ? (
     <AddSiteBox
       heading={`Add to ${label(adding.progressKey)}${adding.favourite ? " and favourite" : ""}`}
       draft={adding.draft}
@@ -387,23 +472,32 @@ export default function Reader() {
       onConfirm={(draft) => void addChecked(draft)}
       onCancel={() => setAdding(null)}
     />
-  )
+  ) : choosing ? (
+    <ChooseBox
+      candidates={choosing.candidates}
+      onPick={(mangaId) =>
+        void runAdd({ ...choosing.request, choice: mangaId as Id<"mangas"> }, choosing.reloadSites)
+      }
+      onNew={() => void runAdd({ ...choosing.request, choice: "new" }, choosing.reloadSites)}
+      onCancel={() => setChoosing(null)}
+    />
+  ) : null
 
   return (
     <div style={themeStyle(state.settings.theme ?? FALLBACK_THEME)}>
       {state.settings.showProgressBar && page?.chapter && <ProgressBar percent={percent} />}
-      {state.settings.showButton || adding ? (
+      {state.settings.showButton || panel ? (
         <Overlay
           progressKey={state.progressKey ?? undefined}
           onPick={(key) => void add({ progressKey: key })}
-          panel={addBox}
+          panel={panel}
           showProgressBar={state.settings.showProgressBar}
           onShowProgressBar={(on) => changeSettings({ hasPercentageBar: on })}
           scrollThreshold={state.settings.scrollThreshold}
           onScrollThreshold={(value) => changeSettings({ scrollThreshold: value })}
         />
       ) : null}
-      {toast && <Toast {...toast} />}
+      {noteView}
     </div>
   )
 }

@@ -44,7 +44,8 @@ async function handle(request: Request): Promise<unknown> {
         progressKey: request.progressKey,
         favourite: request.favourite,
         newSite: request.newSite,
-        currentChapter: request.currentChapter
+        currentChapter: request.currentChapter,
+        choice: request.choice
       })
     case "learn":
       return await client.mutation(api.reading.learnSitePattern, {
@@ -52,11 +53,12 @@ async function handle(request: Request): Promise<unknown> {
         slugPattern: request.slugPattern
       })
     case "progress":
-      await client.mutation(api.reading.recordProgress, {
+      return await client.mutation(api.reading.recordProgress, {
         page: request.page,
         percentage: request.percentage
       })
-      return
+    case "reject":
+      return await client.mutation(api.reading.rejectMatch, { page: request.page })
     case "settings":
       await client.mutation(api.settings.updateSettings, request.patch)
       return

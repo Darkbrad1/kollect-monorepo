@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 
+import { RiCloseLine } from "~lib/icons"
 import type { ProgressKey } from "~lib/pages"
 import { PAGE_ICONS, PROGRESS_PAGES } from "~lib/pages"
 
@@ -129,16 +130,129 @@ export function ProgressBar({ percent }: { percent: number }) {
   )
 }
 
-/** A short note beside the Kollect button, like "Added to Reading". */
-export function Toast({ message, error }: { message: string; error?: boolean }) {
+/**
+ * A short note beside the Kollect button, like "Added to Reading". A note
+ * with a button ("Not this manga?", "Add anyway") also has a close
+ * button, and stays until one of them is used.
+ */
+export function Toast({
+  message,
+  error,
+  action,
+  onClose
+}: {
+  message: string
+  error?: boolean
+  action?: { label: string; run: () => void }
+  onClose?: () => void
+}) {
   return (
     <div
       role="status"
       className={cx(
-        "fixed bottom-3.5 left-[54px] z-[2147483647] flex h-8 max-w-[320px] items-center rounded-lg px-3 font-sans text-xs shadow-pop",
+        "fixed bottom-3.5 left-[54px] z-[2147483647] flex min-h-8 max-w-[320px] items-center gap-2 rounded-lg px-3 py-1.5 font-sans text-xs leading-4 shadow-pop",
         error ? "bg-danger text-white" : "bg-surface text-fg"
       )}>
-      {message}
+      <span>{message}</span>
+      {action && (
+        <button
+          type="button"
+          onClick={action.run}
+          className="h-6 shrink-0 whitespace-nowrap rounded-md bg-primary px-2 font-semibold text-on-primary">
+          {action.label}
+        </button>
+      )}
+      {onClose && (
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted hover:bg-raised">
+          <RiCloseLine size={14} />
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** One choice in "Is it one of these?". */
+export type Candidate = {
+  mangaId: string
+  title: string
+  image: string
+  latestChapter: number | null
+  sites: string[]
+  /** The page it's on in your library, or null if you don't have it. */
+  progressKey: ProgressKey | null
+}
+
+/**
+ * "Is it one of these?": shown on Add when manga with the same or a close
+ * title are already in Kollect, and the address doesn't say which one
+ * this is. Pick one, or add it as a new manga.
+ */
+export function ChooseBox({
+  candidates,
+  onPick,
+  onNew,
+  onCancel
+}: {
+  candidates: Candidate[]
+  onPick: (mangaId: string) => void
+  onNew: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-label="Is it one of these?"
+      onKeyDown={(e) => {
+        e.stopPropagation()
+        if (e.key === "Escape") onCancel()
+      }}
+      className="w-[280px] rounded-lg bg-surface p-3 text-xs shadow-pop">
+      <p className="text-[13px] font-bold">Is it one of these?</p>
+      <p className="mt-1 text-2xs leading-4 text-muted">
+        Kollect already has manga with this title or a close one. Pick the one you're reading, or add it as new.
+      </p>
+      <div className="mt-2.5 flex max-h-[260px] flex-col gap-1 overflow-y-auto">
+        {candidates.map((c) => {
+          const page = PROGRESS_PAGES.find((p) => p.key === c.progressKey)
+          const details = [c.latestChapter !== null ? `Ch. ${c.latestChapter}` : null, c.sites.join(", ") || null]
+            .filter(Boolean)
+            .join(" · ")
+          return (
+            <button
+              key={c.mangaId}
+              type="button"
+              onClick={() => onPick(c.mangaId)}
+              className="flex w-full items-center gap-2 rounded-md p-1 text-left hover:bg-raised">
+              {c.image ? (
+                <img src={c.image} alt="" className="h-11 w-8 shrink-0 rounded object-cover" />
+              ) : (
+                <div className="h-11 w-8 shrink-0 rounded bg-raised" />
+              )}
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="truncate font-semibold">{c.title}</span>
+                {details && <span className="truncate text-2xs text-muted">{details}</span>}
+                {page && (
+                  <span className="w-fit rounded bg-primary px-1.5 text-2xs font-semibold text-on-primary">
+                    On {page.label}
+                  </span>
+                )}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <div className="mt-3 flex justify-end gap-1.5">
+        <button type="button" onClick={onCancel} className="h-7 rounded-md px-3 hover:bg-raised">
+          Cancel
+        </button>
+        <button type="button" onClick={onNew} className="h-7 rounded-md bg-primary px-3 font-semibold text-on-primary">
+          No, it's new
+        </button>
+      </div>
     </div>
   )
 }
