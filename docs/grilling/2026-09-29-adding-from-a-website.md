@@ -85,77 +85,77 @@ How adding a manga from a reading website works today, and the gaps to settle. T
 
 ## Round 2
 
-❓ **Q1** - **What counts as a "close" title?**: From round 1, the check box asks "Is it one of these?" when titles are close. Kollect needs a rule for "close".
+❓ **Q1** - **What counts as a "close" title?**: In round 1 you chose that the check box asks "Is it one of these?" when titles are close. Kollect needs a rule for what "close" means.
 
-- [ ] (a) One title contains the other ("Solo Leveling" and "Solo Leveling (Manhwa)").
-- [ ] (b) (a), or the titles share most of their words ("The Hero Cannot Rest" and "Hero Cannot Rest Anymore").
-- [ ] (c) (b), and also check each manga's other known titles (alternative titles), not just the main one.
+- [ ] (a) One title contains the other. For example, "Solo Leveling" and "Solo Leveling Manhwa".
+- [ ] (b) Same as (a), or the two titles share most of their words. For example, "The Hero Cannot Rest" and "Hero Cannot Rest Anymore".
+- [ ] (c) Same as (b), and Kollect also checks each manga's alternative titles, the other names it's known by.
 
-➡️ (c). Alternative titles are how "Only I Level Up" can ever find "Solo Leveling". (b) alone would miss every translated title.
+➡️ (c). Alternative titles are the only way "Only I Level Up" can find "Solo Leveling". With (b) alone, Kollect misses every translated title.
 
 ---
 
-❓ **Q2** - **What each choice in "Is it one of these?" shows**: Two series called "Reborn" look the same by name, so each choice needs something to tell them apart.
+❓ **Q2** - **What each choice in "Is it one of these?" shows**: Two series called "Reborn" have the same name, so each choice needs something that tells them apart.
 
 - [ ] (a) Title only.
 - [ ] (b) Cover, title and latest chapter.
 - [ ] (c) Cover, title, latest chapter, and the websites it's on.
 
-➡️ (c). The cover and the websites are what tell two "Reborn"s apart at a glance.
+➡️ (c). You can tell two "Reborn"s apart by their covers and their websites.
 
 ---
 
-❓ **Q3** - **Remember the answer**: You pick "Solo Leveling" when adding "Only I Level Up". Kollect already remembers this website's address for it, so this website never asks again. Should the title "Only I Level Up" also be saved as another name for "Solo Leveling", so other websites and other users match it without asking?
+❓ **Q3** - **Remember the answer**: You add "Only I Level Up" and pick "Solo Leveling" from the list. Kollect already remembers this website's address for it, so this website won't ask again. Should Kollect also save "Only I Level Up" as another name for "Solo Leveling"? Then other websites and other users match it without the question.
 
-- [ ] (a) No, only remember this website's address.
-- [ ] (b) Yes, always save the title as another name.
-- [ ] (c) Yes, but only when it comes from a built-in website. A title from an own website isn't saved, so a typo there doesn't reach anyone else.
+- [ ] (a) No. Kollect only remembers this website's address.
+- [ ] (b) Yes. Kollect always saves the title as another name.
+- [ ] (c) Yes, but only when the title comes from a built-in website. Kollect doesn't save titles from own websites, so a typo there stays yours.
 
 ➡️ (c). It fits your round 1 answer that own websites stay private.
 
 ---
 
-❓ **Q4** - **Same title, same website, different address**: You add "Reborn" on a website where Kollect already has a "Reborn" at a different address. Today Kollect assumes the website moved the series to a new address and links them without asking.
+❓ **Q4** - **Same title, same website, different address**: You add "Reborn" on a website where Kollect already has a "Reborn" at a different address. Today Kollect assumes the website moved the series to a new address, and it links the two without asking.
 
-- [ ] (a) Keep it: treat it as the same manga at a new address.
-- [ ] (b) Ask with the check box, like a title match from another website.
+- [ ] (a) Keep it. Kollect treats it as the same manga at a new address.
+- [ ] (b) The check box asks, the same way as for a title match from another website.
 
-➡️ (b). A website moving a series and a website having two series with one name look the same to Kollect, and only you can tell them apart. It's rare, so the extra question costs little.
+➡️ (b). Kollect can't tell a moved series from two series with the same name. You can. This case is rare, so the extra question costs little.
 
 ---
 
-❓ **Q5** - **Where private manga are hidden**: I'm calling a manga that's only on own websites a "private manga". From round 1, other people don't see it in Add Manga. Two more places could show it: the "Is it one of these?" list, and matching when someone else adds the same title from their own copy of the same website.
+❓ **Q5** - **Where private manga are hidden**: I'm calling a manga that's only on own websites a "private manga". In round 1 you chose to hide it from other people's Add Manga search. Two other places could still show it. One is the "Is it one of these?" list. The other is matching. Say another user adds a website you also added, and then adds the same title there. Kollect could link them to your private manga.
 
 - [ ] (a) Hide it only from the Add Manga search.
-- [ ] (b) Hide it everywhere for other people. If they add the same title from their own website, they get their own private manga.
+- [ ] (b) Hide it from other people everywhere. If they add the same title from their own website, Kollect makes them their own private manga.
 
-➡️ (b). Otherwise your typed title would show up on someone else's card. The cost is that two users could each have their own private copy of one series for a while.
+➡️ (b). With (a), the title you typed would show on someone else's card. The cost is that two users could each have a private copy of the same series for a while.
 
 ---
 
-❓ **Q6** - **When a private manga goes public**: Someone adds "Solo Leveling" from a built-in website, and it matches your private manga, which you titled "solo lvling". It now shows for everyone. Which title does it keep?
+❓ **Q6** - **When a private manga goes public**: You have a private manga you titled "solo lvling". Someone adds "Solo Leveling" from a built-in website, Kollect matches it to yours, and now everyone sees it. Which title does it keep?
 
 - [ ] (a) Yours stays the main title.
-- [ ] (b) The built-in website's title becomes the main title. Yours is kept as another name.
-- [ ] (c) The built-in website's title replaces yours, and yours is dropped.
+- [ ] (b) The built-in website's title becomes the main title. Kollect keeps yours as another name.
+- [ ] (c) The built-in website's title replaces yours, and Kollect drops yours.
 
-➡️ (b). Built-in websites have checked rules, so their title is more likely right, and keeping yours as another name means your search still finds it.
-
----
-
-❓ **Q7** - **Telling you what happened to the typed chapter**: From round 1, a typed chapter can become current or go into your reading history. After Add, the note beside the Kollect button says "Added to Reading" or "Already on Reading". Should it also say what happened to the chapter?
-
-- [ ] (a) No, keep the note as it is.
-- [ ] (b) Yes, for example "Already on Reading. Now on chapter 55" or "Already on Reading. Chapter 30 saved to history".
-
-➡️ (b). Round 1 said nothing should change without you knowing, and this is where you'd look.
+➡️ (b). Someone checked the built-in website's rules, so its title is more likely right. Kollect keeps yours as another name, so your searches still find it.
 
 ---
 
-❓ **Q8** - **Which websites count as "known" for the "This isn't a manga page" message**: Kollect can only say "this isn't a manga page" on websites where it knows the address shapes. I checked the code: on a website whose chapter addresses look like `/solo-leveling-chapter-12`, Kollect can't recognise the series page (`/solo-leveling`), so that page would be called "not a manga page" too. Also, your own websites that haven't learned their chapter addresses yet can't tell anything apart.
+❓ **Q7** - **Telling you what happened to the typed chapter**: In round 1 you chose that a typed chapter either becomes current or goes into your reading history. After Add, a note next to the Kollect button says "Added to Reading" or "Already on Reading". Should the note also say what happened to the chapter?
+
+- [ ] (a) No. The note stays as it is.
+- [ ] (b) Yes. For example, "Already on Reading. Now on chapter 55" or "Already on Reading. Chapter 30 saved to history".
+
+➡️ (b). In round 1 you said nothing should change without you knowing. This note is where you'd look.
+
+---
+
+❓ **Q8** - **Which websites count as "known" for the "This isn't a manga page" message**: Kollect can only say "this isn't a manga page" on websites where it knows what the addresses look like. I checked the code and found two problems. First, some websites have chapter addresses like `/solo-leveling-chapter-12`. There, Kollect can't recognise the series page `/solo-leveling`, so it would call that page "not a manga page" too. Second, an own website that hasn't learned its chapter addresses can't tell any of its pages apart.
 
 - [ ] (a) Built-in websites only. Every own website keeps the check box.
-- [ ] (b) Built-in websites and own websites that have learned their chapter addresses.
-- [ ] (c) Like (b), and the message has an "Add anyway" link that opens the check box, in case Kollect is wrong (for example after a website redesign).
+- [ ] (b) Built-in websites, plus own websites that have learned their chapter addresses.
+- [ ] (c) Same as (b), and the message has an "Add anyway" link that opens the check box.
 
-➡️ (c). The message stops the "Asura Scans - Home" mistake, and "Add anyway" covers the series pages Kollect can't recognise and any wrong guess after a website redesign.
+➡️ (c). The message stops mistakes like saving "Asura Scans - Home" as a manga. "Add anyway" still lets you add from series pages Kollect can't recognise, and from any page it gets wrong after a website changes its design.
