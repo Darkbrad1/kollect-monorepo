@@ -35,11 +35,12 @@ Useful commands:
 
 ## Project skills
 
-Skills live in `.claude/skills/<name>/SKILL.md`. The grilling skills come from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT licence; see `.claude/skills/LICENSE-mattpocock-skills`). They were copied unchanged, except that `grill-with-docs` (its `SKILL.md` description and `reference.md`) was rewritten to follow `unslop`.
+Skills live in `.claude/skills/<name>/SKILL.md`. The grilling skills come from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT licence; see `.claude/skills/LICENSE-mattpocock-skills`). They were copied unchanged, except for `grill-with-docs`: its `SKILL.md` description and `reference.md` were rewritten to follow `unslop`, and its `SKILL.md` adds the session notes file.
 
 - `/grill-with-docs` (only when typed): interviews me about a plan and writes the docs as it goes. It works by loading the two skills below, so keep all three.
   - `grilling`: the interview. Questions come in numbered rounds, each with a recommended answer; it looks up facts itself and leaves decisions to me.
   - `domain-modeling`: the paper trail. Settled terms go into `CONTEXT.md` (a glossary, format in `domain-modeling/CONTEXT-FORMAT.md`), and hard-to-reverse decisions become ADRs in `docs/adr/` (format in `domain-modeling/ADR-FORMAT.md`).
+  - Session notes: each session is also written to a Markdown file in `docs/grilling/` (questions, my answers, and what was settled), so I can copy it into Obsidian.
   - Background in `.claude/skills/grill-with-docs/reference.md`. The `agents/openai.yaml` files are for other AI tools and don't affect Claude Code.
 - `unslop` (always on): the writing rules for everything Claude writes here (no filler, fancy words, em dashes and so on). "How to work with me" above makes it apply all the time; `/unslop` also runs it on a piece of text you give it.
 

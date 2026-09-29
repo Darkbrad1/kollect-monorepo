@@ -102,7 +102,7 @@ This removes their library, reading history, pages, tags, settings and any websi
 
 The repo has two skills for Claude Code, in `.claude/skills/`. Type the name to run one:
 
-- `/grill-with-docs` talks a plan through with you before building it, and keeps a glossary (`CONTEXT.md`) and decision records (`docs/adr/`) up to date as you go. It loads two helper skills, `grilling` and `domain-modeling`, which are in the same folder. All three come from [mattpocock/skills](https://github.com/mattpocock/skills).
+- `/grill-with-docs` talks a plan through with you before building it, and keeps a glossary (`CONTEXT.md`) and decision records (`docs/adr/`) up to date as you go. It also saves each session as a Markdown file in `docs/grilling/`, which you can copy into Obsidian or another notes app. It loads two helper skills, `grilling` and `domain-modeling`, which are in the same folder. All three come from [mattpocock/skills](https://github.com/mattpocock/skills); `grill-with-docs` has been edited since.
 - `unslop` keeps writing from reading like AI wrote it. It's always on: CLAUDE.md tells Claude to follow it in everything it writes. You can also type `/unslop` to run it on a piece of text.
 
 To add your own, make a folder `.claude/skills/<name>/` with a `SKILL.md` in it: a short header (`name`, and a `description` of when to use it) and then the instructions.
