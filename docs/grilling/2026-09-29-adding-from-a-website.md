@@ -155,7 +155,7 @@ How adding a manga from a reading website works today, and the gaps to settle. T
 ❓ **Q8** - **Which websites count as "known" for the "This isn't a manga page" message**: Kollect can only say "this isn't a manga page" on websites where it knows the address shapes. I checked the code: on a website whose chapter addresses look like `/solo-leveling-chapter-12`, Kollect can't recognise the series page (`/solo-leveling`), so that page would be called "not a manga page" too. Also, your own websites that haven't learned their chapter addresses yet can't tell anything apart.
 
 - [ ] (a) Built-in websites only. Every own website keeps the check box.
-- [ ] (b) Built-in websites and own websites that have learned their chapter addresses. On a series page Kollect can't recognise, the check box opens instead of the message.
+- [ ] (b) Built-in websites and own websites that have learned their chapter addresses.
 - [ ] (c) Like (b), and the message has an "Add anyway" link that opens the check box, in case Kollect is wrong (for example after a website redesign).
 
-➡️ (c). The message stops the "Asura Scans - Home" mistake, and "Add anyway" means a wrong guess by Kollect never blocks you.
+➡️ (c). The message stops the "Asura Scans - Home" mistake, and "Add anyway" covers the series pages Kollect can't recognise and any wrong guess after a website redesign.
