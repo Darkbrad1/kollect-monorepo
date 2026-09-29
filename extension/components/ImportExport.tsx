@@ -170,7 +170,7 @@ export function ImportExport() {
                     ["Already Had", status.report.alreadyInLibrary]
                   ].map(([label, n]) => (
                     <div key={label} className="rounded-lg bg-raised py-2">
-                      <dd className="text-base font-bold">{n}</dd>
+                      <dd className="text-base font-bold text-white">{n}</dd>
                       <dt className="text-2xs text-muted">{label}</dt>
                     </div>
                   ))}
