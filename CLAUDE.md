@@ -25,7 +25,7 @@ Useful commands:
 - `pnpm dev:convex`: pushes the schema and functions to Convex, typechecks them, and regenerates `convex/_generated`. It runs inside `app/`, where the Convex project settings live.
 - `pnpm dev:app`: runs the sign-in web app on port 3000
 - `pnpm dev:extension`: runs the extension in development (Chrome)
-- `pnpm dev:firefox`: the same for Firefox. Builds into `extension/build/firefox-mv2-dev` and opens Firefox with Kollect loaded, using `web-ext` (Mozilla's tool). Firefox keeps its own profile in `extension/.firefox-profile`, so your login survives between runs.
+- `pnpm dev:firefox`: the same for Firefox. Builds into `extension/build/firefox-mv2-dev` and opens Firefox with Kollect loaded, using `web-ext` (Mozilla's tool). Firefox keeps its own profile in `extension/.firefox-profile`, so your login survives between runs. It finds Firefox, Firefox Developer Edition or Nightly in the usual places; set `FIREFOX_BINARY` to use another.
 - `pnpm --filter extension build:firefox`: a Firefox release package (`extension/build/*.zip`). `pnpm --filter extension sign:firefox` gets it signed by Mozilla as a `.xpi` that normal Firefox can install for good; it needs `WEB_EXT_API_KEY` and `WEB_EXT_API_SECRET` from addons.mozilla.org.
 - `pnpm users`: lists everyone with an account (id, name, how many manga, websites they added)
 - `pnpm --filter app exec convex run admin:deleteUser '{"userId": "<id>"}'`: removes a user and everything of theirs (library, history, pages, tags, settings, websites they added). Shared manga stay. It doesn't delete their Clerk login. Both commands can also be run from the Convex dashboard's Functions page.

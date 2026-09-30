@@ -11,12 +11,52 @@
 //
 // The Firefox build uses Manifest V2: Firefox grants website access when
 // the extension is installed, instead of asking on every site.
+//
+// Which Firefox: the one in FIREFOX_BINARY if set, otherwise the first
+// found of Firefox, Firefox Developer Edition and Firefox Nightly in the
+// usual places. If none is found it says so and stops.
 import { spawn } from "node:child_process"
 import { existsSync, mkdirSync } from "node:fs"
+import { homedir } from "node:os"
+import { join } from "node:path"
 
 const BUILD = "build/firefox-mv2-dev"
 const PROFILE = ".firefox-profile"
 const onWindows = process.platform === "win32"
+
+function findFirefox() {
+  if (process.env.FIREFOX_BINARY) return process.env.FIREFOX_BINARY
+  const apps = ["Firefox", "Firefox Developer Edition", "Firefox Nightly"]
+  const candidates =
+    process.platform === "darwin"
+      ? ["/Applications", join(homedir(), "Applications")].flatMap((dir) =>
+          apps.map((app) => join(dir, `${app}.app`, "Contents", "MacOS", "firefox"))
+        )
+      : onWindows
+        ? ["Mozilla Firefox", "Firefox Developer Edition", "Firefox Nightly"].flatMap((app) =>
+            [process.env.ProgramFiles, process.env["ProgramFiles(x86)"]]
+              .filter(Boolean)
+              .map((dir) => join(dir, app, "firefox.exe"))
+          )
+        : ["/usr/bin/firefox", "/usr/bin/firefox-developer-edition", "/snap/bin/firefox"]
+  return candidates.find((path) => existsSync(path))
+}
+
+const firefox = findFirefox()
+if (!firefox || !existsSync(firefox)) {
+  console.error(
+    [
+      "",
+      "Kollect couldn't find Firefox on this computer.",
+      "Install it from https://www.mozilla.org/firefox/ (Firefox Developer Edition works too),",
+      "or, if it's somewhere unusual, say where and run this again:",
+      "",
+      '  FIREFOX_BINARY="/path/to/Firefox.app/Contents/MacOS/firefox" pnpm dev:firefox',
+      ""
+    ].join("\n")
+  )
+  process.exit(1)
+}
 
 const children = []
 function run(command, args) {
@@ -47,6 +87,7 @@ const waiting = setInterval(() => {
     "run",
     "--source-dir", BUILD,
     "--target", "firefox-desktop",
+    "--firefox", firefox,
     "--firefox-profile", PROFILE,
     "--profile-create-if-missing",
     "--keep-profile-changes",
