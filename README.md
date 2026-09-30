@@ -247,7 +247,7 @@ The filter matching lives in `convex/lib/filters.ts`. It's plain code with no da
 
 A page's filters and sort are saved on the page with `pages:setFilters` and `pages:setSort`. "Clear All" saves an empty list.
 
-A manga has to pass *every* filter on the page. "Between" includes both ends. A manga with no value for a field (for example, one you haven't started) doesn't match filters on that field.
+A manga has to pass *every* filter on the page. "Between" includes both ends. A manga with no value for a field (for example, one you haven't started) doesn't match filters on that field. Progress is the exception: it's there to find exactly those.
 
 The sorting rules live in `convex/lib/sort.ts`, also plain code the extension can use. Call `sortMangas` with the page's items, its sort rows, and a map of site names (from `sites:list`) for the Sources option.
 
