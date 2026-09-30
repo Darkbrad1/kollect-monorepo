@@ -89,7 +89,13 @@ function stop(code) {
 process.on("SIGINT", () => stop(0))
 process.on("SIGTERM", () => stop(0))
 
-run("plasmo", ["dev", "--target=firefox-mv2"])
+// --no-cs-reload: Plasmo's live reload opens a connection to localhost
+// from the reading-page script. Firefox (and Zen) apply a website's
+// security rules to it, and on sites that forbid it (atsu.moe, for one)
+// the error stops the whole script, so the Kollect button and progress
+// bar never appear. Without it, web-ext still reloads the extension when
+// the build changes; refresh an open reading page to see the change.
+run("plasmo", ["dev", "--target=firefox-mv2", "--no-cs-reload"])
 
 // Wait for the first build before opening Firefox.
 const waiting = setInterval(() => {
