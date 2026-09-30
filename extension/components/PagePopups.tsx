@@ -33,6 +33,7 @@ function PopupShell({
   onClear,
   onAdd,
   addDisabled,
+  error,
   children
 }: {
   count: number
@@ -41,6 +42,8 @@ function PopupShell({
   onClear: () => void
   onAdd: () => void
   addDisabled?: boolean
+  /** Why the last save failed, shown so a change never vanishes silently. */
+  error?: string | null
   children: ReactNode
 }) {
   return (
@@ -56,6 +59,7 @@ function PopupShell({
           {addLabel}
         </Button>
       </div>
+      {error && <p className="mt-2 text-xs text-danger">Couldn't save: {error}</p>}
       <p className="mt-2 text-xs font-bold text-muted">{noun.toLowerCase()}s</p>
       <div className="k-scroll mt-1.5 flex max-h-[360px] flex-col gap-1.5 overflow-y-auto">
         {count === 0 ? (
@@ -68,19 +72,30 @@ function PopupShell({
   )
 }
 
-/** Saves the latest value once edits pause. */
-function useAutosave<T>(value: T, save: (value: T) => void, ms = 350) {
+/** Saves the latest value once edits pause. Returns why the last save
+    failed, or null. */
+function useAutosave<T>(value: T, save: (value: T) => Promise<unknown>, ms = 350): string | null {
   const first = useRef(true)
   const saveRef = useRef(save)
   saveRef.current = save
+  const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     if (first.current) {
       first.current = false
       return
     }
-    const id = window.setTimeout(() => saveRef.current(value), ms)
+    const id = window.setTimeout(() => {
+      saveRef.current(value).then(
+        () => setError(null),
+        (e: unknown) => {
+          console.warn("[Kollect] Saving failed:", e)
+          setError(e instanceof Error ? e.message.split("\n")[0] : String(e))
+        }
+      )
+    }, ms)
     return () => window.clearTimeout(id)
   }, [value, ms])
+  return error
 }
 
 function DeleteRow({ onClick }: { onClick: () => void }) {
@@ -213,7 +228,7 @@ export function FilterPopup({ page }: { page: Doc<"userPages"> }) {
   const setFilters = useM(api.pages.setFilters)
   const [rules, setRules] = useState<FilterRule[]>(page.filters)
 
-  useAutosave(rules, (filters) => void setFilters({ pageId: page._id, filters }))
+  const error = useAutosave(rules, (filters) => setFilters({ pageId: page._id, filters }))
 
   const update = (i: number, rule: FilterRule) =>
     setRules((all) => all.map((r, j) => (j === i ? rule : r)))
@@ -226,6 +241,7 @@ export function FilterPopup({ page }: { page: Doc<"userPages"> }) {
       count={rules.length}
       noun="Filter"
       addLabel="Add Filter"
+      error={error}
       onClear={() => setRules([])}
       onAdd={() => setRules((all) => [...all, defaultRule("lastReadChapter", sites, tags)!])}>
       {rules.map((rule, i) => (
@@ -300,7 +316,7 @@ export function SortPopup({ page }: { page: Doc<"userPages"> }) {
   const setSort = useM(api.pages.setSort)
   const [rules, setRules] = useState<SortRule[]>(page.sort)
 
-  useAutosave(rules, (sort) => void setSort({ pageId: page._id, sort }), 0)
+  const error = useAutosave(rules, (sort) => setSort({ pageId: page._id, sort }), 0)
 
   const used = new Set(rules.map((r) => r.field))
   const next = SORT_FIELDS.find((f) => !used.has(f.value))
@@ -312,6 +328,7 @@ export function SortPopup({ page }: { page: Doc<"userPages"> }) {
       count={rules.length}
       noun="Sort"
       addLabel="Add Sort"
+      error={error}
       addDisabled={!next}
       onClear={() => setRules([])}
       onAdd={() => next && setRules((all) => [...all, { field: next.value, direction: "desc" }])}>

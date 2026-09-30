@@ -891,3 +891,14 @@ describe("starting a manga by adding it from a chapter page", () => {
     expect((await entry())!.currentChapterNumber).toBe(40);
   });
 });
+
+describe("the Progress filter", () => {
+  test("is saved on the page and comes back", async () => {
+    const { me } = await setup();
+    const { pages } = (await me.query(api.users.me, {}))!;
+    const reading = pages.find((p) => p.systemKey === "reading")!;
+    await me.mutation(api.pages.setFilters, { pageId: reading._id, filters: [{ field: "progress", op: "notStarted" }] });
+    const { page } = await me.query(api.pages.mangasForPage, { pageId: reading._id });
+    expect(page.filters).toEqual([{ field: "progress", op: "notStarted" }]);
+  });
+});
