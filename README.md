@@ -81,7 +81,7 @@ Run the sign-in app (`pnpm dev:app`) and Convex (`pnpm dev:convex`) as usual, th
 pnpm dev:firefox
 ```
 
-You need Firefox installed. The command finds Firefox, Firefox Developer Edition or Firefox Nightly in your Applications folder (or the one in your home folder). If yours is somewhere else, point to it: `FIREFOX_BINARY="/path/to/Firefox.app/Contents/MacOS/firefox" pnpm dev:firefox`.
+You need Firefox installed. The command finds Firefox, Firefox Developer Edition, Firefox Nightly or Zen (a browser built on Firefox) in your Applications folder (or the one in your home folder). If yours is somewhere else, point to it: `FIREFOX_BINARY="/path/to/Firefox.app/Contents/MacOS/firefox" pnpm dev:firefox`.
 
 This builds the extension for Firefox and opens Firefox with Kollect already loaded, using `web-ext` (Mozilla's tool for running extensions). It opens the sign-in page first: sign in there once. Firefox keeps its own profile in `extension/.firefox-profile`, so you stay signed in next time. When you change the code, the extension reloads by itself.
 

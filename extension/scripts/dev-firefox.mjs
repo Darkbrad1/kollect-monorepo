@@ -12,9 +12,9 @@
 // The Firefox build uses Manifest V2: Firefox grants website access when
 // the extension is installed, instead of asking on every site.
 //
-// Which Firefox: the one in FIREFOX_BINARY if set, otherwise the first
-// found of Firefox, Firefox Developer Edition and Firefox Nightly in the
-// usual places. If none is found it says so and stops.
+// Which browser: the one in FIREFOX_BINARY if set, otherwise the first
+// found of Firefox, Firefox Developer Edition, Firefox Nightly and Zen in
+// the usual places. If none is found it says so and stops.
 import { spawn } from "node:child_process"
 import { existsSync, mkdirSync } from "node:fs"
 import { homedir } from "node:os"
@@ -26,19 +26,32 @@ const onWindows = process.platform === "win32"
 
 function findFirefox() {
   if (process.env.FIREFOX_BINARY) return process.env.FIREFOX_BINARY
-  const apps = ["Firefox", "Firefox Developer Edition", "Firefox Nightly"]
+  // [app name, program inside it]. Zen is a browser built on Firefox, so
+  // web-ext runs it the same way.
+  const apps = [
+    ["Firefox", "firefox"],
+    ["Firefox Developer Edition", "firefox"],
+    ["Firefox Nightly", "firefox"],
+    ["Zen", "zen"],
+    ["Zen Browser", "zen"]
+  ]
   const candidates =
     process.platform === "darwin"
       ? ["/Applications", join(homedir(), "Applications")].flatMap((dir) =>
-          apps.map((app) => join(dir, `${app}.app`, "Contents", "MacOS", "firefox"))
+          apps.map(([app, program]) => join(dir, `${app}.app`, "Contents", "MacOS", program))
         )
       : onWindows
-        ? ["Mozilla Firefox", "Firefox Developer Edition", "Firefox Nightly"].flatMap((app) =>
+        ? [
+            ["Mozilla Firefox", "firefox.exe"],
+            ["Firefox Developer Edition", "firefox.exe"],
+            ["Firefox Nightly", "firefox.exe"],
+            ["Zen Browser", "zen.exe"]
+          ].flatMap(([app, program]) =>
             [process.env.ProgramFiles, process.env["ProgramFiles(x86)"]]
               .filter(Boolean)
-              .map((dir) => join(dir, app, "firefox.exe"))
+              .map((dir) => join(dir, app, program))
           )
-        : ["/usr/bin/firefox", "/usr/bin/firefox-developer-edition", "/snap/bin/firefox"]
+        : ["/usr/bin/firefox", "/usr/bin/firefox-developer-edition", "/snap/bin/firefox", "/usr/bin/zen-browser", "/usr/bin/zen"]
   return candidates.find((path) => existsSync(path))
 }
 
@@ -47,8 +60,8 @@ if (!firefox || !existsSync(firefox)) {
   console.error(
     [
       "",
-      "Kollect couldn't find Firefox on this computer.",
-      "Install it from https://www.mozilla.org/firefox/ (Firefox Developer Edition works too),",
+      "Kollect couldn't find Firefox or Zen on this computer.",
+      "Install Firefox from https://www.mozilla.org/firefox/ or Zen from https://zen-browser.app,",
       "or, if it's somewhere unusual, say where and run this again:",
       "",
       '  FIREFOX_BINARY="/path/to/Firefox.app/Contents/MacOS/firefox" pnpm dev:firefox',
