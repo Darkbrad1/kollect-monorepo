@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
@@ -12,6 +12,16 @@ const flamePage = (number: number, slug = "omniscient-reader", title = "Omniscie
   slug,
   title,
   chapter: { number, label: `Chapter ${number}` },
+});
+
+// Adding a new manga looks it up on MangaDex in the background. Answer
+// "nothing found" straight away, so the test never waits on the real
+// MangaDex (its 61 lookups took too long on GitHub's machines).
+beforeEach(() => {
+  vi.stubGlobal("fetch", async () => Response.json({ data: [] }));
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 test("removing a user removes everything of theirs and nothing of anyone else's", async () => {
