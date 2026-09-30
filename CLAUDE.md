@@ -58,6 +58,7 @@ Ideas to come back to. Don't start them unless asked.
 
 - **A public page on the web app.** Visitors who aren't signed in see a list of every website users have added, with no duplicates.
 - **Your catalogue on the web app.** Signed in, you can see your whole library there too.
+- **Turn Kollect off on a website.** A toggle in the Kollect menu on reading pages to hide the Kollect button, or switch Kollect off entirely, on the website you're on. Details (which of the two, how to switch it back on, whether tracking stops too) to be settled when it's picked up.
 - **A proper way to remove users**, friendlier than the `admin:deleteUser` command, for example also removing their Clerk login.
 
 ## Decisions already made

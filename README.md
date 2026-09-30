@@ -313,7 +313,7 @@ Click a manga's title in its Details panel to give it your own title. Only you s
 ## What's not built yet
 
 
-Ideas saved for later are listed in CLAUDE.md under "For the future".
+Ideas saved for later, such as turning Kollect off on one website, are listed in CLAUDE.md under "For the future".
 
 
 - **Checking Asura Scans against the real site.** Its address (`asurascans.com/comics/<series>/chapter/<n>`) is checked, but the title still comes from the page's `og:title` tag, which hasn't been checked. It may also need selectors for the newest chapter and whether the series has ended.
