@@ -72,6 +72,13 @@ export function Library({
   const openCard = async (item: GridItem) => {
     try {
       const url = await once(api.library.cardLink, { userMangaId: item.userManga._id })
+      // Your current chapter, stopped partway: the reading page jumps
+      // back to where you were. The background opens the tab so it knows
+      // which tab should jump.
+      const percent = item.userManga.currentPercentage ?? 0
+      if (url && url === item.userManga.currentChapterUrl && percent > 0 && percent < 100 && typeof chrome !== "undefined" && chrome.runtime?.sendMessage) {
+        return void chrome.runtime.sendMessage({ type: "openAt", url, percent }).catch(() => openLink(url))
+      }
       if (url) return openLink(url)
       showNote("Kollect doesn't have a link for this manga yet. Open it from its website and press Add.", 4000)
     } catch (error) {

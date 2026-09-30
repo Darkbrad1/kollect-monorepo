@@ -602,17 +602,22 @@ describe("matching while you read", () => {
   test("an exact title in your library is tracked on another website, with a note the first time", async () => {
     const { me, entry } = await readingOnTwoSites();
     const first = await me.mutation(api.reading.recordProgress, { page: reaperPage(12), percentage: 100 });
-    expect(first).toEqual({ tracked: true, counted: true, matched: { title: "Solo Leveling" } });
+    expect(first).toEqual({
+      tracked: true,
+      counted: true,
+      matched: { title: "Solo Leveling" },
+      advanced: { number: 12, label: "Chapter 12" },
+    });
     expect((await entry())!.currentChapterNumber).toBe(12);
 
     const next = await me.mutation(api.reading.recordProgress, { page: reaperPage(13), percentage: 100 });
-    expect(next).toEqual({ tracked: true, counted: true });
+    expect(next).toEqual({ tracked: true, counted: true, advanced: { number: 13, label: "Chapter 13" } });
   });
 
   test("no note on the website you added it from", async () => {
     const { me, chapterPage } = await readingOnTwoSites();
     const result = await me.mutation(api.reading.recordProgress, { page: chapterPage(6), percentage: 100 });
-    expect(result).toEqual({ tracked: true, counted: true });
+    expect(result.matched).toBeUndefined();
   });
 
   test("each person gets the note the first time, even if someone else made the link", async () => {
@@ -667,6 +672,7 @@ describe("matching while you read", () => {
     expect(await me.mutation(api.reading.recordProgress, { page: reaperPage(13), percentage: 100 })).toEqual({
       tracked: true,
       counted: true,
+      advanced: { number: 13, label: "Chapter 13" },
     });
     const [original, mine] = await t.run(async (ctx) => await ctx.db.query("userMangas").collect());
     expect(original.currentChapterNumber).toBe(5);
@@ -831,5 +837,30 @@ describe("picking a MangaDex entry", () => {
     await t.mutation(internal.mangadex.setOwnTitle, { userMangaId: (await entry())!._id, title: "Na Honjaman Level Up" });
     expect((await entry())!.customTitle).toBe("Na Honjaman Level Up");
     expect((await t.run(async (ctx) => (await ctx.db.query("mangas").collect())[0])).title).toBe("Solo Leveling");
+  });
+});
+
+describe("where you left off", () => {
+  test("says when a chapter becomes your current one, and only then", async () => {
+    const { me, chapterPage } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(4) });
+    const under = await me.mutation(api.reading.recordProgress, { page: chapterPage(5), percentage: 50 });
+    expect(under.advanced).toBeUndefined();
+    const past = await me.mutation(api.reading.recordProgress, { page: chapterPage(5), percentage: 90 });
+    expect(past.advanced).toEqual({ number: 5, label: "Chapter 5" });
+    const more = await me.mutation(api.reading.recordProgress, { page: chapterPage(5), percentage: 95 });
+    expect(more.advanced).toBeUndefined();
+  });
+
+  test("the page gets your place when you stopped partway through your current chapter", async () => {
+    const { me, chapterPage, state } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    await me.mutation(api.reading.recordProgress, { page: chapterPage(5), percentage: 85 });
+    expect((await state(5)).resumeAt).toBe(85);
+    // Not on another chapter.
+    expect((await state(6)).resumeAt).toBeNull();
+    // Not once it's finished.
+    await me.mutation(api.reading.recordProgress, { page: chapterPage(5), percentage: 100 });
+    expect((await state(5)).resumeAt).toBeNull();
   });
 });

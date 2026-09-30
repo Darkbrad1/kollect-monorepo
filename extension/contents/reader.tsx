@@ -81,6 +81,29 @@ function scrolledPercent(): number {
   return room > 0 ? Math.min(100, (window.scrollY / room) * 100) : 100
 }
 
+/**
+ * Scrolls to a percentage of the page. Many reading websites load their
+ * images as you get near them, so the page keeps growing: the position
+ * is corrected a few times over the next few seconds, and it stops for
+ * good the moment you scroll yourself.
+ */
+function jumpTo(percent: number) {
+  const target = () => ((document.documentElement.scrollHeight - window.innerHeight) * percent) / 100
+  const events = ["wheel", "touchstart", "keydown", "mousedown"] as const
+  let timer = 0
+  const stop = () => {
+    window.clearInterval(timer)
+    events.forEach((e) => window.removeEventListener(e, stop, true))
+  }
+  events.forEach((e) => window.addEventListener(e, stop, { capture: true, passive: true }))
+  window.scrollTo({ top: target() })
+  const started = Date.now()
+  timer = window.setInterval(() => {
+    if (Date.now() - started > 8000) return stop()
+    if (Math.abs(window.scrollY - target()) > 20) window.scrollTo({ top: target() })
+  }, 400)
+}
+
 /** What this page is to Kollect. */
 type Reading =
   | { kind: "known"; page: PageInfo } // a manga page on a site Kollect knows
@@ -257,10 +280,12 @@ export default function Reader() {
             label: "Not this manga?",
             run: () => rejectRef.current(page)
           })
+        } else if (result.advanced) {
+          say(`Updated to chapter ${result.advanced.number}`)
         }
       })
       .catch(() => {})
-  }, [note])
+  }, [note, say])
 
   useEffect(() => {
     const onScroll = () => setPercent(scrolledPercent())
@@ -279,6 +304,37 @@ export default function Reader() {
   useEffect(() => {
     if (state?.supported) send()
   }, [state, send])
+
+  /* ── back to where you left off (once per page) ── */
+
+  const resumedFor = useRef<string | null>(null)
+  useEffect(() => {
+    if (reading.kind !== "known" || !reading.page.chapter || !state?.inLibrary) return
+    const url = reading.page.url
+    if (resumedFor.current === url) return
+    resumedFor.current = url
+    const resumeAt = state.resumeAt
+    ask({ type: "jump", url: location.href })
+      .catch(() => null)
+      .then((percent) => {
+        // Opened from a card in Kollect: jump straight there.
+        if (percent !== null) {
+          jumpTo(percent)
+          say(`Back to where you were (${Math.round(percent)}%)`)
+          return
+        }
+        // Opened some other way (history, a bookmark): offer to jump.
+        if (resumeAt !== null && scrolledPercent() < 5) {
+          note(`You stopped at ${Math.round(resumeAt)}% of this chapter.`, {
+            label: "Jump back",
+            run: () => {
+              setToast(null)
+              jumpTo(resumeAt)
+            }
+          })
+        }
+      })
+  }, [reading, state, say, note])
 
   /* ── adding ── */
 

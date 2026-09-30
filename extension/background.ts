@@ -62,11 +62,49 @@ async function handle(request: Request): Promise<unknown> {
     case "settings":
       await client.mutation(api.settings.updateSettings, request.patch)
       return
+    default:
+      return
   }
 }
 
-chrome.runtime.onMessage.addListener((request: Request, _sender, sendResponse) => {
-  handle(request).then(
+/* ── jumping back to where you left off ─────────────────────────── */
+
+/** Tabs the popup opened from a card, and where each should jump to.
+    Kept in memory: the reading page asks within a few seconds. */
+const pendingJumps = new Map<number, { url: string; percent: number }>()
+
+/** The part of an address that names the page, so a tracking "?ref=" or a
+    "#top" doesn't stop a match. */
+const samePage = (a: string, b: string) => {
+  try {
+    const x = new URL(a)
+    const y = new URL(b)
+    return x.origin === y.origin && x.pathname.replace(/\/$/, "") === y.pathname.replace(/\/$/, "")
+  } catch {
+    return false
+  }
+}
+
+async function handleLocal(request: Request, sender: chrome.runtime.MessageSender): Promise<unknown> {
+  if (request.type === "openAt") {
+    const tab = await chrome.tabs.create({ url: request.url })
+    if (tab.id !== undefined) pendingJumps.set(tab.id, { url: request.url, percent: request.percent })
+    return
+  }
+  if (request.type === "jump") {
+    const tabId = sender.tab?.id
+    const pending = tabId === undefined ? undefined : pendingJumps.get(tabId)
+    if (tabId === undefined || pending === undefined || !samePage(pending.url, request.url)) return null
+    pendingJumps.delete(tabId)
+    return pending.percent
+  }
+  return await handle(request)
+}
+
+chrome.tabs.onRemoved.addListener((tabId) => pendingJumps.delete(tabId))
+
+chrome.runtime.onMessage.addListener((request: Request, sender, sendResponse) => {
+  handleLocal(request, sender).then(
     (value) => sendResponse({ ok: true, value } satisfies Reply<unknown>),
     (error: unknown) => {
       console.warn(`[Kollect] ${request.type} failed:`, error)

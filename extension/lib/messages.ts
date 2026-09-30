@@ -40,6 +40,10 @@ export type Request =
   | { type: "progress"; page: PageInfo; percentage: number }
   /** "Not this manga?" on the note after a title match. */
   | { type: "reject"; page: PageInfo }
+  /** Popup → background: open a chapter in a new tab, then jump to where you left off. */
+  | { type: "openAt"; url: string; percent: number }
+  /** Reading page → background: was this tab opened to jump somewhere? */
+  | { type: "jump"; url: string }
   | { type: "settings"; patch: SettingsPatch }
 
 export type Response<R extends Request> = R extends { type: "sites" }
@@ -52,7 +56,9 @@ export type Response<R extends Request> = R extends { type: "sites" }
         ? boolean
         : R extends { type: "progress" }
           ? ProgressResult
-          : void
+          : R extends { type: "jump" }
+            ? number | null
+            : void
 
 /** Background → reading page: the right-click menu or the shortcut was
     used, so add the manga on this page. */

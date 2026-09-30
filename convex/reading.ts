@@ -308,6 +308,19 @@ export const pageState = query({
       progressKey: live?.progressKey ?? null,
       isFavourite: live !== null && live.tagIds.includes(favourite._id),
       currentChapter: live?.currentChapterNumber ?? null,
+      // How far you got, when this page is your current chapter on this
+      // website and you stopped partway (not at the top, not finished).
+      // The page offers to jump back there.
+      resumeAt:
+        live !== null &&
+        site !== null &&
+        page?.chapter !== undefined &&
+        live.currentChapterNumber === page.chapter.number &&
+        live.currentSiteId === site._id &&
+        (live.currentPercentage ?? 0) > 0 &&
+        (live.currentPercentage ?? 0) < 100
+          ? live.currentPercentage!
+          : null,
       settings: {
         scrollThreshold: settings.scrollThreshold,
         showProgressBar: settings.hasPercentageBar,
@@ -490,7 +503,13 @@ export const recordProgress = mutation({
   handler: async (
     ctx,
     { page, percentage },
-  ): Promise<{ tracked: boolean; counted?: boolean; matched?: { title: string } }> => {
+  ): Promise<{
+    tracked: boolean;
+    counted?: boolean;
+    matched?: { title: string };
+    // Set when this report made the chapter your current one.
+    advanced?: { number: number; label: string };
+  }> => {
     const user = await requireUser(ctx);
     const settings = await requireSettings(ctx, user._id);
     const site = await siteForDomain(ctx, page.domain, user._id);
@@ -580,7 +599,7 @@ export const recordProgress = mutation({
       lastReadAt: now,
     });
     await autoComplete(ctx, settings, manga, entry._id, chapter.number);
-    return { tracked: true, counted: true, ...matched };
+    return { tracked: true, counted: true, ...matched, advanced: { number: chapter.number, label: chapter.label } };
   },
 });
 
