@@ -1,7 +1,7 @@
 // pnpm dev:firefox — builds the extension for Firefox and opens Firefox
 // with it loaded, using web-ext (Mozilla's tool for running extensions).
 //
-// 1. Plasmo builds into build/firefox-mv2-dev and keeps rebuilding as you
+// 1. Plasmo builds into build/firefox-mv3-dev and keeps rebuilding as you
 //    edit.
 // 2. Once the first build is there, web-ext opens Firefox with Kollect
 //    installed, and reloads it whenever the build changes.
@@ -9,8 +9,9 @@
 // Firefox keeps its own profile in .firefox-profile, so your login (and
 // anything else you do in that Firefox) survives between runs.
 //
-// The Firefox build uses Manifest V2: Firefox grants website access when
-// the extension is installed, instead of asking on every site.
+// The Firefox build uses Manifest V3, like Chrome's. (The Manifest V2
+// build didn't load.) Recent Firefox and Zen grant the website access
+// Kollect asks for when it's installed.
 //
 // Which browser: the one in FIREFOX_BINARY if set, otherwise the first
 // found of Firefox, Firefox Developer Edition, Firefox Nightly and Zen in
@@ -20,7 +21,7 @@ import { existsSync, mkdirSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
-const BUILD = "build/firefox-mv2-dev"
+const BUILD = "build/firefox-mv3-dev"
 const PROFILE = ".firefox-profile"
 const onWindows = process.platform === "win32"
 
@@ -96,7 +97,7 @@ process.on("SIGTERM", () => stop(0))
 // bar never appear. Without it, web-ext still reloads the extension when
 // the build changes; refresh an open reading page to see the change.
 console.log(`Kollect: opening ${firefox}, with live reload in reading pages off.`)
-run("plasmo", ["dev", "--target=firefox-mv2", "--no-cs-reload"])
+run("plasmo", ["dev", "--target=firefox-mv3", "--no-cs-reload"])
 
 // Wait for the first build before opening Firefox.
 const waiting = setInterval(() => {

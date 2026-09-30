@@ -7,11 +7,11 @@
   "scripts": {
     "dev": "plasmo dev",
     "dev:firefox": "node scripts/dev-firefox.mjs",
-    "build:firefox": "plasmo build --target=firefox-mv2 && web-ext build --source-dir build/firefox-mv2-prod --artifacts-dir build --overwrite-dest",
+    "build:firefox": "plasmo build --target=firefox-mv3 && web-ext build --source-dir build/firefox-mv3-prod --artifacts-dir build --overwrite-dest",
     "build": "plasmo build",
     "package": "plasmo package",
     "icons": "node scripts/build-icons.mjs",
-    "sign:firefox": "web-ext sign --source-dir build/firefox-mv2-prod --artifacts-dir build --channel unlisted"
+    "sign:firefox": "web-ext sign --source-dir build/firefox-mv3-prod --artifacts-dir build --channel unlisted"
   },
   "dependencies": {
     "@clerk/chrome-extension": "2.5.21",

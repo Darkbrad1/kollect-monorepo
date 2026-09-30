@@ -85,7 +85,7 @@ You need Firefox installed. The command finds Firefox, Firefox Developer Edition
 
 This builds the extension for Firefox and opens Firefox with Kollect already loaded, using `web-ext` (Mozilla's tool for running extensions). It opens the sign-in page first: sign in there once. Firefox keeps its own profile in `extension/.firefox-profile`, so you stay signed in next time. When you change the code, the extension reloads by itself; refresh an open reading page to get the new version there. (Live reload inside reading pages is off for Firefox, because some websites' security rules block it and that stopped the Kollect button from loading.)
 
-The Firefox build uses Firefox's classic extension format (Manifest V2), so website access is granted once when Kollect is installed; Firefox doesn't ask on every site.
+The Firefox build uses Manifest V3, the same extension format as Chrome. (An older Manifest V2 build didn't load.) Recent Firefox and Zen grant Kollect's website access when it's installed. If a site doesn't show the Kollect button, check that Kollect is allowed on all websites in the browser's add-ons page.
 
 **Making a Firefox package:**
 
