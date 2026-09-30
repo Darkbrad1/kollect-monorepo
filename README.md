@@ -2,7 +2,7 @@
 
 A Chrome extension for keeping track of the manga, manhwa and manhua you're reading. It remembers which chapter you're on, sorts your series into pages (Reading, Planned, Paused, Completed and Favourites), lets you label them with your own tags, and syncs everything to your account.
 
-> **Status:** the backend (database and server functions) is in place and tested. The extension's screens are built on the `design` branch, following the Figma design. Reading tracking is built, with Asura Scans as the first site, but its page-reading rules haven't been checked against the live site yet. See [What's not built yet](#whats-not-built-yet).
+> **Status:** the backend (database and server functions) is in place and tested. The extension's screens are built, following the Figma design. Day-to-day work happens on `dev`; getting ready to publish happens on `Publish`. Reading tracking is built, with Asura Scans as the first site, but its page-reading rules haven't been checked against the live site yet. See [What's not built yet](#whats-not-built-yet).
 
 ## What's in this repo
 
