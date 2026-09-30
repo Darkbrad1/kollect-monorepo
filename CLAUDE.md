@@ -182,3 +182,4 @@ These were settled with me, so don't reopen them without asking.
   - Alternative titles saved: English, ones in the Latin alphabet (like "Na Honjaman Level Up"), and the original-language title.
   - Its latest chapter counts like one more website: the highest number wins.
   - Its series status is used when no reading website has given one; a website's status wins.
+  - **Only the pieces Kollect uses are saved** (cover, titles, status, latest chapter, MangaDex id); the rest of MangaDex's answer is thrown away. There's no table of raw answers. When a feature needs more (a synopsis, genres), save that piece properly then; `providers` already has empty `synopsis` and `score` fields.
