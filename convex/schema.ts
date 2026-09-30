@@ -191,7 +191,7 @@ export default defineSchema({
     // Denormalised highest chapter seen across this manga's
     // sources. The card grid renders "Ch. 219/456" per tile, and
     // a per-tile join through mangaSources or providers would be
-    // a query per card. Written by the weekly refresh cron.
+    // a query per card. Written by page visits and the weekly MangaDex job.
     latestChapter: v.optional(v.number()),
     latestChapterAt: v.optional(v.number()),
 
@@ -347,12 +347,4 @@ export default defineSchema({
   })
     .index("by_manga", ["mangaId"])
     .index("by_provider_externalId", ["name", "providerMangaId"]),
-
-  // Raw API responses live apart from providers: documents cap at
-  // 1 MB and you can't select columns, so an inline blob would
-  // ride along every provider query.
-  providerPayloads: defineTable({
-    providerId: v.id("providers"),
-    data: v.any(),
-  }).index("by_provider", ["providerId"]),
 });

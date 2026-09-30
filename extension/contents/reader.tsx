@@ -68,10 +68,11 @@ function pageSource(): PageSource {
 }
 
 /** Explains in the page's console (right-click → Inspect → Console)
-    what Kollect made of the page. Each message is logged once. */
+    what Kollect made of the page. Each message is logged once, and only
+    in the development build, so websites' consoles stay clean. */
 const logged = new Set<string>()
 function explain(message: string, ...details: unknown[]) {
-  if (logged.has(message)) return
+  if (process.env.NODE_ENV === "production" || logged.has(message)) return
   logged.add(message)
   console.info(`[Kollect] ${message}`, ...details)
 }

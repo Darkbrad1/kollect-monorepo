@@ -1,11 +1,11 @@
-# Runs on every push to dev or master and on every pull request, so a
+# Runs on every push to dev, master or Publish and on every pull request, so a
 # change that breaks the build or the tests shows up as a red cross on
 # GitHub instead of being found later.
 name: Checks
 
 on:
   push:
-    branches: [dev, master]
+    branches: [dev, master, Publish]
   pull_request:
 
 # A newer push to the same branch cancels the older run.

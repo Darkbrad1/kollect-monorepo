@@ -305,17 +305,13 @@ Click a manga's title in its Details panel to give it your own title. Only you s
 | When | What |
 |---|---|
 | Every Sunday, 03:00 UTC | Look every manga up on MangaDex again (cover, titles, latest chapter, status). |
-| Every Sunday, 04:00 UTC | Refresh each manga's latest chapter number. |
 | Every day, 05:00 UTC | Permanently delete trash that has passed its "Clear Trash Time". Skipped for anyone who has Auto Clear Trash turned off. |
 
 ## What's not built yet
 
-
-Ideas saved for later are listed in CLAUDE.md under "For the future".
-
+Ideas saved for later are listed in CLAUDE.md under "For the future". Getting ready to publish happens on the `Publish` branch; CLAUDE.md lists what's settled there.
 
 - **Checking Asura Scans against the real site.** Its address (`asurascans.com/comics/<series>/chapter/<n>`) is checked, but the title still comes from the page's `og:title` tag, which hasn't been checked. It may also need selectors for the newest chapter and whether the series has ended.
 - **More built-in reading websites.** Only Asura Scans so far; others can be added by users for themselves. There's no screen yet to see, rename or remove the websites you've added.
-- **The weekly latest-chapter job's lookup.** Page visits keep the latest chapter up to date, but the weekly job's own lookup is still a placeholder.
 - **Removing the preview page before release.** `tabs/preview.html` is handy while designing, but it ships inside the extension, so it should be taken out (or hidden) before the extension is published.
 - **Production builds.** `plasmo build` only reads `extension/.env.chrome`, which doesn't have the Clerk or Convex settings yet, so a production build won't work until they're added there.

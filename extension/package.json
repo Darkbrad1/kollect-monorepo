@@ -1,8 +1,8 @@
 {
   "name": "extension",
-  "displayName": "Extension",
-  "version": "0.0.1",
-  "description": "an extension made to keep track on manga/manwha/manhua that your currently reading ",
+  "displayName": "Kollect: Manga Tracker",
+  "version": "0.1.0",
+  "description": "Keep track of the manga, manhwa and manhua you're reading, on any website.",
   "author": "bradley andrews",
   "scripts": {
     "dev": "plasmo dev",

@@ -44,6 +44,16 @@ Skills live in `.claude/skills/<name>/SKILL.md`. The grilling skills come from [
   - Background in `.claude/skills/grill-with-docs/reference.md`. The `agents/openai.yaml` files are for other AI tools and don't affect Claude Code.
 - `unslop` (always on): the writing rules for everything Claude writes here (no filler, fancy words, em dashes and so on). "How to work with me" above makes it apply all the time; `/unslop` also runs it on a piece of text you give it.
 
+## Getting ready to publish
+
+Cleanup and production setup happen on the **`Publish`** branch (checked on GitHub like `dev` and `master`). Settled so far:
+
+- **Name:** "Kollect: Manga Tracker" (`displayName` in `extension/package.json`; development builds show "DEV | Kollect: Manga Tracker").
+- **Description:** "Keep track of the manga, manhwa and manhua you're reading, on any website."
+- **Version:** 0.1.0 for the first release, to show it's early; 1.0.0 once more reading websites are in.
+- The `[Kollect] …` notes in a website's console only show in development builds.
+- Still to do: a production Convex deployment, a production Clerk instance, the sign-in website deployed publicly, and `extension/.env.production` with those addresses.
+
 ## Extension code conventions
 
 - Import icons from `~lib/icons`, never from `@remixicon/react` directly (the full package is 3 MB). Then run `pnpm --filter extension icons`.
@@ -115,7 +125,7 @@ These were settled with me, so don't reopen them without asking.
   - A chapter becomes your current chapter once you've scrolled past your Scroll Threshold, not when you open it.
   - Going back to an earlier chapter saves it to your history but keeps your current (furthest) chapter. On your current chapter, the percentage goes up as you read and doesn't drop if you scroll back up.
   - **Auto Complete On Finish** moves a manga to Completed when you finish the newest chapter *and* the site says the series has ended.
-  - **The latest chapter** is updated whenever you visit a series or chapter page, plus the weekly job as a backup.
+  - **The latest chapter** is updated whenever you visit a series or chapter page, plus the weekly MangaDex job as a backup.
   - Adding from a page creates the manga in the shared manga list if it's new (unlike import, which never does).
 - **Which manga a page is** (settled in `docs/grilling/2026-09-29-adding-from-a-website.md`, built in `convex/reading.ts` and `convex/lib/matching.ts`):
   - By address first: your own link (`userSourceLinks`), then the shared one (`mangaSources`), unless you said "Not this manga?" to it.
@@ -160,7 +170,7 @@ These were settled with me, so don't reopen them without asking.
 - **Default theme:** base `#1C1C1C`, primary `#D9D9D9`, secondary `#5FA8B0`, font Manrope.
 - **Brand:** the logo green is `#0DCF87` (`brand` in Tailwind). It's used for the logo and the signed-out screen, and doesn't change with the theme. The logo is traced as an SVG in `components/Logo.tsx`; the extension icon (`extension/assets/icon.png`) is made from it.
 - **Signed-out screen:** a picture of the app on the left; the logo, "Kollect and save your favourite manga's", **Sign In** and **Sign Up** on the right. Both buttons open the sign-in website (`/sign-in` and `/sign-up`).
-- **The latest chapter** for each manga is stored on the manga itself, refreshed by page visits and a weekly job.
+- **The latest chapter** for each manga is stored on the manga itself, refreshed by page visits and the weekly MangaDex job.
 - **Details from MangaDex** (`convex/mangadex.ts`, `convex/lib/mangadex.ts`):
   - Each manga is looked up when it's first added to the shared list, and again by a weekly job (Sunday 03:00 UTC), which also covers older manga.
   - It's found by searching its title and taking the first result. The admin can relink one by hand with `mangadex:lookup` and a `mangadexId`.
