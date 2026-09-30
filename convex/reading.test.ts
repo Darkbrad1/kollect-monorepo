@@ -94,7 +94,9 @@ describe("adding from a reading page", () => {
       page: chapterPage(6, { slug: "solo-leveling-9f3a" }),
       percentage: 10,
     });
-    expect(result).toMatchObject({ tracked: true, matched: { title: "Solo Leveling" } });
+    // You already read it on this website (from Add), so no "matched" note.
+    expect(result).toMatchObject({ tracked: true });
+    expect(result.matched).toBeUndefined();
     const sources = await t.run(async (ctx) => await ctx.db.query("mangaSources").collect());
     expect(sources.map((s) => s.slug).sort()).toEqual(["solo-leveling", "solo-leveling-9f3a"]);
   });
@@ -113,11 +115,11 @@ describe("tracking", () => {
     const { me, chapterPage, entry } = await setup();
     await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
 
-    await me.mutation(api.reading.recordProgress, { page: chapterPage(5), percentage: 79 });
-    expect((await entry())!.currentChapterNumber).toBeUndefined();
+    await me.mutation(api.reading.recordProgress, { page: chapterPage(6), percentage: 79 });
+    expect((await entry())!.currentChapterNumber).toBe(5);
 
-    await me.mutation(api.reading.recordProgress, { page: chapterPage(5), percentage: 80 });
-    expect(await entry()).toMatchObject({ currentChapterNumber: 5, currentChapterLabel: "Chapter 5", currentPercentage: 80 });
+    await me.mutation(api.reading.recordProgress, { page: chapterPage(6), percentage: 80 });
+    expect(await entry()).toMatchObject({ currentChapterNumber: 6, currentChapterLabel: "Chapter 6", currentPercentage: 80 });
   });
 
   test("the threshold follows your setting", async () => {
@@ -710,7 +712,7 @@ describe("clicking a card", () => {
   test("without one, opens the series page on the website you added it from", async () => {
     const { t, me, chapterPage } = await setup();
     await addReaper(t);
-    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5, { chapter: undefined }) });
     // Also on another website, which you didn't add it from.
     const manga = await t.run(async (ctx) => (await ctx.db.query("mangas").collect())[0]);
     const reaper = await t.run(async (ctx) => (await ctx.db.query("sites").collect()).find((s) => s.domain === "reaperscans.com")!);
@@ -722,7 +724,7 @@ describe("clicking a card", () => {
 
   test("otherwise a built-in website it's on, and in the trash too", async () => {
     const { t, me, chapterPage } = await setup();
-    await me.mutation(api.reading.addFromPage, { page: chapterPage(5) });
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(5, { chapter: undefined }) });
     await t.run(async (ctx) => {
       for (const row of await ctx.db.query("userSourceLinks").collect()) await ctx.db.delete(row._id);
     });
@@ -862,5 +864,30 @@ describe("where you left off", () => {
     // Not once it's finished.
     await me.mutation(api.reading.recordProgress, { page: chapterPage(5), percentage: 100 });
     expect((await state(5)).resumeAt).toBeNull();
+  });
+});
+
+describe("starting a manga by adding it from a chapter page", () => {
+  test("a new manga starts at that chapter, at how far down it you are", async () => {
+    const { me, chapterPage, entry } = await setup();
+    const result = await me.mutation(api.reading.addFromPage, { page: chapterPage(12), percentage: 20 });
+    expect(result).toMatchObject({ action: "created", chapter: { result: "current", number: 12 } });
+    expect(await entry()).toMatchObject({ currentChapterNumber: 12, currentPercentage: 20 });
+  });
+
+  test("so does one you have but haven't started", async () => {
+    const { me, chapterPage, entry } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(1, { chapter: undefined }) });
+    expect((await entry())!.currentChapterNumber).toBeUndefined();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(12), percentage: 5 });
+    expect(await entry()).toMatchObject({ currentChapterNumber: 12, currentPercentage: 5 });
+  });
+
+  test("one you're already reading keeps its chapter", async () => {
+    const { me, chapterPage, entry } = await setup();
+    await me.mutation(api.reading.addFromPage, { page: chapterPage(40) });
+    const result = await me.mutation(api.reading.addFromPage, { page: chapterPage(12), percentage: 50 });
+    expect(result.chapter).toBeUndefined();
+    expect((await entry())!.currentChapterNumber).toBe(40);
   });
 });

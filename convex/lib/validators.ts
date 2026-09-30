@@ -71,6 +71,11 @@ export const filterRule = v.union(
     op: v.union(v.literal("has"), v.literal("doesNotHave")),
     tagId: v.id("userTags"),
   }),
+  // "Not started": no current chapter yet. "Started": has one.
+  v.object({
+    field: v.literal("progress"),
+    op: v.union(v.literal("notStarted"), v.literal("started")),
+  }),
 );
 
 /* ── sorts ──────────────────────────────────────────────────────

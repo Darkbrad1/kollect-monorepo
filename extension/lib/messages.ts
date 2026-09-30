@@ -35,6 +35,8 @@ export type Request =
       currentChapter?: { number: number; label: string }
       /** The answer to "Is it one of these?": a manga, or a new one. */
       choice?: Id<"mangas"> | "new"
+      /** How far down the page you are, for a chapter that counts on Add. */
+      percentage?: number
     }
   | { type: "learn"; domain: string; slugPattern: string }
   | { type: "progress"; page: PageInfo; percentage: number }

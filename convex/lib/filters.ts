@@ -17,7 +17,9 @@ import type { filterRule } from "./validators";
    - "between" includes both ends, and works whichever box holds the
      bigger number.
    - A manga with no value for a field (never read, latest chapter
-     not known yet) matches no filter on that field.
+     not known yet) matches no filter on that field, except Progress,
+     which is about exactly that: "Not started" means no current
+     chapter yet.
    ═══════════════════════════════════════════════════════════════ */
 
 export type FilterRule = Infer<typeof filterRule>;
@@ -92,6 +94,8 @@ export function matchesFilter(
       return rule.op === "has"
         ? manga.tagIds.includes(rule.tagId)
         : !manga.tagIds.includes(rule.tagId);
+    case "progress":
+      return rule.op === "started" ? manga.lastReadChapter !== undefined : manga.lastReadChapter === undefined;
   }
 }
 

@@ -205,6 +205,7 @@ Every manga is on exactly one of the four progress pages: Reading, Planned, Paus
 
 - **Only manga in your library are tracked.** Reading one you haven't added does nothing until you add it with the Kollect button, the right-click menu (Kollect → Add to Kollect / Favourite) or **Alt+Shift+K**. You can change the shortcut at `chrome://extensions/shortcuts`.
 - **A chapter counts once you scroll past your Scroll Threshold** (80% by default). Then it becomes your current chapter, and the one you left goes into your reading history.
+- **Adding from a chapter page starts you there.** If you have no place in the manga yet (new, not started, or back from the trash with no chapter), pressing Add on chapter 12 makes chapter 12 current straight away, at how far down it you are. The note says "Added to Reading. Now on chapter 12". A manga you're already reading isn't moved.
 - **Re-reading an earlier chapter** saves it to your history, but your current chapter stays at the furthest one.
 - **On your current chapter**, the percentage goes up as you read and doesn't drop if you scroll back up.
 - **Auto Complete On Finish** moves a manga to Completed when you finish the newest chapter and the site says the series has ended.
@@ -242,6 +243,7 @@ The filter matching lives in `convex/lib/filters.ts`. It's plain code with no da
 | Date added (in days ago) | greater than, less than, between |
 | Source | equal (the site you're reading it on now), contains (any site you've read it on, from your reading history) |
 | Tag | has, doesn't have |
+| Progress | Not started (no current chapter yet), Started |
 
 A page's filters and sort are saved on the page with `pages:setFilters` and `pages:setSort`. "Clear All" saves an empty list.
 

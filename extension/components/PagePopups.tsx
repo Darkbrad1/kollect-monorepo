@@ -136,7 +136,8 @@ const FIELD_OPTIONS: Option<Field>[] = [
   { value: "latestChapter", label: "Latest Chapter", icon: RiBookOpenLine },
   { value: "dateAdded", label: "Date Added", icon: RiCalendarLine },
   { value: "source", label: "Source", icon: RiLinksLine },
-  { value: "tag", label: "Tag", icon: RiPriceTag3Line }
+  { value: "tag", label: "Tag", icon: RiPriceTag3Line },
+  { value: "progress", label: "Progress", icon: RiBookOpenLine }
 ]
 
 const OPS: Record<Field, Option<Op>[]> = {
@@ -159,6 +160,10 @@ const OPS: Record<Field, Option<Op>[]> = {
   tag: [
     { value: "has", label: "Has", icon: RiFilter3Line },
     { value: "doesNotHave", label: "Doesn't Have", icon: RiFilter3Line }
+  ],
+  progress: [
+    { value: "notStarted", label: "Not Started", icon: RiFilter3Line },
+    { value: "started", label: "Started", icon: RiFilter3Line }
   ]
 }
 OPS.latestChapter = OPS.lastReadChapter
@@ -180,6 +185,8 @@ function defaultRule(
       return sites[0] ? { field, op: "equal", siteId: sites[0]._id } : null
     case "tag":
       return tags[0] ? { field, op: "has", tagId: tags[0]._id } : null
+    case "progress":
+      return { field, op: "notStarted" }
   }
 }
 
@@ -187,6 +194,7 @@ function defaultRule(
 function withOp(rule: FilterRule, op: Op): FilterRule {
   if (rule.field === "source") return { ...rule, op: op as "equal" | "contains" }
   if (rule.field === "tag") return { ...rule, op: op as "has" | "doesNotHave" }
+  if (rule.field === "progress") return { ...rule, op: op as "notStarted" | "started" }
   const single = "value" in rule ? rule.value : rule.min
   const field = rule.field
   if (op === "between") {
@@ -257,7 +265,7 @@ export function FilterPopup({ page }: { page: Doc<"userPages"> }) {
                 options={tags.map((t) => ({ value: t._id as string, label: t.name }))}
                 onChange={(tagId) => update(i, { ...rule, tagId: tagId as Id<"userTags"> })}
               />
-            ) : rule.op === "between" ? (
+            ) : rule.field === "progress" ? null : rule.op === "between" ? (
               <>
                 <NumberBox label="From" value={rule.min} onChange={(min) => update(i, { ...rule, min })} />
                 <span className="text-2xs text-muted">and</span>

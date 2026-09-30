@@ -45,7 +45,8 @@ async function handle(request: Request): Promise<unknown> {
         favourite: request.favourite,
         newSite: request.newSite,
         currentChapter: request.currentChapter,
-        choice: request.choice
+        choice: request.choice,
+        percentage: request.percentage
       })
     case "learn":
       return await client.mutation(api.reading.learnSitePattern, {

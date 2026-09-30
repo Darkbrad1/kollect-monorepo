@@ -91,6 +91,7 @@ These were settled with me, so don't reopen them without asking.
   - **Date added:** greater than, less than, between, counted in days ago. "Greater than 7" means added more than 7 days ago.
   - **Source:** equal means the site you're reading it on now. Contains means any site you've read it on before, from your reading history (the current site counts too).
   - **Tag:** has, doesn't have.
+  - **Progress:** Not started (no current chapter yet) or Started.
   - "Between" includes both ends. A manga with no value for a field (for example, never read) doesn't match filters on that field.
 - **Tags:**
   - Users put their own tags on manga instead of making custom pages, so nothing can clash with the built-in pages. Tags can be used in filters.
@@ -112,7 +113,7 @@ These were settled with me, so don't reopen them without asking.
 - **Reading tracking** works whether or not the popup is open. The reading page (content script) asks the background worker, which holds the login and talks to Convex. Nothing goes through the popup.
 - **Tracking rules** (`convex/reading.ts`):
   - Only manga in your library are tracked. Reading one you haven't added does nothing until you add it (Kollect button, right-click menu, or Alt+Shift+K).
-  - A chapter becomes your current chapter once you've scrolled past your Scroll Threshold, not when you open it.
+  - A chapter becomes your current chapter once you've scrolled past your Scroll Threshold, not when you open it. The exception is starting a manga (below).
   - Going back to an earlier chapter saves it to your history but keeps your current (furthest) chapter. On your current chapter, the percentage goes up as you read and doesn't drop if you scroll back up.
   - **Auto Complete On Finish** moves a manga to Completed when you finish the newest chapter *and* the site says the series has ended.
   - **The latest chapter** is updated whenever you visit a series or chapter page, plus the weekly job as a backup.
@@ -125,7 +126,7 @@ These were settled with me, so don't reopen them without asking.
   - **Private manga** (only on own websites) are hidden only from other people's Add Manga search. They still show in "Is it one of these?". When one goes public, its title stays the main title and the built-in website's title becomes an alternative title.
   - **Title typos** in the shared list are fixed by the admin from the Convex dashboard.
 - **Your own title** (`userMangas.customTitle`): everyone can give a manga their own title, which only they see. Click the title in the Details panel to type it: Enter or clicking away saves, Escape cancels, and an empty box (or the shared title typed back) goes back to the shared title. It shows everywhere in your library: cards, Details, Copy Title, library search (which also still matches the shared and alternative titles), sorting by Title, and export and import (`ownTitle`; import never replaces one you already have). Add Manga and "Is it one of these?" show the shared title, because they show the shared list. The latest chapter stays shared; only your current chapter is yours.
-  - **On a known website**, Add still waits for the Scroll Threshold before a chapter becomes current.
+  - **Starting a manga on Add:** pressing Add on a chapter page makes that chapter current straight away, at how far down it you've scrolled, when you have no place in the series yet: the manga is new to your library, not started, or back from the trash with no chapter. The note says so ("Added to Reading. Now on chapter 12"). A manga you're already reading keeps the Scroll Threshold rule, so Add on an older chapter never moves you back.
   - **A typed chapter** for a manga you already have follows the import rule (bigger is current, smaller goes to history), and the note after Add says what happened ("Already on Reading. Now on chapter 55").
   - **Add on a page that isn't a manga**, on a built-in website or an own website that has learned its chapter addresses, says "This isn't a manga page" with **Add anyway**, which opens the check box. Other websites open the check box straight away.
   - Notes with a button ("Not this manga?", "Add anyway") stay until you use the button or close them.

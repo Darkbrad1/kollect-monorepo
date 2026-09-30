@@ -354,10 +354,12 @@ export default function Reader() {
         if (reloadSites) await loadSites()
         await refresh()
         const where = stateRef.current?.progressKey ?? request.progressKey ?? "reading"
-        const moved = result.action === "noop" && request.progressKey !== undefined && !result.chapter
+        const moved = result.action === "noop" && request.progressKey !== undefined
+        // "Moved to Planned", plus what happened to the chapter, worded as in addedMessage.
+        const chapterNote = addedMessage(result.action, where, false, result.chapter).split(". ").slice(1).join(". ")
         say(
           moved
-            ? `Moved to ${label(request.progressKey!)}`
+            ? `Moved to ${label(request.progressKey!)}${chapterNote ? `. ${chapterNote}` : ""}`
             : addedMessage(result.action, where, request.favourite, result.chapter)
         )
         send(true)
@@ -420,7 +422,16 @@ export default function Reader() {
         return
       }
       const known = current.kind === "known" ? current.page : current.guess.page
-      await runAdd({ type: "add", page: known, progressKey: opts.progressKey, favourite: opts.favourite }, false)
+      await runAdd(
+        {
+          type: "add",
+          page: known,
+          progressKey: opts.progressKey,
+          favourite: opts.favourite,
+          percentage: scrolledPercent()
+        },
+        false
+      )
     },
     [note, openCheckBox, runAdd]
   )

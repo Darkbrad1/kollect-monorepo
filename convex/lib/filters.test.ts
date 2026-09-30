@@ -117,3 +117,17 @@ describe("several filters", () => {
     expect(matchesAllFilters(manga(), [], NOW)).toBe(true);
   });
 });
+
+describe("progress filters", () => {
+  test("not started: no current chapter yet", () => {
+    const rule = { field: "progress", op: "notStarted" } as const;
+    expect(matchesFilter(manga({ lastReadChapter: undefined }), rule, NOW)).toBe(true);
+    expect(matchesFilter(manga(), rule, NOW)).toBe(false);
+  });
+
+  test("started: has a current chapter", () => {
+    const rule = { field: "progress", op: "started" } as const;
+    expect(matchesFilter(manga(), rule, NOW)).toBe(true);
+    expect(matchesFilter(manga({ lastReadChapter: undefined }), rule, NOW)).toBe(false);
+  });
+});

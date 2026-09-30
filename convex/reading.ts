@@ -23,7 +23,9 @@ import { mangaStatus, progressKey } from "./lib/validators";
    - Only manga in your library are tracked. Reading something you
      haven't added does nothing until you add it.
    - A chapter becomes your current one once you've scrolled past your
-     Scroll Threshold, not when you open it.
+     Scroll Threshold, not when you open it. Except when you add a manga
+     from a chapter page and have no place in it yet: then that chapter
+     counts straight away (see addFromPage).
    - Going back to an earlier chapter saves it to your history but
      keeps your current (furthest) chapter.
    - Auto Complete On Finish moves a manga to Completed when you finish
@@ -391,8 +393,11 @@ export const addFromPage = mutation({
     ),
     currentChapter: v.optional(v.object({ number: v.number(), label: v.string() })),
     choice: v.optional(v.union(v.literal("new"), v.id("mangas"))),
+    // How far down the page you are (0–100) when you press Add on a
+    // chapter page. See "starting here" below.
+    percentage: v.optional(v.number()),
   },
-  handler: async (ctx, { page, progressKey: target, favourite, newSite, currentChapter, choice }) => {
+  handler: async (ctx, { page, progressKey: target, favourite, newSite, currentChapter, choice, percentage }) => {
     const user = await requireUser(ctx);
     let site = await siteForDomain(ctx, page.domain, user._id);
     if (site === null && newSite !== undefined) site = await addSite(ctx, user._id, page, newSite);
@@ -433,19 +438,31 @@ export const addFromPage = mutation({
       await addTagTo(ctx, (await ctx.db.get(userMangaId))!, tag._id);
     }
 
-    const chapter =
-      currentChapter === undefined ? undefined : await typedChapter(ctx, userMangaId, site, page, currentChapter);
+    let chapter: Awaited<ReturnType<typeof typedChapter>> | undefined;
+    if (currentChapter !== undefined) {
+      chapter = await typedChapter(ctx, userMangaId, site, page, currentChapter);
+    } else if (page.chapter !== undefined && (await ctx.db.get(userMangaId))!.currentChapterNumber === undefined) {
+      // Starting here: adding from a chapter page when you have no place
+      // in the series yet (new, not started, or back from the trash with
+      // no chapter) makes this chapter current straight away, at how far
+      // down it you are. A manga you're already reading keeps the Scroll
+      // Threshold rule.
+      const percent = Math.min(100, Math.max(0, percentage ?? 0));
+      chapter = await typedChapter(ctx, userMangaId, site, page, page.chapter, percent);
+    }
     return { action, userMangaId, chapter };
   },
 });
 
-/** The chapter typed in the check box, by the import rule. */
+/** The chapter typed in the check box, by the import rule, or the page's
+    chapter when you start a manga by adding it from a chapter page. */
 async function typedChapter(
   ctx: MutationCtx,
   userMangaId: Id<"userMangas">,
   site: Doc<"sites">,
   page: PageInfo,
   typed: { number: number; label: string },
+  percentage = 0,
 ): Promise<{ result: "current" | "history" | "same"; number: number }> {
   const entry = (await ctx.db.get(userMangaId))!;
   const current = entry.currentChapterNumber;
@@ -481,7 +498,7 @@ async function typedChapter(
     currentChapterLabel: typed.label,
     currentChapterUrl: page.url,
     currentSiteId: site._id,
-    currentPercentage: 0,
+    currentPercentage: percentage,
     readSiteIds: sites.includes(site._id) ? sites : [...sites, site._id],
     lastReadAt: Date.now(),
   });
