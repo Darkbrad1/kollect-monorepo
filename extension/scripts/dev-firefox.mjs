@@ -95,6 +95,7 @@ process.on("SIGTERM", () => stop(0))
 // the error stops the whole script, so the Kollect button and progress
 // bar never appear. Without it, web-ext still reloads the extension when
 // the build changes; refresh an open reading page to see the change.
+console.log(`Kollect: opening ${firefox}, with live reload in reading pages off.`)
 run("plasmo", ["dev", "--target=firefox-mv2", "--no-cs-reload"])
 
 // Wait for the first build before opening Firefox.
