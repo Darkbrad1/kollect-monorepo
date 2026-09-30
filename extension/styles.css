@@ -1,4 +1,62 @@
-/* extension/style.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Default colours, the same as lib/theme.ts's FALLBACK_THEME, so the
+   popup never flashes white before the user's theme has loaded. App
+   overrides these with the user's own theme. */
+:root {
+  --k-base: 28 28 28;
+  --k-surface: 39 39 39;
+  --k-raised: 47 47 47;
+  --k-hover: 58 58 58;
+  --k-line: 51 51 51;
+  --k-fg: 240 240 240;
+  --k-muted: 145 145 145;
+  --k-primary: 217 217 217;
+  --k-on-primary: 20 20 20;
+  --k-secondary: 95 168 176;
+  --k-on-secondary: 240 240 240;
+  --k-font: "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* The popup is a fixed 800 × 600 window. */
+html,
+body {
+  width: 800px;
+  height: 600px;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: rgb(var(--k-base));
+  color: rgb(var(--k-fg));
+  font-family: var(--k-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thin scrollbars that sit on the dark background. */
+.k-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--k-hover)) transparent;
+}
+
+/* Number inputs without the browser's spinner arrows. */
+.k-number::-webkit-outer-spin-button,
+.k-number::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.k-number {
+  -moz-appearance: textfield;
+}
+
+@keyframes k-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+.k-skeleton {
+  animation: k-pulse 1.4s ease-in-out infinite;
+}
