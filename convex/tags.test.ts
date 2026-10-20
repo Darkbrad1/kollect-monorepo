@@ -345,6 +345,31 @@ describe("switching the reading source", () => {
     expect(after!.readSiteIds!.sort()).toEqual([asura, flame].sort());
   });
 
+  test("the same chapter on two sites keeps each site's link", async () => {
+    // You finished chapter 40 on Flame, then opened chapter 40 on
+    // Asurascans too. Switching away and back must give Asurascans' link.
+    const { t, me, row, asura, flame } = await withSites();
+    await t.run((ctx) =>
+      ctx.db.patch(row, {
+        currentChapterNumber: 40,
+        currentChapterLabel: "Ch. 40",
+        currentChapterUrl: "https://asurascans.com/solo/40",
+      }),
+    );
+    await me.mutation(api.library.switchSource, { userMangaId: row, siteId: flame });
+    expect(await me.query(api.library.cardLink, { userMangaId: row })).toBe("https://flamecomics.xyz/solo/40");
+
+    await me.mutation(api.library.switchSource, { userMangaId: row, siteId: asura });
+    const after = await t.run((ctx) => ctx.db.get(row));
+    expect(after!.currentSiteId).toBe(asura);
+    expect(after!.currentChapterNumber).toBe(40);
+    expect(await me.query(api.library.cardLink, { userMangaId: row })).toBe("https://asurascans.com/solo/40");
+
+    // The chapter dropdown still lists chapter 40 once.
+    const history = await me.query(api.library.chapterHistory, { userMangaId: row });
+    expect(history.map((h) => h.number)).toEqual([40, 39]);
+  });
+
   test("you can't switch to a site you've never read it on", async () => {
     const { me, row, reaper } = await withSites();
     await expect(

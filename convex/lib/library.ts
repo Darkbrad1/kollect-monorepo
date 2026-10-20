@@ -65,13 +65,15 @@ export async function recordHistory(
   userMangaId: Id<"userMangas">,
   entry: HistoryEntry,
 ): Promise<boolean> {
-  const existing = await ctx.db
+  // One row per chapter per site: the same chapter read on two sites
+  // keeps both links, so switching sites opens the right one.
+  const sameNumber = await ctx.db
     .query("readChapters")
     .withIndex("by_userManga_number", (q) =>
       q.eq("userMangaId", userMangaId).eq("number", entry.number),
     )
-    .first();
-  if (existing !== null) return false;
+    .collect();
+  if (sameNumber.some((row) => row.siteId === entry.siteId)) return false;
 
   await ctx.db.insert("readChapters", {
     userMangaId,

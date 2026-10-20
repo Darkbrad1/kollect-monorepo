@@ -55,13 +55,27 @@ export const chapterHistory = query({
   args: { userMangaId: v.id("userMangas") },
   handler: async (ctx, { userMangaId }) => {
     const user = await requireUser(ctx);
-    await requireOwnedManga(ctx, user._id, userMangaId);
+    const userManga = await requireOwnedManga(ctx, user._id, userMangaId);
 
-    return await ctx.db
+    const rows = await ctx.db
       .query("readChapters")
       .withIndex("by_userManga_number", (q) => q.eq("userMangaId", userMangaId))
       .order("desc")
       .collect();
+
+    // A chapter read on several sites is listed once: the one on the
+    // site you're reading on now, otherwise the one you read last.
+    const onCurrent = (row: Doc<"readChapters">) => row.siteId === userManga.currentSiteId;
+    const byNumber = new Map<number, Doc<"readChapters">>();
+    for (const row of rows) {
+      const kept = byNumber.get(row.number);
+      const better =
+        kept === undefined ||
+        (onCurrent(row) && !onCurrent(kept)) ||
+        (onCurrent(row) === onCurrent(kept) && row.readAt > kept.readAt);
+      if (better) byNumber.set(row.number, row);
+    }
+    return [...byNumber.values()];
   },
 });
 
@@ -217,8 +231,10 @@ export const switchSource = mutation({
     const target = await furthestOnSite(ctx, userMangaId, siteId);
     if (target === null) {
       // A site in your list always has history behind it, but if it
-      // doesn't, switch the site and leave the chapter alone.
-      await ctx.db.patch(userMangaId, { currentSiteId: siteId, readSiteIds });
+      // doesn't, switch the site and keep the chapter number. The old
+      // link pointed at the site you left, so it goes; the card then
+      // opens the series page on this site instead.
+      await ctx.db.patch(userMangaId, { currentSiteId: siteId, currentChapterUrl: undefined, readSiteIds });
       return;
     }
 

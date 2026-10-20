@@ -227,8 +227,8 @@ The Search box in the top bar searches your **whole library** (`pages:searchLibr
 
 The details popup has two dropdowns:
 
-- **Site:** lists only the sites you've read that manga on, with the furthest chapter you reached on each (`library:sourcesFor`). Picking one switches you back to that site, at the furthest chapter you reached there (`library:switchSource`). Re-reading an earlier chapter doesn't move that point back. The chapter you're leaving is saved to your history first, so switching back returns you to it.
-- **Chapter:** your reading history (`library:chapterHistory`). Picking a chapter makes it current again (`library:switchToHistoryChapter`), and the chapter you left is kept in history.
+- **Site:** lists only the sites you've read that manga on, with the furthest chapter you reached on each (`library:sourcesFor`). Picking one switches you back to that site, at the furthest chapter you reached there (`library:switchSource`). Re-reading an earlier chapter doesn't move that point back. The chapter you're leaving is saved to your history first, so switching back returns you to it. History keeps one entry per chapter per site, so chapter 40 read on two sites keeps both links, and the card opens the one on the site you picked.
+- **Chapter:** your reading history (`library:chapterHistory`). A chapter read on several sites shows once: the one on the site you're on now, otherwise the one you read last. Picking a chapter makes it current again (`library:switchToHistoryChapter`), and the chapter you left is kept in history.
 
 ### Sorting and filtering
 
