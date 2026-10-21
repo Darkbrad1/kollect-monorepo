@@ -30,4 +30,7 @@ dist/
 .plasmo
 
 # typescript
-.tsbuildinfo
+*.tsbuildinfo
+
+# Firefox profile used by pnpm dev:firefox (web-ext)
+/.firefox-profile

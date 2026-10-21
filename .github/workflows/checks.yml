@@ -1,0 +1,50 @@
+# Runs on every push to dev or master and on every pull request, so a
+# change that breaks the build or the tests shows up as a red cross on
+# GitHub instead of being found later.
+name: Checks
+
+on:
+  push:
+    branches: [dev, master]
+  pull_request:
+
+# A newer push to the same branch cancels the older run.
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # --ignore-scripts skips building native add-ons the checks below
+      # don't use, which keeps installs quick and reliable.
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Typecheck backend
+        run: pnpm --filter app exec tsc -p ../convex/tsconfig.json
+
+      - name: Typecheck web app
+        run: pnpm --filter app exec tsc -b
+
+      - name: Typecheck extension
+        run: pnpm --filter extension exec tsc --noEmit -p tsconfig.json
+
+      - name: Lint web app
+        run: pnpm --filter app lint
+
+      - name: Backend tests
+        run: pnpm test

@@ -8,13 +8,77 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
+import type * as catalogue from "../catalogue.js";
+import type * as crons from "../crons.js";
+import type * as lib_auth from "../lib/auth.js";
+import type * as lib_catalogue from "../lib/catalogue.js";
+import type * as lib_constants from "../lib/constants.js";
+import type * as lib_filters from "../lib/filters.js";
+import type * as lib_library from "../lib/library.js";
+import type * as lib_mangadex from "../lib/mangadex.js";
+import type * as lib_matching from "../lib/matching.js";
+import type * as lib_pageMatch from "../lib/pageMatch.js";
+import type * as lib_pageRead from "../lib/pageRead.js";
+import type * as lib_pages from "../lib/pages.js";
+import type * as lib_settings from "../lib/settings.js";
+import type * as lib_siteConfigs from "../lib/siteConfigs.js";
+import type * as lib_sites from "../lib/sites.js";
+import type * as lib_sort from "../lib/sort.js";
+import type * as lib_tags from "../lib/tags.js";
+import type * as lib_titles from "../lib/titles.js";
+import type * as lib_trash from "../lib/trash.js";
+import type * as lib_validators from "../lib/validators.js";
+import type * as library from "../library.js";
+import type * as mangadex from "../mangadex.js";
+import type * as pages from "../pages.js";
+import type * as reading from "../reading.js";
+import type * as settings from "../settings.js";
+import type * as sites from "../sites.js";
+import type * as tags from "../tags.js";
+import type * as transfer from "../transfer.js";
+import type * as trash from "../trash.js";
+import type * as users from "../users.js";
+
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
 } from "convex/server";
 
-declare const fullApi: ApiFromModules<{}>;
+declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
+  catalogue: typeof catalogue;
+  crons: typeof crons;
+  "lib/auth": typeof lib_auth;
+  "lib/catalogue": typeof lib_catalogue;
+  "lib/constants": typeof lib_constants;
+  "lib/filters": typeof lib_filters;
+  "lib/library": typeof lib_library;
+  "lib/mangadex": typeof lib_mangadex;
+  "lib/matching": typeof lib_matching;
+  "lib/pageMatch": typeof lib_pageMatch;
+  "lib/pageRead": typeof lib_pageRead;
+  "lib/pages": typeof lib_pages;
+  "lib/settings": typeof lib_settings;
+  "lib/siteConfigs": typeof lib_siteConfigs;
+  "lib/sites": typeof lib_sites;
+  "lib/sort": typeof lib_sort;
+  "lib/tags": typeof lib_tags;
+  "lib/titles": typeof lib_titles;
+  "lib/trash": typeof lib_trash;
+  "lib/validators": typeof lib_validators;
+  library: typeof library;
+  mangadex: typeof mangadex;
+  pages: typeof pages;
+  reading: typeof reading;
+  settings: typeof settings;
+  sites: typeof sites;
+  tags: typeof tags;
+  transfer: typeof transfer;
+  trash: typeof trash;
+  users: typeof users;
+}>;
 
 /**
  * A utility for referencing Convex functions in your app's public API.
