@@ -320,4 +320,5 @@ Ideas saved for later, such as turning Kollect off on one website, are listed in
 - **More built-in reading websites.** Only Asura Scans so far; others can be added by users for themselves. There's no screen yet to see, rename or remove the websites you've added.
 - **The weekly latest-chapter job's lookup.** Page visits keep the latest chapter up to date, but the weekly job's own lookup is still a placeholder.
 - **Removing the preview page before release.** `tabs/preview.html` is handy while designing, but it ships inside the extension, so it should be taken out (or hidden) before the extension is published.
+- **Phones.** Chrome on phones doesn't run extensions. The options (Firefox for Android, Safari, a Kollect Android app) are written up in `docs/mobile.md`.
 - **Production builds.** `plasmo build` only reads `extension/.env.chrome`, which doesn't have the Clerk or Convex settings yet, so a production build won't work until they're added there.

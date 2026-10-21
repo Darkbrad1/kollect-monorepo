@@ -59,6 +59,7 @@ Ideas to come back to. Don't start them unless asked.
 - **A public page on the web app.** Visitors who aren't signed in see a list of every website users have added, with no duplicates.
 - **Your catalogue on the web app.** Signed in, you can see your whole library there too.
 - **Turn Kollect off on a website.** A toggle in the Kollect menu on reading pages to hide the Kollect button, or switch Kollect off entirely, on the website you're on. Details (which of the two, how to switch it back on, whether tracking stops too) to be settled when it's picked up.
+- **Kollect on phones.** Firefox for Android, Safari, a Kollect Android app with a built-in browser and ad blocking, and the open questions are all in `docs/mobile.md`. Read it before answering whenever phones, mobile, an Android or iPhone app, or that ad blocking come up.
 - **A proper way to remove users**, friendlier than the `admin:deleteUser` command, for example also removing their Clerk login.
 
 ## Decisions already made
